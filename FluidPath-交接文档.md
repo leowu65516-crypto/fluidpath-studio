@@ -1,7 +1,7 @@
 # FluidPath Studio & CAYE 全自动咖啡机 · 完全参考手册
 
 > 本文档是理解 **FluidPath Studio 应用** 与 **CAYE 咖啡机图纸（`/Users/leo/Desktop/BCMTS.json`）** 的第一参考：应用架构、技术栈、流体仿真引擎原理、咖啡机整机原理（做咖啡 / 热牛奶 / 蒸汽 / 热水 / 清洗 / 排废），以及操作与维护纪律。
-> 最后更新：2026-08-17
+> 最后更新：2026-08-18
 
 ---
 
@@ -10,9 +10,9 @@
 **FluidPath Studio** 是一个液路动态示意图编辑器（教学/演示用途），用于绘制全自动咖啡机的水路、奶路、蒸汽、排废系统，并**实时仿真"停流 / 流动"状态**：改阀位、开泵关泵，画面上的管路立即对应变化。
 
 - 项目路径：`/Users/leo/Documents/测试`（注意：**中文路径**）
-- **非 git 仓库** → 任何修改前必须手工备份
+- **已 git 初始化**（2026-08-18 起，每个版本一个 commit，历史可回退）；改前仍建议 `cp` 备份到 `/tmp`
 - 技术栈：Electron（主进程 CJS）+ React 18 + TypeScript（strict）+ Vite 5 + Vitest（jsdom）
-- 打包：electron-builder（未签名，arm64）；产物 `release/FluidPath Studio-1.0.0-arm64.dmg`
+- 打包：electron-builder（未签名，arm64）；产物 `release/FluidPath Studio-1.6.0-arm64.dmg`
 - Node 路径：`/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin`（**每条命令都要先 `export PATH=.../bin:$PATH`**）
 
 ### 关键文件地图
@@ -30,8 +30,11 @@
 | `src/diagnostics.ts` | 诊断报告的只读派生视图（状态栏徽章计数，只统计结构问题） |
 | `src/bom.ts` | BOM/元件清单导出（Markdown） |
 | `src/fluidRules.ts` | 流体类型规则检查（如奶路混入蒸汽） |
-| `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、MiniMap、Library 等 19 个组件 |
-| `src/__tests__/` | 27 个测试文件 / 206 用例，见 §6 |
+| `src/presets.ts` | **预设状态原语**（PresetState + 快照/应用/差异），演示步骤与工况快照共用 |
+| `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
+| `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
+| `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
+| `src/__tests__/` | 34 个测试文件 / 234 用例，见 §6 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
 | `BCTMS.json`（项目根） | 另一台机型 BCTMS 快照（62/70，供 flow-isolation 测试） |
@@ -55,12 +58,12 @@
 
 - `Diagram { nodes: DiagramNode[]; pipes: Pipe[]; settings }`
 - `DiagramNode`：`id / type / label / x / y / w / h / ports / valveState / valvePath / pumpOn / disabled / fault / forceFlow...`
-  - `NodeType` 全集约 46 种：`tank`、`hotWaterBoiler`、`steamBoiler`、`pump`、`milkPump`、`solenoid2`（两通电磁阀）、`solenoid3`（三通电磁阀）、`checkValve`（单向阀）、`safetyValve`、`opv`、`metalFilter`、`tee`（三通/接头）、`flowMeter`、`pressureGauge`、`inlet`、`outlet`、`coffeeOutlet`、`milkOutlet`、`hotWaterOutlet`、`hotWaterWand`、`steamWand`、`groupHead`、`heatExchanger`、`powderMixer`、`shape`（自定义图形：冲泡缸、排废接口等）……
+  - `NodeType` 全集约 46 种：`tank`、`hotWaterBoiler`、`steamBoiler`、`pump`、`milkPump`、`solenoid2`（两通电磁阀）、`solenoid3`（三通电磁阀）、`checkValve`（单向阀）、`safetyValve`、`opv`、`metalFilter`、`tee`（三通/接头）、`flowMeter`、`pressureGauge`、`inlet`、`outlet`、`coffeeOutlet`、`milkOutlet`、`hotWaterOutlet`、`hotWaterWand`、`steamWand`、`groupHead`、`brewChamber`（冲泡缸：下进水上出咖啡）、`cross`（十字四通）、`heatExchanger`、`powderMixer`、`shape`（自定义图形）……
   - 阀状态：`solenoid2.valveState = "open" | "closed"`；`solenoid3.valvePath = "A" | "B" | "off"`；泵：`pumpOn: boolean`。
   - 故障标记：`fault = "pumpStuck" | "valveStuckOpen" | "valveStuckClosed"`；管路 `pipeBlocked`。
 - `Pipe`：`id / label / fluidType / fromPortId / toPortId / direction("forward"|"reverse") / points(折线) / visualDiameter / fluidColor / animated / showArrow / forceFlow / forceStop / disabled / fault`
   - **管路以端口连接**（不是节点）：`fromPortId`/`toPortId` 指向节点上的端口 id。
-  - `fluidType`：`steam / coldWater / hotWater / coffee / air / milk / coldMilk / hotMilk / coldMilkFoam / hotMilkFoam / wasteLiquid / custom`
+  - `fluidType`：`steam / coldWater / hotWater / coffee / air / milk / coldMilk / hotMilk / coldMilkFoam / hotMilkFoam / wasteLiquid / cleanWaste(清洗废液) / custom`
 - `Port`：`id / position(top|right|bottom|left) / direction("in"|"out"|"bidirectional")`
 
 ### 2.3 状态与交互（src/store.ts）
@@ -73,6 +76,31 @@
   3. 高亮节点 = 种子元件 + **经接头类元件（tee/滤网/单向阀/流量计…）自动向外补齐**，高亮管 = 两端都在激活集内——链条中间段不再被淡化漏管；
   4. 退出时**还原进入前的图纸快照**（不再把全图打成全开污染用户阀位）。
 - 管路标签自动命名 `管路 N`（**逻辑不依赖标签值**，靠 id/端口拓扑）。
+
+#### 工况快照（workConditions / ConditionPanel）
+
+- 工况 = **记住一套阀门/泵的「开/关」状态并起个名**，之后一键「恢复」变回。存在 `settings.workConditions`，**随图纸 JSON / 分享码一起保存**（不是单独文件）。
+- 面板三步：① 图上摆好开关 → ② 输入名字点「记住」→ ③ 点方案「▶ 恢复」。
+- **差异对比**：切换工况只高亮本次真正变化的元件（橙色闪烁）+ 变化摘要 toast；一致时提示"没有变化"。`presets.diffStateIds`。
+- 演示「冲泡咖啡」步骤可一键「存为工况」。
+
+#### 图层（layers）
+
+- 每节点有 `layerId`；新建元件自动归入当前图层。隐藏图层 → 该层节点与其相连管路不显示。
+- 图层面板：👁 显示/隐藏 · 点名=当前图层 · 点数字=选中本层并定位 · 双击=改名 · ×=删除（本层元件归入剩余图层）。
+
+#### 自动保存 / 崩溃恢复（版本历史）
+
+- 编辑后 800ms 防抖自动保存到 localStorage（按图纸 id 隔离，**最多 5 份版本历史**）；退出前 beforeunload 强制落盘。
+- 启动检测到比最近保存更新的备份 → 恢复横幅（恢复最新 / 查看历史 / 丢弃）。
+
+#### 元件→整机功能链（functionalChain.ts）
+
+- 选中单个元件/管路 → 按**当前阀位/泵态**追踪所在功能链（上游回溯到真源、下游到出口，关阀/停泵处截断），画布软蓝高亮 + Inspector「🔗 所在功能链」路径摘要。
+
+#### 预设状态原语（presets.ts）
+
+- 演示步骤、工况快照、模板共用同一套 `PresetState`（快照/应用/差异），只保留一份逻辑，避免漂移。
 
 ### 2.4 图纸 JSON 格式要点
 
@@ -130,7 +158,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 
 ### 3.4 需求域（computeDemandPipes）——"下游有没有开放去处"
 
-- **需求根（sink）** `DEMAND_SINK_TYPES`：`boiler / hotWaterBoiler / steamBoiler / coffeeOutlet / milkOutlet / hotWaterOutlet / hotWaterWand / steamWand / outlet / tank`，外加标签含「排废」或「冲泡」的 shape（冲泡缸 = 萃取消费端）、运行中的泵（吸入口）。
+- **需求根（sink）** `DEMAND_SINK_TYPES`：`boiler / hotWaterBoiler / steamBoiler / coffeeOutlet / milkOutlet / hotWaterOutlet / hotWaterWand / steamWand / outlet / tank / brewChamber`，外加标签含「排废」或「冲泡」的 shape（冲泡缸/自定义图形 = 萃取消费端）、运行中的泵（吸入口）。
 - **源/动力边界** `DEMAND_BOUNDARY_TYPES`：`pump / milkPump / tank / pressureTank / syrupBottle / inlet / boiler类`（需求倒推不穿越）。
 - **算法：按需求根独立 BFS，取并集。** 从 sink 逆流向倒推，穿越门控：两通阀须开、三通仅激活支路、泵须运行、单向件顺向；到达边界即停。
 - **每根树跳过「根自身作为上游源」的回环管**（`e.u.node.id === root.id && DEMAND_BOUNDARY_TYPES`）：tank 既是回流终点又是奶源，若不跳过，回流需求会经 回流管→三通→出奶管(68)→tank 回环把出奶管拉进需求域造成假流。该管仍可由其他根（如牛奶出口）的需求树正常拉入，正常出奶不受影响。
@@ -309,6 +337,7 @@ npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
 npm run smoke                    # 构建 + Electron 冒烟（无控制台错误才算过）
+git status && git add -A && git commit -m "..."   # 每版一个 commit（见 §5.5 版本纪律）
 ```
 
 ### 5.2 打包流程
@@ -316,7 +345,7 @@ npm run smoke                    # 构建 + Electron 冒烟（无控制台错误
 1. `npm run build`（Vite 构建 dist）
 2. `npx electron-builder --mac --config.electronDist=node_modules/electron/dist`
 3. `npx electron scripts/verify-asar.cjs` → `ASAR_LOAD_RESULT hasApp:true hasCanvas:true`
-4. 产物：`release/FluidPath Studio-1.0.0-arm64.dmg`（未签名；macOS 首次打开需右键 → 打开）
+4. 产物：`release/FluidPath Studio-1.6.0-arm64.dmg`（版本号随 `package.json`；未签名；macOS 首次打开需右键 → 打开）
 
 ### 5.3 环境坑（全部实测）
 
@@ -325,6 +354,7 @@ npm run smoke                    # 构建 + Electron 冒烟（无控制台错误
 - 不 export PATH 时 `node`/`npx`/`npm` 全部 command not found。
 - 改完 `src/` 后必须重新 `npm run build` + 重新打包 DMG 才影响已安装应用；只改测试不须重打包。
 - 打包后验证入包：解包 asar（`npx asar extract`）或 `@electron/asar` 提取 bundle 后 grep **字符串字面量**（注释会被 minify 剥离，别 grep 注释）；最可靠是对比 asar 内 bundle 与 `dist/` 的 sha1。
+- **Electron 不支持 `window.prompt()`**（点击静默返回空）→ 一律用 `PromptDialog` 应用内弹窗或内联输入框；`confirm()`/`alert()` 可用。
 - vitest 单文件运行：`npx vitest run src/__tests__/xxx.test.ts`；临时诊断测试用完即删。
 
 ### 5.4 诊断脚本模板（读图纸拓扑）
@@ -341,11 +371,12 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 ### 5.5 修改引擎/图纸的纪律
 
-1. **非 git 仓库**：改 `geometry.ts` 或图纸 JSON 前先备份（`cp` 到项目根或 `/tmp`）。
+1. **已 git 管理**：每完成一个版本 `git add -A && git commit`（历史可回退）；改引擎/图纸前仍建议 `cp` 备份到 `/tmp`。
 2. 改引擎必跑 `npx vitest run` 全量；新增行为要同步补回归测试（放 `src/__tests__/`）。
 3. 引擎判定分三层（BFS 相位 / 递归 / 需求域），改一处先确认影响哪层（§3.6 分层归因）；BFS 与递归是"并集"语义，修一层想清楚另一层会不会掩盖/冲突。
 4. 图纸结构问题（悬空端口、反向滤网、重复标签）用 `src/diagnostics.ts` 的只读诊断先查，用 `src/advice.ts` 的一键修复改。
 5. 桌面图纸改动后同步项目根快照：`cp /Users/leo/Desktop/BCMTS.json BCMTS.json`（回归测试依赖它）。
+6. **版本纪律（每次更新必做）**：① 升 `src/version.ts` 的 APP_VERSION 并在 CHANGELOG 头部追加条目；② 同步 `package.json` 的 version（打包文件名依赖）；③ `src/sample.ts` 里 `appVersion` 一并更新；④ 更新本手册 §8 版本历史表；⑤ 打包后 git commit。
 
 ---
 
@@ -379,10 +410,14 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 4. **场景演示会污染图纸数据**：forceFlow/forceStop 是运行时标记，演示中途保存文件会固化它们 → 加载陌生图纸先扫这些标记。
 5. **标签会重复，ID 不会**：一切程序化引用用 id，标签仅用于展示。
 6. **图纸修复与引擎修复分清**：同一现象可能是图纸接错、也可能是引擎 bug——用引擎跑标准工况对照，别急着改错一边。
+7. **Electron 没有 window.prompt**：任何"弹窗让用户输入"都要用应用内组件，别用浏览器 prompt——它静默返回空，表现为"点了没反应"。
+8. **下拉菜单会被 tool 行 overflow 裁剪**：`position:absolute` 的下拉若祖先有 `overflow-y:hidden` 会被裁掉，改用 `position:fixed` 定位。
+9. **概念复用比重复实现好**：演示步骤 / 工况快照 / 模板本质是同一套"开关状态"，抽成共享原语（presets.ts）后改一处全生效。
+10. **git 是最大保险**：每次可跑版本即 commit；比任何手工备份都可靠。
 
 ---
 
-*文档结束。接手后建议第一步：`npx vitest run` 确认 206 绿，再读 `src/geometry.ts` 的 `computeDisabledPipes`（相位 BFS + 压力域）与 `computeDemandPipes`（需求域 per-root BFS）。*
+*文档结束。接手后建议第一步：`npx vitest run` 确认 234 绿，再读 `src/geometry.ts` 的 `computeDisabledPipes`（相位 BFS + 压力域）与 `computeDemandPipes`（需求域 per-root BFS）。*
 
 
 ---

@@ -1,0 +1,3537 @@
+{
+  "id": "diagram_optimized",
+  "name": "锅炉循环液路示例（优化）·逻辑修复",
+  "nodes": [
+    {
+      "id": "n_ms7jr4mj2wu7sw",
+      "type": "pump",
+      "label": "水泵",
+      "x": 456,
+      "y": 1228,
+      "width": 90,
+      "height": 90,
+      "rotation": 0,
+      "fill": "#eef4fb",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jr4mj2wu8f5",
+          "nodeId": "n_ms7jr4mj2wu7sw",
+          "position": "left",
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jr4mj2wu9tq",
+          "nodeId": "n_ms7jr4mj2wu7sw",
+          "position": "right",
+          "direction": "out"
+        }
+      ],
+      "pumpOn": true
+    },
+    {
+      "id": "n_ms7jrghj3ma4ck",
+      "type": "filter",
+      "label": "过滤器",
+      "x": 320,
+      "y": 1561,
+      "width": 84,
+      "height": 96,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jrghj3ma5yc",
+          "nodeId": "n_ms7jrghj3ma4ck",
+          "position": "left",
+          "offset": 0.3,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jrghj3ma6y7",
+          "nodeId": "n_ms7jrghj3ma4ck",
+          "position": "right",
+          "offset": 0.3,
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7jsb6764ggp8",
+      "type": "solenoid2",
+      "label": "两通电磁阀",
+      "x": 192,
+      "y": 1240,
+      "width": 74,
+      "height": 66,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jsb6764gh39",
+          "nodeId": "n_ms7jsb6764ggp8",
+          "position": "left",
+          "offset": 0.76,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jsb6764gi1j",
+          "nodeId": "n_ms7jsb6764ggp8",
+          "position": "right",
+          "offset": 0.76,
+          "direction": "out"
+        }
+      ],
+      "valveState": "open"
+    },
+    {
+      "id": "n_ms7jtscc7uipv7",
+      "type": "checkValve",
+      "label": "单向阀",
+      "x": 56,
+      "y": 1609,
+      "width": 70,
+      "height": 48,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jtscc7uiqhz",
+          "nodeId": "n_ms7jtscc7uipv7",
+          "position": "left",
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jtscc7uiraa",
+          "nodeId": "n_ms7jtscc7uipv7",
+          "position": "right",
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7jw13uapqmkt",
+      "type": "filter",
+      "label": "滤网",
+      "x": 590,
+      "y": 1568,
+      "width": 84,
+      "height": 96,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jw13uapqn6f",
+          "nodeId": "n_ms7jw13uapqmkt",
+          "position": "left",
+          "offset": 0.3,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jw13uapqoxv",
+          "nodeId": "n_ms7jw13uapqmkt",
+          "position": "right",
+          "offset": 0.3,
+          "direction": "out"
+        },
+        {
+          "id": "p_fix_f2_r2",
+          "nodeId": "n_ms7jw13uapqmkt",
+          "position": "right",
+          "offset": 0.5,
+          "direction": "out"
+        },
+        {
+          "id": "p_fix_f2_r3",
+          "nodeId": "n_ms7jw13uapqmkt",
+          "position": "right",
+          "offset": 0.7,
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7jwqfhcudv49",
+      "type": "flowMeter",
+      "label": "流量计",
+      "x": 864,
+      "y": 1288,
+      "width": 76,
+      "height": 76,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jwqfhcudw9m",
+          "nodeId": "n_ms7jwqfhcudv49",
+          "position": "left",
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jwqfhcudxka",
+          "nodeId": "n_ms7jwqfhcudv49",
+          "position": "right",
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7jxeskfxsdzn",
+      "type": "pressureGauge",
+      "label": "压力表",
+      "x": 989,
+      "y": 1008,
+      "width": 70,
+      "height": 86,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jxeskfxser1",
+          "nodeId": "n_ms7jxeskfxsdzn",
+          "position": "bottom",
+          "direction": "in"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7jxr3dguuffi",
+      "type": "hotWaterBoiler",
+      "label": "热水锅炉",
+      "x": 1216,
+      "y": 472,
+      "width": 188,
+      "height": 468,
+      "rotation": 0,
+      "fill": "#fff7f2",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jxr3dguugl0",
+          "nodeId": "n_ms7jxr3dguuffi",
+          "position": "bottom",
+          "offset": 0.3,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jxr3dguuhq7",
+          "nodeId": "n_ms7jxr3dguuffi",
+          "position": "top",
+          "offset": 0.5,
+          "direction": "out"
+        },
+        {
+          "id": "p_fix_hw_top2",
+          "nodeId": "n_ms7jxr3dguuffi",
+          "position": "top",
+          "offset": 0.75,
+          "direction": "out"
+        },
+        {
+          "id": "p_fix_hw_top_ms9sw7stib",
+          "nodeId": "n_ms7jxr3dguuffi",
+          "position": "top",
+          "offset": 0.9,
+          "direction": "out"
+        },
+        {
+          "id": "p_hw_sb_ms9u7b9mjd",
+          "nodeId": "n_ms7jxr3dguuffi",
+          "position": "top",
+          "offset": 0.1,
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7jyj8djmqrnd",
+      "type": "solenoid3",
+      "label": "咖啡冲泡三通电磁阀",
+      "x": 1943,
+      "y": 289,
+      "width": 78,
+      "height": 74,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jyj8djmqs6z",
+          "nodeId": "n_ms7jyj8djmqrnd",
+          "position": "left",
+          "offset": 0.62,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jyj8djmqttw",
+          "nodeId": "n_ms7jyj8djmqrnd",
+          "position": "right",
+          "offset": 0.62,
+          "direction": "out"
+        },
+        {
+          "id": "p_ms7jyj8djmquk5",
+          "nodeId": "n_ms7jyj8djmqrnd",
+          "position": "bottom",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ],
+      "valvePath": "A"
+    },
+    {
+      "id": "n_ms7jykvnjrrpsi",
+      "type": "solenoid3",
+      "label": "美式热水三通电磁阀",
+      "x": 1544,
+      "y": 680,
+      "width": 78,
+      "height": 74,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jykvnjrrq4f",
+          "nodeId": "n_ms7jykvnjrrpsi",
+          "position": "left",
+          "offset": 0.62,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jykvnjrrr2n",
+          "nodeId": "n_ms7jykvnjrrpsi",
+          "position": "right",
+          "offset": 0.62,
+          "direction": "out"
+        },
+        {
+          "id": "p_ms7jykvnjrrsoy",
+          "nodeId": "n_ms7jykvnjrrpsi",
+          "position": "bottom",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ],
+      "valvePath": "off"
+    },
+    {
+      "id": "n_ms7jyyn0kfcobx",
+      "type": "solenoid2",
+      "label": "常温水两通电磁阀",
+      "x": 1548,
+      "y": 1112,
+      "width": 74,
+      "height": 66,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jyyn0kfcphf",
+          "nodeId": "n_ms7jyyn0kfcobx",
+          "position": "left",
+          "offset": 0.76,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jyyn0kfcq5c",
+          "nodeId": "n_ms7jyyn0kfcobx",
+          "position": "right",
+          "offset": 0.76,
+          "direction": "out"
+        }
+      ],
+      "valveState": "open"
+    },
+    {
+      "id": "n_ms7jz840mbho5m",
+      "type": "solenoid3",
+      "label": "热水杆三通电磁阀",
+      "x": 1544,
+      "y": 488,
+      "width": 78,
+      "height": 74,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7jz840mbhppz",
+          "nodeId": "n_ms7jz840mbho5m",
+          "position": "left",
+          "offset": 0.62,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7jz840mbhqd8",
+          "nodeId": "n_ms7jz840mbho5m",
+          "position": "right",
+          "offset": 0.62,
+          "direction": "out"
+        },
+        {
+          "id": "p_ms7jz840mbhr23",
+          "nodeId": "n_ms7jz840mbho5m",
+          "position": "bottom",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ],
+      "valvePath": "off"
+    },
+    {
+      "id": "n_ms7k09s1oqr5bi",
+      "type": "safetyValve",
+      "label": "安全阀（仅高压打开）",
+      "x": 1368,
+      "y": 1288,
+      "width": 64,
+      "height": 84,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7k09s1oqr65",
+          "nodeId": "n_ms7k09s1oqr5bi",
+          "position": "bottom",
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7k09s1oqr7tf",
+          "nodeId": "n_ms7k09s1oqr5bi",
+          "position": "right",
+          "offset": 0.4,
+          "direction": "out"
+        },
+        {
+          "id": "p_ms94em9q9oqa",
+          "nodeId": "n_ms7k09s1oqr5bi",
+          "position": "left",
+          "offset": 0.5,
+          "direction": "in"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7k0omrqaktju",
+      "type": "tee",
+      "label": "三通接头",
+      "x": 1152,
+      "y": 1168,
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7k0omrqakuku",
+          "nodeId": "n_ms7k0omrqaktju",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_ms7k0omrqakvc7",
+          "nodeId": "n_ms7k0omrqaktju",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_ms7k0omrqakw25",
+          "nodeId": "n_ms7k0omrqaktju",
+          "position": "bottom",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_fix_t1_r2",
+          "nodeId": "n_ms7k0omrqaktju",
+          "position": "right",
+          "offset": 0.38,
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7k2qjpyth9jc",
+      "type": "steamBoiler",
+      "label": "蒸汽锅炉",
+      "x": 2073,
+      "y": 1224,
+      "width": 172,
+      "height": 440,
+      "rotation": 0,
+      "fill": "#fdf3f3",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7k2qjpythae2",
+          "nodeId": "n_ms7k2qjpyth9jc",
+          "position": "top",
+          "offset": 0.16666666666666666,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7k2qjpythben",
+          "nodeId": "n_ms7k2qjpyth9jc",
+          "position": "bottom",
+          "offset": 0.3,
+          "direction": "out"
+        },
+        {
+          "id": "p_fix_sb_t2",
+          "nodeId": "n_ms7k2qjpyth9jc",
+          "position": "top",
+          "offset": 0.3333333333333333,
+          "direction": "out"
+        },
+        {
+          "id": "p_fix_sb_t3",
+          "nodeId": "n_ms7k2qjpyth9jc",
+          "position": "top",
+          "offset": 0.5,
+          "direction": "out"
+        },
+        {
+          "id": "p_ms91dc6h35he8p",
+          "nodeId": "n_ms7k2qjpyth9jc",
+          "position": "top",
+          "offset": 0.8333333333333334,
+          "direction": "out"
+        },
+        {
+          "id": "p_fix_sb_steam_ms9sw7ste5",
+          "nodeId": "n_ms7k2qjpyth9jc",
+          "position": "top",
+          "offset": 0.95,
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7kdhm1m31goj",
+      "type": "safetyValve",
+      "label": "安全阀",
+      "x": 1989,
+      "y": 887,
+      "width": 64,
+      "height": 84,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7kdhm1m31hkb",
+          "nodeId": "n_ms7kdhm1m31goj",
+          "position": "bottom",
+          "direction": "in"
+        },
+        {
+          "id": "p_ms8k8kjg148pta",
+          "nodeId": "n_ms7kdhm1m31goj",
+          "position": "left",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7kfh4hus3q2b",
+      "type": "steamWand",
+      "label": "蒸汽杆",
+      "x": 2620,
+      "y": 1410,
+      "width": 44,
+      "height": 126,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7kfh4hus3rtt",
+          "nodeId": "n_ms7kfh4hus3q2b",
+          "position": "top",
+          "direction": "in"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7kiabc84vfmg",
+      "type": "shape",
+      "label": "冲泡缸",
+      "x": 2133,
+      "y": 181,
+      "width": 112,
+      "height": 208,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7kiabc84vgf3",
+          "nodeId": "n_ms7kiabc84vfmg",
+          "position": "left"
+        },
+        {
+          "id": "p_ms7kiabc84vhax",
+          "nodeId": "n_ms7kiabc84vfmg",
+          "position": "right"
+        },
+        {
+          "id": "p_ms7kiabc84visc",
+          "nodeId": "n_ms7kiabc84vfmg",
+          "position": "top"
+        },
+        {
+          "id": "p_ms7kiabc84vjzo",
+          "nodeId": "n_ms7kiabc84vfmg",
+          "position": "bottom"
+        }
+      ],
+      "variant": "rect"
+    },
+    {
+      "id": "n_ms7kjrfbg554uu",
+      "type": "coffeeOutlet",
+      "label": "咖啡出口（单）",
+      "x": 2664,
+      "y": 285,
+      "width": 84,
+      "height": 78,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7kjrfbg555r7",
+          "nodeId": "n_ms7kjrfbg554uu",
+          "position": "top",
+          "direction": "in"
+        },
+        {
+          "id": "p_fix_cof_top2",
+          "nodeId": "n_ms7kjrfbg554uu",
+          "position": "top",
+          "offset": 0.65,
+          "direction": "in"
+        }
+      ],
+      "variant": "single"
+    },
+    {
+      "id": "n_ms7koeegloxby",
+      "type": "hotWaterWand",
+      "label": "热水出口",
+      "x": 2702,
+      "y": 592,
+      "width": 46,
+      "height": 100,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7koeegloysw",
+          "nodeId": "n_ms7koeegloxby",
+          "position": "top",
+          "direction": "in"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7kqpl79cp0c3",
+      "type": "pressureGauge",
+      "label": "压力表",
+      "x": 2124,
+      "y": 853,
+      "width": 70,
+      "height": 86,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7kqpl79cp1cn",
+          "nodeId": "n_ms7kqpl79cp0c3",
+          "position": "bottom",
+          "direction": "in"
+        }
+      ]
+    },
+    {
+      "id": "n_ms7ksq2xg2m96s",
+      "type": "solenoid3",
+      "label": "咖啡排废三通电磁阀",
+      "x": 2488,
+      "y": 134,
+      "width": 78,
+      "height": 74,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7ksq2xg2mac6",
+          "nodeId": "n_ms7ksq2xg2m96s",
+          "position": "left",
+          "offset": 0.62,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7ksq2xg2mbie",
+          "nodeId": "n_ms7ksq2xg2m96s",
+          "position": "right",
+          "offset": 0.62,
+          "direction": "out"
+        },
+        {
+          "id": "p_ms7ksq2xg2mcvy",
+          "nodeId": "n_ms7ksq2xg2m96s",
+          "position": "bottom",
+          "offset": 0.5,
+          "direction": "out"
+        },
+        {
+          "id": "p_fix_s6_l2",
+          "nodeId": "n_ms7ksq2xg2m96s",
+          "position": "left",
+          "offset": 0.38,
+          "direction": "in"
+        }
+      ],
+      "valvePath": "A"
+    },
+    {
+      "id": "n_ms7kxxr4x9iyye",
+      "type": "solenoid2",
+      "label": "锅炉蒸汽排废两通电磁阀",
+      "x": 1152,
+      "y": 1948,
+      "width": 74,
+      "height": 66,
+      "rotation": 180,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms7kxxr4x9izpr",
+          "nodeId": "n_ms7kxxr4x9iyye",
+          "position": "left",
+          "offset": 0.76,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms7kxxr4x9j0f1",
+          "nodeId": "n_ms7kxxr4x9iyye",
+          "position": "right",
+          "offset": 0.76,
+          "direction": "out"
+        },
+        {
+          "id": "p_fix_v2_l2",
+          "nodeId": "n_ms7kxxr4x9iyye",
+          "position": "left",
+          "offset": 0.5,
+          "direction": "in"
+        }
+      ],
+      "valveState": "closed"
+    },
+    {
+      "id": "n_fix_inlet",
+      "type": "inlet",
+      "label": "进水口",
+      "x": -128,
+      "y": 1272,
+      "width": 72,
+      "height": 36,
+      "rotation": 0,
+      "fill": "#eef4fb",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_fix_inlet_out",
+          "nodeId": "n_fix_inlet",
+          "position": "right",
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_ms8kmrswc1uan",
+      "type": "hotWaterOutlet",
+      "label": "美式水出口",
+      "x": 2784,
+      "y": 285,
+      "width": 84,
+      "height": 78,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms8kmrswc1v18",
+          "nodeId": "n_ms8kmrswc1uan",
+          "position": "top",
+          "direction": "in"
+        }
+      ]
+    },
+    {
+      "id": "n_ms91en36c610kc",
+      "type": "milkPump",
+      "label": "奶泵",
+      "x": 3328,
+      "y": 1182,
+      "width": 90,
+      "height": 90,
+      "rotation": 0,
+      "fill": "#fdf8ee",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms91en36c611zq",
+          "nodeId": "n_ms91en36c610kc",
+          "position": "left",
+          "direction": "out"
+        },
+        {
+          "id": "p_ms91en36c612p7",
+          "nodeId": "n_ms91en36c610kc",
+          "position": "right",
+          "direction": "in"
+        }
+      ],
+      "pumpOn": true
+    },
+    {
+      "id": "n_ms91er2scu8tix",
+      "type": "openTank",
+      "label": "开口水箱",
+      "x": 3689.5,
+      "y": 2204,
+      "width": 120,
+      "height": 100,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms91er2scu8u4g",
+          "nodeId": "n_ms91er2scu8tix",
+          "position": "left",
+          "offset": 0.65,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms91er2scu8vzz",
+          "nodeId": "n_ms91er2scu8tix",
+          "position": "right",
+          "offset": 0.5,
+          "direction": "out"
+        },
+        {
+          "id": "p_ms91er2scu8wfw",
+          "nodeId": "n_ms91er2scu8tix",
+          "position": "bottom",
+          "direction": "out"
+        },
+        {
+          "id": "p_ms91fvzkl36n6e",
+          "nodeId": "n_ms91er2scu8tix",
+          "position": "top",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_ms91fm8kiq9nkv",
+      "type": "milkOutlet",
+      "label": "牛奶出口（单）",
+      "x": 2792,
+      "y": 611,
+      "width": 84,
+      "height": 78,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms91fm8kiq9o1v",
+          "nodeId": "n_ms91fm8kiq9nkv",
+          "position": "top",
+          "direction": "in"
+        }
+      ],
+      "variant": "single"
+    },
+    {
+      "id": "n_ms91h2kcr16ehn",
+      "type": "solenoid3",
+      "label": "牛奶排废三通电磁阀",
+      "x": 3200,
+      "y": 800,
+      "width": 78,
+      "height": 74,
+      "rotation": 90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms91h2kcr16f7w",
+          "nodeId": "n_ms91h2kcr16ehn",
+          "position": "left",
+          "offset": 0.62,
+          "direction": "out"
+        },
+        {
+          "id": "p_ms91h2kcr16gad",
+          "nodeId": "n_ms91h2kcr16ehn",
+          "position": "right",
+          "offset": 0.62,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms91h2kcr16hw6",
+          "nodeId": "n_ms91h2kcr16ehn",
+          "position": "bottom",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ],
+      "valvePath": "A"
+    },
+    {
+      "id": "n_ms91xxps4wsawx",
+      "type": "solenoid3",
+      "label": "牛奶清洗三通电磁阀",
+      "x": 1544,
+      "y": 352,
+      "width": 78,
+      "height": 74,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms91xxps4wsb2h",
+          "nodeId": "n_ms91xxps4wsawx",
+          "position": "left",
+          "offset": 0.62,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms91xxps4wscu2",
+          "nodeId": "n_ms91xxps4wsawx",
+          "position": "right",
+          "offset": 0.62,
+          "direction": "out"
+        },
+        {
+          "id": "p_ms91xxps4wsdh",
+          "nodeId": "n_ms91xxps4wsawx",
+          "position": "bottom",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ],
+      "valvePath": "off"
+    },
+    {
+      "id": "n_ms92b8rm798rfd",
+      "type": "solenoid2",
+      "label": "进奶两通电磁阀",
+      "x": 3856,
+      "y": 1847,
+      "width": 74,
+      "height": 66,
+      "rotation": 90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms92b8rm798sfp",
+          "nodeId": "n_ms92b8rm798rfd",
+          "position": "left",
+          "offset": 0.76,
+          "direction": "in"
+        },
+        {
+          "id": "p_ms92b8rm798tsv",
+          "nodeId": "n_ms92b8rm798rfd",
+          "position": "right",
+          "offset": 0.76,
+          "direction": "out"
+        }
+      ],
+      "valveState": "open"
+    },
+    {
+      "id": "n_ms92dc11jgtzip",
+      "type": "tee",
+      "label": "T型三通",
+      "x": 3851,
+      "y": 1524,
+      "width": 64,
+      "height": 64,
+      "rotation": 90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms92dc11jgu0av",
+          "nodeId": "n_ms92dc11jgtzip",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_ms92dc11jgu1q7",
+          "nodeId": "n_ms92dc11jgtzip",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_ms92dc11jgu2np",
+          "nodeId": "n_ms92dc11jgtzip",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_ms94e1vv9jug",
+      "type": "teeY",
+      "label": "Y型三通",
+      "x": 1280,
+      "y": 1048,
+      "width": 64,
+      "height": 64,
+      "rotation": 270,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_ms94e1vv9kw4",
+          "nodeId": "n_ms94e1vv9jug",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_ms94e1vv9ln7",
+          "nodeId": "n_ms94e1vv9jug",
+          "position": "right",
+          "offset": 0.25,
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_ms94e1vv9mw0",
+          "nodeId": "n_ms94e1vv9jug",
+          "position": "bottom",
+          "offset": 0.75,
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbwna7o9ske",
+      "type": "solenoid2",
+      "label": "旁通热水电磁阀",
+      "x": 1548,
+      "y": 863,
+      "width": 74,
+      "height": 66,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbwna7o9ttw",
+          "nodeId": "n_msbwna7o9ske",
+          "position": "left",
+          "offset": 0.76,
+          "direction": "in"
+        },
+        {
+          "id": "p_msbwna7o9uw0",
+          "nodeId": "n_msbwna7o9ske",
+          "position": "right",
+          "offset": 0.76,
+          "direction": "out"
+        }
+      ],
+      "valveState": "closed"
+    },
+    {
+      "id": "n_msbwpwle9xqu",
+      "type": "teeY",
+      "label": "Y型三通",
+      "x": 1696,
+      "y": 674,
+      "width": 64,
+      "height": 64,
+      "rotation": 90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbwpwle9yxm",
+          "nodeId": "n_msbwpwle9xqu",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbwpwle9zct",
+          "nodeId": "n_msbwpwle9xqu",
+          "position": "right",
+          "offset": 0.25,
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbwpwlea0ge",
+          "nodeId": "n_msbwpwle9xqu",
+          "position": "bottom",
+          "offset": 0.75,
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbx2o20aah0",
+      "type": "tee",
+      "label": "三通接头",
+      "x": 992,
+      "y": 1168,
+      "width": 64,
+      "height": 64,
+      "rotation": 180,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbx2o20ab5e",
+          "nodeId": "n_msbx2o20aah0",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbx2o20acya",
+          "nodeId": "n_msbx2o20aah0",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbx2o20adok",
+          "nodeId": "n_msbx2o20aah0",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbx5rtiafzs",
+      "type": "solenoid3",
+      "label": "蒸汽三通电磁阀",
+      "x": 2339,
+      "y": 1150,
+      "width": 78,
+      "height": 74,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbx5rtiag3l",
+          "nodeId": "n_msbx5rtiafzs",
+          "position": "left",
+          "offset": 0.62,
+          "direction": "in"
+        },
+        {
+          "id": "p_msbx5rtiahn5",
+          "nodeId": "n_msbx5rtiafzs",
+          "position": "right",
+          "offset": 0.62,
+          "direction": "out"
+        },
+        {
+          "id": "p_msbx5rtiaih9",
+          "nodeId": "n_msbx5rtiafzs",
+          "position": "bottom",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ],
+      "valvePath": "A"
+    },
+    {
+      "id": "n_msbx9j5qap9b",
+      "type": "solenoid3",
+      "label": "牛奶加热三通电磁阀",
+      "x": 2474,
+      "y": 971,
+      "width": 78,
+      "height": 74,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbx9j5qaqld",
+          "nodeId": "n_msbx9j5qap9b",
+          "position": "left",
+          "offset": 0.62,
+          "direction": "in"
+        },
+        {
+          "id": "p_msbx9j5qargd",
+          "nodeId": "n_msbx9j5qap9b",
+          "position": "right",
+          "offset": 0.62,
+          "direction": "out"
+        },
+        {
+          "id": "p_msbx9j5qasp4",
+          "nodeId": "n_msbx9j5qap9b",
+          "position": "bottom",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ],
+      "valvePath": "A"
+    },
+    {
+      "id": "n_msbxbxyeayob",
+      "type": "solenoid2",
+      "label": "蒸汽锅炉补水两通电磁阀",
+      "x": 1728,
+      "y": 1576,
+      "width": 74,
+      "height": 66,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxbxyeazev",
+          "nodeId": "n_msbxbxyeayob",
+          "position": "left",
+          "offset": 0.76,
+          "direction": "in"
+        },
+        {
+          "id": "p_msbxbxyeb0y1",
+          "nodeId": "n_msbxbxyeayob",
+          "position": "right",
+          "offset": 0.76,
+          "direction": "out"
+        }
+      ],
+      "valveState": "open"
+    },
+    {
+      "id": "n_msbxf50douhi",
+      "type": "tee",
+      "label": "三通接头",
+      "x": 752,
+      "y": 1448,
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxf50dov3v",
+          "nodeId": "n_msbxf50douhi",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxf50dowch",
+          "nodeId": "n_msbxf50douhi",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxf50dox42",
+          "nodeId": "n_msbxf50douhi",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbxg7kjp0dj",
+      "type": "tee",
+      "label": "三通接头",
+      "x": 1544,
+      "y": 1588,
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxg7kjp1lt",
+          "nodeId": "n_msbxg7kjp0dj",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxg7kjp2vw",
+          "nodeId": "n_msbxg7kjp0dj",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxg7kjp3d6",
+          "nodeId": "n_msbxg7kjp0dj",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbxi5ejp9ho",
+      "type": "tee",
+      "label": "三通接头",
+      "x": 1856,
+      "y": 1917,
+      "width": 64,
+      "height": 64,
+      "rotation": 180,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxi5ejpajs",
+          "nodeId": "n_msbxi5ejp9ho",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxi5ejpb6h",
+          "nodeId": "n_msbxi5ejp9ho",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxi5ejpcc2",
+          "nodeId": "n_msbxi5ejp9ho",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbxj99gpfe6",
+      "type": "shape",
+      "label": "排废接口",
+      "x": 492,
+      "y": 1917,
+      "width": 140,
+      "height": 90,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxj99gpgdk",
+          "nodeId": "n_msbxj99gpfe6",
+          "position": "left"
+        },
+        {
+          "id": "p_msbxj99gphl2",
+          "nodeId": "n_msbxj99gpfe6",
+          "position": "right"
+        },
+        {
+          "id": "p_msbxj99gpi76",
+          "nodeId": "n_msbxj99gpfe6",
+          "position": "top"
+        },
+        {
+          "id": "p_msbxj99gpjg2",
+          "nodeId": "n_msbxj99gpfe6",
+          "position": "bottom"
+        }
+      ],
+      "variant": "rect"
+    },
+    {
+      "id": "n_msbxji2uvegu",
+      "type": "outlet",
+      "label": "出口排废",
+      "x": 268,
+      "y": 1945,
+      "width": 72,
+      "height": 36,
+      "rotation": 0,
+      "fill": "#eef4fb",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxji2uvfvq",
+          "nodeId": "n_msbxji2uvegu",
+          "position": "left",
+          "offset": 0.5,
+          "direction": "in"
+        },
+        {
+          "id": "p_msbxjpyovg48",
+          "nodeId": "n_msbxji2uvegu",
+          "position": "right",
+          "offset": 0.5,
+          "direction": "in"
+        }
+      ]
+    },
+    {
+      "id": "n_msbxn6govjb6",
+      "type": "tee",
+      "label": "三通接头",
+      "x": 1664,
+      "y": 1917,
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxn6govkd1",
+          "nodeId": "n_msbxn6govjb6",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxn6govls5",
+          "nodeId": "n_msbxn6govjb6",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxn6govmz9",
+          "nodeId": "n_msbxn6govjb6",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbxn8yuvnww",
+      "type": "tee",
+      "label": "三通接头",
+      "x": 2968,
+      "y": 1619,
+      "width": 64,
+      "height": 64,
+      "rotation": 90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxn8yuvoqy",
+          "nodeId": "n_msbxn8yuvnww",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxn8yuvpjv",
+          "nodeId": "n_msbxn8yuvnww",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxn8yuvq9y",
+          "nodeId": "n_msbxn8yuvnww",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbxwperldyxca",
+      "type": "teeY",
+      "label": "Y型三通",
+      "x": 2488,
+      "y": 1412,
+      "width": 64,
+      "height": 64,
+      "rotation": 90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxwperldyyyt",
+          "nodeId": "n_msbxwperldyxca",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxwperldyz6s",
+          "nodeId": "n_msbxwperldyxca",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbxwperldz0xv",
+          "nodeId": "n_msbxwperldyxca",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbxxzlutegtb8",
+      "type": "outlet",
+      "label": "蒸汽排废出口",
+      "x": 2544,
+      "y": 1756,
+      "width": 72,
+      "height": 36,
+      "rotation": -180,
+      "fill": "#eef4fb",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbxyco8wf5r49",
+          "nodeId": "n_msbxxzlutegtb8",
+          "position": "right",
+          "offset": 0.5,
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_msby18r21iozbv",
+      "type": "checkValve",
+      "label": "牛奶加热单向阀",
+      "x": 2856,
+      "y": 997,
+      "width": 70,
+      "height": 48,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msby18r21ip0ur",
+          "nodeId": "n_msby18r21iozbv",
+          "position": "left",
+          "direction": "in"
+        },
+        {
+          "id": "p_msby18r21ip1ky",
+          "nodeId": "n_msby18r21iozbv",
+          "position": "right",
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_msby5jogwqv3ax",
+      "type": "tee",
+      "label": "T型三通",
+      "x": 3192,
+      "y": 997,
+      "width": 64,
+      "height": 64,
+      "rotation": 90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msby5jogwqv4ob",
+          "nodeId": "n_msby5jogwqv3ax",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msby5jogwqv5f6",
+          "nodeId": "n_msby5jogwqv3ax",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msby5jogwqv6qp",
+          "nodeId": "n_msby5jogwqv3ax",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbyfj71l363q0",
+      "type": "solenoid2",
+      "label": "牛奶常温水润湿两通电磁阀",
+      "x": 3442.5,
+      "y": 1945,
+      "width": 74,
+      "height": 66,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbyfj71l364g6",
+          "nodeId": "n_msbyfj71l363q0",
+          "position": "left",
+          "offset": 0.76,
+          "direction": "in"
+        },
+        {
+          "id": "p_msbyfj71l365l0",
+          "nodeId": "n_msbyfj71l363q0",
+          "position": "right",
+          "offset": 0.76,
+          "direction": "out"
+        }
+      ],
+      "valveState": "closed"
+    },
+    {
+      "id": "n_msbyi2k4zzx15",
+      "type": "tee",
+      "label": "T型三通",
+      "x": 3244,
+      "y": 1962,
+      "width": 64,
+      "height": 64,
+      "rotation": -90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbyi2k4zzyx3",
+          "nodeId": "n_msbyi2k4zzx15",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbyi2k4zzz2t",
+          "nodeId": "n_msbyi2k4zzx15",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbyi2k41000de",
+          "nodeId": "n_msbyi2k4zzx15",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbyinsy4rv6z3",
+      "type": "tee",
+      "label": "T型三通",
+      "x": 3649,
+      "y": 1963,
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbyinsy4rv7c5",
+          "nodeId": "n_msbyinsy4rv6z3",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbyinsy4rv88t",
+          "nodeId": "n_msbyinsy4rv6z3",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbyinsy4rv94p",
+          "nodeId": "n_msbyinsy4rv6z3",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbykiz9c83f14",
+      "type": "solenoid2",
+      "label": "常温快速冲洗两通电磁阀",
+      "x": 3440,
+      "y": 1512,
+      "width": 74,
+      "height": 66,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbykiz9c83gi8",
+          "nodeId": "n_msbykiz9c83f14",
+          "position": "left",
+          "offset": 0.76,
+          "direction": "in"
+        },
+        {
+          "id": "p_msbykiz9c83hc7",
+          "nodeId": "n_msbykiz9c83f14",
+          "position": "right",
+          "offset": 0.76,
+          "direction": "out"
+        }
+      ],
+      "valveState": "closed"
+    },
+    {
+      "id": "n_msbykruidm65ml",
+      "type": "checkValve",
+      "label": "单向阀",
+      "x": 3611,
+      "y": 1540,
+      "width": 70,
+      "height": 48,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbykruidm66jt",
+          "nodeId": "n_msbykruidm65ml",
+          "position": "left",
+          "direction": "in"
+        },
+        {
+          "id": "p_msbykruidm67p7",
+          "nodeId": "n_msbykruidm65ml",
+          "position": "right",
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_msbymtbfmmltl3",
+      "type": "inlet",
+      "label": "空气入口端",
+      "x": 4120,
+      "y": 1299,
+      "width": 72,
+      "height": 36,
+      "rotation": -180,
+      "fill": "#eef4fb",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbymtbfmmluh9",
+          "nodeId": "n_msbymtbfmmltl3",
+          "position": "right",
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_msbyn4byoiv9fr",
+      "type": "checkValve",
+      "label": "单向阀",
+      "x": 3816,
+      "y": 1293,
+      "width": 70,
+      "height": 48,
+      "rotation": -180,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbyn4byoivamb",
+          "nodeId": "n_msbyn4byoiv9fr",
+          "position": "left",
+          "direction": "in"
+        },
+        {
+          "id": "p_msbyn4byoivb56",
+          "nodeId": "n_msbyn4byoiv9fr",
+          "position": "right",
+          "direction": "out"
+        }
+      ]
+    },
+    {
+      "id": "n_msbyndj9q2f6fm",
+      "type": "teeY",
+      "label": "Y型三通",
+      "x": 3547,
+      "y": 1288,
+      "width": 64,
+      "height": 64,
+      "rotation": -90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbyndj9q2f75r",
+          "nodeId": "n_msbyndj9q2f6fm",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbyndj9q2f85b",
+          "nodeId": "n_msbyndj9q2f6fm",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbyndj9q2f9dy",
+          "nodeId": "n_msbyndj9q2f6fm",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_msbyq2kn8s9tqq",
+      "type": "tee",
+      "label": "T型三通",
+      "x": 3848,
+      "y": 1696,
+      "width": 64,
+      "height": 64,
+      "rotation": 90,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_msbyq2kn8s9u24",
+          "nodeId": "n_msbyq2kn8s9tqq",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbyq2kn8s9vq",
+          "nodeId": "n_msbyq2kn8s9tqq",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_msbyq2kn8s9w7i",
+          "nodeId": "n_msbyq2kn8s9tqq",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_mscgzs5q8goc",
+      "type": "solenoid2",
+      "label": "蒸汽锅炉降温两通电磁阀",
+      "x": 1947,
+      "y": 1723,
+      "width": 74,
+      "height": 66,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_mscgzs5q8hyc",
+          "nodeId": "n_mscgzs5q8goc",
+          "position": "left",
+          "offset": 0.76,
+          "direction": "in"
+        },
+        {
+          "id": "p_mscgzs5q8i6c",
+          "nodeId": "n_mscgzs5q8goc",
+          "position": "right",
+          "offset": 0.76,
+          "direction": "out"
+        }
+      ],
+      "valveState": "open"
+    },
+    {
+      "id": "n_mscgzxep8j72",
+      "type": "tee",
+      "label": "三通接头",
+      "x": 1770,
+      "y": 1742,
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_mscgzxep8kpj",
+          "nodeId": "n_mscgzxep8j72",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_mscgzxep8lem",
+          "nodeId": "n_mscgzxep8j72",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_mscgzxep8mof",
+          "nodeId": "n_mscgzxep8j72",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    },
+    {
+      "id": "n_mscohssg11so7",
+      "type": "tee",
+      "label": "三通接头",
+      "x": 2328,
+      "y": 70,
+      "width": 64,
+      "height": 64,
+      "rotation": 0,
+      "fill": "#ffffff",
+      "stroke": "#3d4c5e",
+      "ports": [
+        {
+          "id": "p_mscohssg11tot",
+          "nodeId": "n_mscohssg11so7",
+          "position": "left",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_mscohssg11u19",
+          "nodeId": "n_mscohssg11so7",
+          "position": "right",
+          "direction": "bidirectional"
+        },
+        {
+          "id": "p_mscohssg11vl8",
+          "nodeId": "n_mscohssg11so7",
+          "position": "bottom",
+          "direction": "bidirectional"
+        }
+      ]
+    }
+  ],
+  "pipes": [
+    {
+      "id": "pipe_ms7k5qehap6m6e",
+      "label": "管路 2",
+      "fromPortId": "p_ms7jxr3dguuhq7",
+      "toPortId": "p_ms7jyj8djmqs6z",
+      "points": [
+        {
+          "x": 1488,
+          "y": 256
+        },
+        {
+          "x": 1904,
+          "y": 664
+        },
+        {
+          "x": 1904,
+          "y": 656
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_ms7k7tu2juup2f",
+      "label": "管路 2",
+      "fromPortId": "p_ms7k0omrqakw25",
+      "toPortId": "p_ms94em9q9oqa",
+      "points": [
+        {
+          "x": 1184,
+          "y": 1256
+        },
+        {
+          "x": 1408,
+          "y": 1312
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms7k87u8l8re4p",
+      "label": "管路 4",
+      "fromPortId": "p_ms94e1vv9ln7",
+      "toPortId": "p_ms7jxr3dguugl0",
+      "points": [
+        {
+          "x": 1296,
+          "y": 1056
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms7k8bd4lzzflw",
+      "label": "管路 5",
+      "fromPortId": "p_ms94e1vv9mw0",
+      "toPortId": "p_ms7jyyn0kfcphf",
+      "points": [
+        {
+          "x": 1432,
+          "y": 1064
+        },
+        {
+          "x": 1432,
+          "y": 1152
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms7k8ngzontv6m",
+      "label": "管路 6",
+      "fromPortId": "p_ms7jr4mj2wu9tq",
+      "toPortId": "p_ms7jw13uapqn6f",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms7k8plmp02b72",
+      "label": "管路 7",
+      "fromPortId": "p_msbxf50dowch",
+      "toPortId": "p_ms7jwqfhcudw9m",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms7k97tvt96uz2",
+      "label": "管路 8",
+      "fromPortId": "p_ms7jwqfhcudxka",
+      "toPortId": "p_msbx2o20acya",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms7ka4ubzxqgwx",
+      "label": "管路 9",
+      "fromPortId": "p_ms7jrghj3ma6y7",
+      "toPortId": "p_ms7jr4mj2wu8f5",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms7ka77aewtgh",
+      "label": "管路 10",
+      "fromPortId": "p_ms7jsb6764gi1j",
+      "toPortId": "p_ms7jrghj3ma5yc",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms7ka8rsq9689",
+      "label": "管路 11",
+      "fromPortId": "p_ms7jtscc7uiraa",
+      "toPortId": "p_ms7jsb6764gh39",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms7khj7o51vj4t",
+      "label": "管路 18",
+      "fromPortId": "p_ms7jz840mbhr23",
+      "toPortId": "p_ms7jykvnjrrq4f",
+      "points": [
+        {
+          "x": 1584,
+          "y": 632
+        },
+        {
+          "x": 1536,
+          "y": 632
+        },
+        {
+          "x": 1520,
+          "y": 680
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_ms7kip9tawj2ib",
+      "label": "管路 20",
+      "fromPortId": "p_ms7jyj8djmqttw",
+      "toPortId": "p_ms7kiabc84vjzo",
+      "points": [
+        {
+          "x": 2072,
+          "y": 248
+        },
+        {
+          "x": 2464,
+          "y": 480
+        },
+        {
+          "x": 2640,
+          "y": 480
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_ms7kmy11tovpvh",
+      "label": "管路 23",
+      "fromPortId": "p_fix_hw_top2",
+      "toPortId": "p_ms91xxps4wsb2h",
+      "points": [
+        {
+          "x": 1360,
+          "y": 296
+        },
+        {
+          "x": 1584,
+          "y": 296
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_ms7koi4r19lesy",
+      "label": "管路 25",
+      "fromPortId": "p_ms7jz840mbhqd8",
+      "toPortId": "p_ms7koeegloysw",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_ms7ky3qgy3cd9f",
+      "label": "管路 29",
+      "fromPortId": "p_ms7k2qjpythben",
+      "toPortId": "p_msbxi5ejpajs",
+      "points": [
+        {
+          "x": 2128,
+          "y": 1664
+        },
+        {
+          "x": 2128,
+          "y": 1856
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_fix_inlet",
+      "label": "水源进水管",
+      "fromPortId": "p_fix_inlet_out",
+      "toPortId": "p_ms7jtscc7uiqhz",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_ms91ysmy9jjuwv",
+      "label": "管路 48",
+      "fromPortId": "p_ms91xxps4wsdh",
+      "toPortId": "p_ms7jz840mbhppz",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_ms94ecba9nx3",
+      "label": "管路 61",
+      "fromPortId": "p_fix_t1_r2",
+      "toPortId": "p_ms94e1vv9kw4",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_fix_gauge1",
+      "label": "供水压力",
+      "fromPortId": "p_msbx2o20adok",
+      "toPortId": "p_ms7jxeskfxser1",
+      "points": [],
+      "nominalDiameter": "DN4",
+      "visualDiameter": 5,
+      "wallColor": "#e9ebee",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.9,
+      "direction": "forward",
+      "flowSpeed": 0.6,
+      "particleDensity": "low",
+      "animated": true,
+      "showArrow": false,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbwndb89vi5",
+      "label": "管路 59",
+      "fromPortId": "p_ms7jykvnjrrsoy",
+      "toPortId": "p_msbwna7o9ttw",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_msbwq6vsa13v",
+      "label": "管路 61",
+      "fromPortId": "p_ms7jykvnjrrr2n",
+      "toPortId": "p_msbwpwlea0ge",
+      "points": [
+        {
+          "x": 1699,
+          "y": 725.88
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_msbwq8zya2wv",
+      "label": "管路 62",
+      "fromPortId": "p_ms7jyyn0kfcq5c",
+      "toPortId": "p_msbwpwle9zct",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbwrcxqa3ud",
+      "label": "管路 59",
+      "fromPortId": "p_ms7ksq2xg2mbie",
+      "toPortId": "p_ms7kjrfbg555r7",
+      "points": [
+        {
+          "x": 3544,
+          "y": 179.88
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#7b4a2d",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coffee"
+    },
+    {
+      "id": "pipe_msbws7nba4md",
+      "label": "管路 60",
+      "fromPortId": "p_msbwpwle9yxm",
+      "toPortId": "p_ms8kmrswc1v18",
+      "points": [
+        {
+          "x": 1808,
+          "y": 624
+        },
+        {
+          "x": 3776,
+          "y": -48
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_msbx343tae3g",
+      "label": "管路 48",
+      "fromPortId": "p_msbx2o20ab5e",
+      "toPortId": "p_ms7k0omrqakuku",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbx63z7ajq2",
+      "label": "管路 39",
+      "fromPortId": "p_msbx5rtiahn5",
+      "toPortId": "p_ms7kfh4hus3rtt",
+      "points": [
+        {
+          "x": 2945.5,
+          "y": 1195.88
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbx68k1alsr",
+      "label": "管路 40",
+      "fromPortId": "p_fix_sb_steam_ms9sw7ste5",
+      "toPortId": "p_msbx5rtiag3l",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbx9ln5ates",
+      "label": "管路 42",
+      "fromPortId": "p_ms91dc6h35he8p",
+      "toPortId": "p_msbx9j5qaqld",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbxba9xawdk",
+      "label": "管路 41",
+      "fromPortId": "p_fix_sb_t3",
+      "toPortId": "p_ms7kqpl79cp1cn",
+      "points": [
+        {
+          "x": 2159,
+          "y": 1032
+        },
+        {
+          "x": 2499,
+          "y": 1032
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbxbnt4axzh",
+      "label": "管路 42",
+      "fromPortId": "p_fix_sb_t2",
+      "toPortId": "p_ms7kdhm1m31hkb",
+      "points": [
+        {
+          "x": 2130.3333333333335,
+          "y": 1072
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbxc1x8b1k1",
+      "label": "管路 43",
+      "fromPortId": "p_msbxbxyeb0y1",
+      "toPortId": "p_ms7k2qjpythae2",
+      "points": [
+        {
+          "x": 1800,
+          "y": 1184
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbxfggooyju",
+      "label": "管路 44",
+      "fromPortId": "p_ms7jw13uapqoxv",
+      "toPortId": "p_msbxf50dov3v",
+      "points": [
+        {
+          "x": 718,
+          "y": 1476.8
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbxftpqozg",
+      "label": "管路 45",
+      "fromPortId": "p_msbxf50dox42",
+      "toPortId": "p_msbxg7kjp1lt",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbxgc6tp4wr",
+      "label": "管路 46",
+      "fromPortId": "p_msbxg7kjp2vw",
+      "toPortId": "p_msbxbxyeazev",
+      "points": [
+        {
+          "x": 1668,
+          "y": 1620
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbxivgapekq",
+      "label": "管路 49",
+      "fromPortId": "p_msbxn6govkd1",
+      "toPortId": "p_ms7kxxr4x9izpr",
+      "points": [
+        {
+          "x": 1277,
+          "y": 1822.84
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbxjvrpvhuw",
+      "label": "管路 50",
+      "fromPortId": "p_msbxj99gpgdk",
+      "toPortId": "p_msbxjpyovg48",
+      "points": [
+        {
+          "x": 468,
+          "y": 1837
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbxk5rgvii5",
+      "label": "管路 51",
+      "fromPortId": "p_ms7kxxr4x9j0f1",
+      "toPortId": "p_msbxj99gphl2",
+      "points": [
+        {
+          "x": 926,
+          "y": 1855.84
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbxx5tmqadlqo",
+      "label": "管路 51",
+      "fromPortId": "p_msbx9j5qasp4",
+      "toPortId": "p_msbxwperldyyyt",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbxx7rzqssang",
+      "label": "管路 52",
+      "fromPortId": "p_msbx5rtiaih9",
+      "toPortId": "p_msbxwperldz0xv",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msbxygb8wz3o9g",
+      "label": "管路 53",
+      "fromPortId": "p_msbxwperldyz6s",
+      "toPortId": "p_msbxyco8wf5r49",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msby1d1x2x7g2p",
+      "label": "管路 54",
+      "fromPortId": "p_msbx9j5qargd",
+      "toPortId": "p_msby18r21ip0ur",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#ef8aa0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "steam"
+    },
+    {
+      "id": "pipe_msby5pbqyns9r6",
+      "label": "管路 53",
+      "fromPortId": "p_ms91en36c611zq",
+      "toPortId": "p_msby5jogwqv5f6",
+      "points": [
+        {
+          "x": 3224,
+          "y": 1288
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f3ead6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "milk"
+    },
+    {
+      "id": "pipe_msby5z0c1ey0l1",
+      "label": "管路 54",
+      "fromPortId": "p_msby18r21ip1ky",
+      "toPortId": "p_msby5jogwqv6qp",
+      "points": [
+        {
+          "x": 3059,
+          "y": 1021
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f5e6d0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotMilk"
+    },
+    {
+      "id": "pipe_msby6jqf56dd4c",
+      "label": "管路 55",
+      "fromPortId": "p_msby5jogwqv4ob",
+      "toPortId": "p_ms91h2kcr16gad",
+      "points": [
+        {
+          "x": 3224,
+          "y": 936.5
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f5e6d0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotMilk"
+    },
+    {
+      "id": "pipe_msby6swr7rm45e",
+      "label": "管路 56",
+      "fromPortId": "p_ms91h2kcr16f7w",
+      "toPortId": "p_ms91fm8kiq9o1v",
+      "points": [
+        {
+          "x": 3230.12,
+          "y": 456
+        },
+        {
+          "x": 2928,
+          "y": 456
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f5e6d0",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotMilk"
+    },
+    {
+      "id": "pipe_msby7l3tbtk5oe",
+      "label": "管路 57",
+      "fromPortId": "p_ms91h2kcr16hw6",
+      "toPortId": "p_msbxn8yuvoqy",
+      "points": [
+        {
+          "x": 3274,
+          "y": 837
+        },
+        {
+          "x": 3000,
+          "y": 1584
+        },
+        {
+          "x": 2916,
+          "y": 1616
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#8a9ba8",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "wasteLiquid"
+    },
+    {
+      "id": "pipe_msby7uaue4i4ah",
+      "label": "管路 58",
+      "fromPortId": "p_ms7ksq2xg2mcvy",
+      "toPortId": "p_msbxn8yuvq9y",
+      "points": [
+        {
+          "x": 2527,
+          "y": 856
+        },
+        {
+          "x": 1959,
+          "y": 856
+        },
+        {
+          "x": 2768,
+          "y": 816
+        },
+        {
+          "x": 2768,
+          "y": 1651
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbyanrxofpxs",
+      "label": "管路 59",
+      "fromPortId": "p_msbxi5ejpb6h",
+      "toPortId": "p_msbxn6govls5",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#8a9ba8",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "wasteLiquid"
+    },
+    {
+      "id": "pipe_msbyapo7oyci5z",
+      "label": "管路 60",
+      "fromPortId": "p_msbxn6govmz9",
+      "toPortId": "p_msbxn8yuvpjv",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#8a9ba8",
+      "fluidOpacity": 0.92,
+      "direction": "reverse",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "wasteLiquid"
+    },
+    {
+      "id": "pipe_msbyicyo3pqh4d",
+      "label": "管路 58",
+      "fromPortId": "p_msbyi2k41000de",
+      "toPortId": "p_msbyfj71l364g6",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbyirjp5gqoa5",
+      "label": "管路 58",
+      "fromPortId": "p_msbyinsy4rv88t",
+      "toPortId": "p_ms92b8rm798tsv",
+      "points": [
+        {
+          "x": 3936,
+          "y": 1995
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f3ead6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "milk"
+    },
+    {
+      "id": "pipe_msbyisx85vn5rc",
+      "label": "管路 59",
+      "fromPortId": "p_msbyfj71l365l0",
+      "toPortId": "p_msbyinsy4rv7c5",
+      "points": [
+        {
+          "x": 3582.75,
+          "y": 1995.16
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbyivvh6mhkvu",
+      "label": "管路 60",
+      "fromPortId": "p_ms91fvzkl36n6e",
+      "toPortId": "p_msbyinsy4rv94p",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f3ead6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "milk"
+    },
+    {
+      "id": "pipe_msbykkd3ckp4w8",
+      "label": "管路 63",
+      "fromPortId": "p_msbyi2k4zzz2t",
+      "toPortId": "p_msbykiz9c83gi8",
+      "points": [
+        {
+          "x": 3240,
+          "y": 1560
+        },
+        {
+          "x": 3416,
+          "y": 1602.16
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbykureeblc6o",
+      "label": "管路 64",
+      "fromPortId": "p_msbykiz9c83hc7",
+      "toPortId": "p_msbykruidm66jt",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msbyl2lkgi9hj8",
+      "label": "管路 65",
+      "fromPortId": "p_msbykruidm67p7",
+      "toPortId": "p_ms92dc11jgu2np",
+      "points": [
+        {
+          "x": 3766,
+          "y": 1564
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f3ead6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "milk"
+    },
+    {
+      "id": "pipe_msbymc5nlypwud",
+      "label": "管路 64",
+      "fromPortId": "p_ms92dc11jgu0av",
+      "toPortId": "p_msbyndj9q2f75r",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f3ead6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "milk"
+    },
+    {
+      "id": "pipe_msbynocnsyyapw",
+      "label": "管路 65",
+      "fromPortId": "p_msbyndj9q2f85b",
+      "toPortId": "p_ms91en36c612p7",
+      "points": [
+        {
+          "x": 3579,
+          "y": 1242.5
+        },
+        {
+          "x": 3448,
+          "y": 1227
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f3ead6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "milk"
+    },
+    {
+      "id": "pipe_msbynstau0z1yy",
+      "label": "管路 66",
+      "fromPortId": "p_msbyn4byoivb56",
+      "toPortId": "p_msbyndj9q2f9dy",
+      "points": [
+        {
+          "x": 3713.5,
+          "y": 1317
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#93c2c9",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "air"
+    },
+    {
+      "id": "pipe_msbynug3uhqknh",
+      "label": "管路 67",
+      "fromPortId": "p_msbymtbfmmluh9",
+      "toPortId": "p_msbyn4byoivamb",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#93c2c9",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "air"
+    },
+    {
+      "id": "pipe_msbyq7gl9rrx2a",
+      "label": "管路 67",
+      "fromPortId": "p_ms92b8rm798sfp",
+      "toPortId": "p_msbyq2kn8s9vq",
+      "points": [
+        {
+          "x": 3883.84,
+          "y": 1760
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f3ead6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "milk"
+    },
+    {
+      "id": "pipe_msbyqad7aklcn7",
+      "label": "管路 68",
+      "fromPortId": "p_msbyq2kn8s9u24",
+      "toPortId": "p_ms92dc11jgu1q7",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#f3ead6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "milk"
+    },
+    {
+      "id": "pipe_msbyqrewct8h67",
+      "label": "管路 69",
+      "fromPortId": "p_ms91xxps4wscu2",
+      "toPortId": "p_msbyq2kn8s9w7i",
+      "points": [
+        {
+          "x": 1880,
+          "y": 397.88
+        },
+        {
+          "x": 1880,
+          "y": 752
+        },
+        {
+          "x": 3294,
+          "y": 752
+        },
+        {
+          "x": 3104,
+          "y": 1744
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    },
+    {
+      "id": "pipe_msch0br48n7q",
+      "label": "管路 66",
+      "fromPortId": "p_msbxg7kjp3d6",
+      "toPortId": "p_mscgzxep8kpj",
+      "points": [
+        {
+          "x": 1576,
+          "y": 1776
+        },
+        {
+          "x": 1800,
+          "y": 1776
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msch0dj28ozb",
+      "label": "管路 67",
+      "fromPortId": "p_mscgzxep8lem",
+      "toPortId": "p_mscgzs5q8hyc",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msch0vb38pgc",
+      "label": "管路 68",
+      "fromPortId": "p_mscgzxep8mof",
+      "toPortId": "p_msbyi2k4zzyx3",
+      "points": [
+        {
+          "x": 1856,
+          "y": 2128
+        },
+        {
+          "x": 3276,
+          "y": 2128
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msch0zq68qin",
+      "label": "管路 69",
+      "fromPortId": "p_mscgzs5q8i6c",
+      "toPortId": "p_msbxi5ejpcc2",
+      "points": [
+        {
+          "x": 2080,
+          "y": 1773.16
+        },
+        {
+          "x": 2080,
+          "y": 1887
+        },
+        {
+          "x": 1896,
+          "y": 1864
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#2f7fd6",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coldWater"
+    },
+    {
+      "id": "pipe_msch36sc8rm0",
+      "label": "管路 68",
+      "fromPortId": "p_ms7kiabc84visc",
+      "toPortId": "p_mscohssg11vl8",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#7b4a2d",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coffee"
+    },
+    {
+      "id": "pipe_msch598z8skj",
+      "label": "管路 69",
+      "fromPortId": "p_ms7jyj8djmquk5",
+      "toPortId": "p_msbxj99gpi76",
+      "points": [
+        {
+          "x": 1959,
+          "y": 1416
+        },
+        {
+          "x": 580,
+          "y": 1416
+        },
+        {
+          "x": 1024,
+          "y": 1888
+        },
+        {
+          "x": 562,
+          "y": 1893
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#8a9ba8",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "wasteLiquid"
+    },
+    {
+      "id": "pipe_mscoi58j11wqs",
+      "label": "管路 70",
+      "fromPortId": "p_mscohssg11u19",
+      "toPortId": "p_ms7ksq2xg2mac6",
+      "points": [],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#7b4a2d",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "coffee"
+    },
+    {
+      "id": "pipe_mscoi9m711xxi",
+      "label": "管路 71",
+      "fromPortId": "p_msbwna7o9uw0",
+      "toPortId": "p_mscohssg11tot",
+      "points": [
+        {
+          "x": 1646,
+          "y": 913.16
+        },
+        {
+          "x": 1664,
+          "y": 96
+        }
+      ],
+      "nominalDiameter": "DN25",
+      "visualDiameter": 10,
+      "wallColor": "#5b6b7d",
+      "fluidColor": "#e2542f",
+      "fluidOpacity": 0.92,
+      "direction": "forward",
+      "flowSpeed": 1.2,
+      "particleDensity": "medium",
+      "animated": true,
+      "showArrow": true,
+      "fluidType": "hotWater"
+    }
+  ],
+  "settings": {
+    "showGrid": true,
+    "background": "#eef2f7",
+    "globalAnimationPlaying": true,
+    "crossoverHops": true,
+    "layers": [
+      {
+        "id": "layer_default",
+        "name": "默认层",
+        "visible": true
+      }
+    ]
+  }
+}

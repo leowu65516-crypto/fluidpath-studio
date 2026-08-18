@@ -1,0 +1,13 @@
+node_modules
+dist
+release
+.DS_Store
+*.local
+screenshot.png
+screenshot-after.png
+暗色主题_效果图.png
+
+# 备份快照（历史交给 git，本地备份保留在磁盘即可）
+*.backup-*.json
+# Claude 本地配置
+.claude/

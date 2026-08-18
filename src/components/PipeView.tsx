@@ -107,7 +107,7 @@ function PipeViewImpl({
         <path ref={(el) => { if (el) flowRefMap.set(pipe.id, el); else flowRefMap.delete(pipe.id); }} data-flow={pipe.id} d={d} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={Math.max(2, fluidW * 0.42)} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />
         {pipe.showArrow && (
           <g transform={`translate(${mid.pt.x} ${mid.pt.y}) rotate(${arrowAngle})`}>
-            <path d={`M ${wallW * 0.9 + 4} 0 L ${-wallW * 0.25} ${-wallW * 0.62 - 3} L ${-wallW * 0.25} ${wallW * 0.62 + 3} Z`} fill="#ffffff" stroke={pipe.wallColor} strokeWidth={1.4} strokeLinejoin="round" />
+            <path d={`M ${wallW * 0.9 + 4} 0 L ${-wallW * 0.25} ${-wallW * 0.62 - 3} L ${-wallW * 0.25} ${wallW * 0.62 + 3} Z`} fill={pipe.fluidColor} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />
           </g>
         )}
         {/* 管路文字标签（双击就地编辑） */}

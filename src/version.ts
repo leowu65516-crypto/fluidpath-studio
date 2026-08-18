@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.4.0";
+export const APP_VERSION = "1.5.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.5.0",
+    date: "2026-08-18",
+    highlights: [
+      "工况切换差异对比高亮（只高亮变化元件 + 变化摘要）",
+      "管路箭头颜色跟随介质",
+      "选中管路两端端口高亮 + 连接关系提示（起点蓝/终点橙）",
+    ],
+  },
   {
     version: "1.4.0",
     date: "2026-08-18",

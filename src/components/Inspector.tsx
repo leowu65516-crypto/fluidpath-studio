@@ -609,7 +609,10 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <Row label={t("两端连接")}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
                   <span>
-                    起点：{pipe.fromPortId ? (diagram.nodes.flatMap((n) => n.ports).find((p) => p.id === pipe.fromPortId)?.direction === "in" ? "已连端口(进)" : "已连端口(出)") : "游离端点"}
+                    起点：{pipe.fromPortId ? (() => {
+                      const ref = findPort(diagram.nodes, pipe.fromPortId!);
+                      return ref ? <b style={{ color: "#2f7fd6" }}>{ref.node.label || ref.node.type}</b> : "已连端口";
+                    })() : "游离端点"}
                     {pipe.fromPortId && (() => {
                       const ref = findPort(diagram.nodes, pipe.fromPortId!);
                       const pt = ref ? portWorldPos(ref.node, ref.port) : { x: 0, y: 0 };
@@ -617,14 +620,17 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                     })()}
                   </span>
                   <span>
-                    {pipe.toPortId ? (diagram.nodes.flatMap((n) => n.ports).find((p) => p.id === pipe.toPortId)?.direction === "in" ? "已连端口(进)" : "已连端口(出)") : "游离端点"}
+                    终点：{pipe.toPortId ? (() => {
+                      const ref = findPort(diagram.nodes, pipe.toPortId!);
+                      return ref ? <b style={{ color: "#e8890c" }}>{ref.node.label || ref.node.type}</b> : "已连端口";
+                    })() : "游离端点"}
                     {pipe.toPortId && (() => {
                       const ref = findPort(diagram.nodes, pipe.toPortId!);
                       const pt = ref ? portWorldPos(ref.node, ref.port) : { x: 0, y: 0 };
                       return <button className="mini" style={{ marginLeft: 6 }} onClick={() => patchPipe(pipe.id, { toPortId: undefined, toPoint: pt })}>{t("断开")}</button>;
                     })()}
                   </span>
-                  <span style={{ color: "#7a8696" }}>{t("提示：拖动画布上管路端点的蓝色手柄即可重连或拖成游离端点")}</span>
+                  <span style={{ color: "#7a8696" }}>{t("提示：起点蓝、终点橙，画布上两端端口已高亮；拖动管路端点的蓝色手柄可重连或拖成游离端点")}</span>
                 </div>
               </Row>
               <Section title={t("走线")}>

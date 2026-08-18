@@ -93,6 +93,13 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   }, [diagram, ui.selection, ui.scenario]);
   const funcNodeSet = new Set(funcChain?.nodeIds ?? []);
   const funcPipeSet = new Set(funcChain?.pipeIds ?? []);
+  // 选中单根管路：两端端口高亮（便于看清连接关系）
+  const selectedPipeEnds = useMemo(() => {
+    if (ui.selection.nodes.length !== 0 || ui.selection.pipes.length !== 1) return null;
+    const p = diagram.pipes.find((x) => x.id === ui.selection.pipes[0]);
+    if (!p || (!p.fromPortId && !p.toPortId)) return null;
+    return { fromPortId: p.fromPortId, toPortId: p.toPortId };
+  }, [diagram, ui.selection]);
   const chainPathSet = new Set(ui.chainPath?.pipeIds ?? []);
   // 介质物理常识校验：实时计算冲突，供画布感叹号与修复菜单使用
   const fluidIssues = useMemo(() => checkDiagramFluid(diagram), [diagram]);
@@ -979,6 +986,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           {node.ports.map((port) => {
             const local = { top: { x: node.width * (port.offset ?? 0.5), y: 0 }, bottom: { x: node.width * (port.offset ?? 0.5), y: node.height }, left: { x: 0, y: node.height * (port.offset ?? 0.5) }, right: { x: node.width, y: node.height * (port.offset ?? 0.5) } }[port.position];
             const active = hoverPort === port.id || snapPortId === port.id;
+            const isPipeEnd = selectedPipeEnds && (selectedPipeEnds.fromPortId === port.id || selectedPipeEnds.toPortId === port.id);
             const dir = port.direction ?? "bidirectional";
             const isIn = dir === "in", isOut = dir === "out";
             const color = isIn ? "#2f7fd6" : isOut ? "#e8890c" : "#8a97a6";
@@ -1008,7 +1016,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                   <rect x={tx - 3} y={ty - 3} width={6} height={6} transform={`rotate(45 ${tx} ${ty})`} fill="#ffffff" stroke={color} strokeWidth={1.4} pointerEvents="none" />
                 )}
                 {/* 端口圆点画在 stub 末端：出口实心橙 / 进口空心蓝 / 双向空心灰 */}
-                <circle cx={tx} cy={ty} r={active ? 6 : 4.5} fill={isOut ? color : "#ffffff"} stroke={color} strokeWidth={1.8} pointerEvents="none" />
+                <circle cx={tx} cy={ty} r={active ? 6 : 4.5} fill={isOut ? color : "#ffffff"} stroke={isPipeEnd ? "#ff6a00" : color} strokeWidth={isPipeEnd ? 2.6 : 1.8} pointerEvents="none" />
+                {isPipeEnd && <circle cx={tx} cy={ty} r={9} fill="none" stroke="#ff6a00" strokeWidth={1.4} opacity={0.7} pointerEvents="none" />}
                 {/* 热区：stub 末端 + 元件边缘各一个（连线锚点仍在边缘，点末端也能起线） */}
                 <circle cx={tx} cy={ty} r={12} fill="transparent" data-port-id={port.id} style={{ cursor: "crosshair", pointerEvents: portVisible ? "all" : "none" }} onMouseDown={(e) => onPortMouseDown(e, node.id, port.id)} onMouseEnter={() => setHoverPort(port.id)} onMouseLeave={() => setHoverPort((h) => (h === port.id ? null : h))} />
                 <circle cx={local.x} cy={local.y} r={10} fill="transparent" data-port-id={port.id} style={{ cursor: "crosshair", pointerEvents: portVisible ? "all" : "none" }} onMouseDown={(e) => onPortMouseDown(e, node.id, port.id)} onMouseEnter={() => setHoverPort(port.id)} onMouseLeave={() => setHoverPort((h) => (h === port.id ? null : h))} />

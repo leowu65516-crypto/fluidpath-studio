@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { saveWorkCondition, applyWorkCondition, deleteWorkCondition, listWorkConditions, loadDiagram, store } from "../store";
 import { parseDiagramJSON } from "../export";
+import { diffStateIds } from "../presets";
 import bcmtsRaw from "../../BCMTS.json";
 import type { Diagram } from "../types";
 
@@ -44,6 +45,15 @@ describe("工况快照", () => {
 function store_diagram(): Diagram {
   return store.get().diagram;
 }
+
+describe("状态差异对比", () => {
+  it("diffStateIds 只返回发生变化的节点", () => {
+    const prev = { p1: { pumpOn: true }, v1: { valveState: "open" as const }, v2: { valvePath: "A" as const } };
+    const next = { p1: { pumpOn: false }, v1: { valveState: "open" as const }, v2: { valvePath: "A" as const } };
+    expect(diffStateIds(prev, next)).toEqual(["p1"]);
+    expect(diffStateIds(prev, prev)).toEqual([]);
+  });
+});
 
 describe("工况随 JSON/分享码持久化", () => {
   it("导出 JSON 再导入后工况仍在", () => {

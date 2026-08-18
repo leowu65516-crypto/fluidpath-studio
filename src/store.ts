@@ -16,7 +16,7 @@ import { createSampleDiagram, createEmptyDiagram, createCoffeeMachineDiagram, cr
 import { createNode } from "./symbols";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsToPreset } from "./scenarios";
-import { snapshotStates, applyStates, type PresetState } from "./presets";
+import { snapshotStates, applyStates, diffStateIds, type PresetState } from "./presets";
 import { toast } from "./toast";
 import type { FixAction } from "./advice";
 
@@ -405,10 +405,20 @@ export function saveWorkCondition(name: string) {
 export function applyWorkCondition(name: string) {
   const cond = state.diagram.settings.workConditions?.find((c) => c.name === name);
   if (!cond) return;
+  const prev = snapshotStates(state.diagram);
   updateDiagram((d) => {
     applyStates(d, cond.state);
   });
-  blinkElements(Object.keys(cond.state));
+  // 差异对比：只高亮本次切换发生变化的元件，并给出变化摘要
+  const changed = diffStateIds(prev, cond.state);
+  if (changed.length === 0) {
+    toast(`「${name}」与当前开关状态一致，没有变化`);
+    return;
+  }
+  blinkElements(changed);
+  const byId = new Map(state.diagram.nodes.map((n) => [n.id, n.label || n.type]));
+  const sample = changed.slice(0, 3).map((id) => byId.get(id)).filter(Boolean).join("、");
+  toast(`已切换到「${name}」：${changed.length} 个开关变化（${sample}${changed.length > 3 ? "…" : ""}），橙色高亮即改动处`);
 }
 
 /** 删除工况 */

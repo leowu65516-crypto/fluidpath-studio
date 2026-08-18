@@ -50,3 +50,13 @@ export function statesEqual(a: PresetStateMap, b: PresetStateMap): boolean {
 export function stateEntryCount(state: PresetStateMap): number {
   return Object.keys(state).length;
 }
+
+/** 两份状态之间发生变化的节点 id（用于切换工况后高亮差异） */
+export function diffStateIds(prev: PresetStateMap, next: PresetStateMap): string[] {
+  const ids = new Set([...Object.keys(prev), ...Object.keys(next)]);
+  const changed: string[] = [];
+  for (const id of ids) {
+    if (JSON.stringify(prev[id] ?? null) !== JSON.stringify(next[id] ?? null)) changed.push(id);
+  }
+  return changed;
+}

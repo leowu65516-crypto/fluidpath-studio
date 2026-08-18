@@ -12,7 +12,7 @@
 - 项目路径：`/Users/leo/Documents/测试`（注意：**中文路径**）
 - **已 git 初始化**（2026-08-18 起，每个版本一个 commit，历史可回退）；改前仍建议 `cp` 备份到 `/tmp`
 - 技术栈：Electron（主进程 CJS）+ React 18 + TypeScript（strict）+ Vite 5 + Vitest（jsdom）
-- 打包：electron-builder（未签名，arm64）；当前产物 `release/FluidPath Studio-1.7.0-arm64.dmg`
+- 打包：electron-builder（未签名，arm64）；当前产物 `release/FluidPath Studio-1.7.1-arm64.dmg`
 - Node 路径：`/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin`（**每条命令都要先 `export PATH=.../bin:$PATH`**）
 
 ### 关键文件地图
@@ -34,7 +34,7 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 35 个测试文件 / 236 用例，见 §6 |
+| `src/__tests__/` | 35 个测试文件 / 237 用例，见 §6 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
 | `BCTMS.json`（项目根） | 另一台机型 BCTMS 快照（62/70，供 flow-isolation 测试） |
@@ -332,7 +332,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npx vitest run                   # 全量测试（当前 236 个，35 文件）
+npx vitest run                   # 全量测试（当前 237 个，35 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -345,7 +345,7 @@ git status && git add -A && git commit -m "..."   # 每版一个 commit（见 §
 1. `npm run build`（Vite 构建 dist）
 2. `npx electron-builder --mac --config.electronDist=node_modules/electron/dist`
 3. `npx electron scripts/verify-asar.cjs` → `ASAR_LOAD_RESULT hasApp:true hasCanvas:true`
-4. 产物：`release/FluidPath Studio-1.7.0-arm64.dmg`（版本号随 `package.json`；未签名；macOS 首次打开需右键 → 打开）
+4. 产物：`release/FluidPath Studio-1.7.1-arm64.dmg`（版本号随 `package.json`；未签名；macOS 首次打开需右键 → 打开）
 
 ### 5.3 环境坑（全部实测）
 
@@ -398,7 +398,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：35 文件 / 236 用例全绿，tsc 无错误。**
+**当前全量：35 文件 / 237 用例全绿，tsc 无错误。**
 
 ---
 
@@ -417,7 +417,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 ---
 
-*文档结束。接手后建议第一步：`npx vitest run` 确认 236 绿，再读 `src/geometry.ts` 的 `computeDisabledPipes`（相位 BFS + 压力域）与 `computeDemandPipes`（需求域 per-root BFS）。*
+*文档结束。接手后建议第一步：`npx vitest run` 确认 237 绿，再读 `src/geometry.ts` 的 `computeDisabledPipes`（相位 BFS + 压力域）与 `computeDemandPipes`（需求域 per-root BFS）。*
 
 
 ---
@@ -429,6 +429,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.7.1 | 2026-08-18 | 停流管不再显示流动粒子与箭头；新增 BCMTS「总进水阀关 + 水泵停」锅炉补水链全停流回归 |
 | 1.7.0 | 2026-08-18 | 修复共享汇流处停流误传播；教学显示覆盖与工程状态分离；新增工程 JSON 导出与旧覆盖字段自动迁移 |
 | 1.6.0 | 2026-08-18 | 新增元件「冲泡缸」（处理组，简笔密闭腔+上下活塞）；接入介质规则/需求终点/场景角色/启动最简图 |
 | 1.5.0 | 2026-08-18 | 工况切换差异对比高亮；管路箭头颜色跟随介质；选中管路两端端口高亮+连接关系提示 |

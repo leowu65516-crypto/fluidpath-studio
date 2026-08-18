@@ -79,6 +79,8 @@ function PipeViewImpl({
   const arrowAngle = pipe.direction === "forward" ? mid.angle : mid.angle + 180;
   const wallOpacity = pipe.wallOpacity ?? 1;
   const dimOpacity = scenarioDim ? 0.12 : disabled ? 0.42 : 1;
+  // 停流时保留管材与介质标识，但不再绘制白色流动粒子/箭头，避免静态虚线被误读为仍在流动。
+  const fluidOpacity = disabled ? Math.min(pipe.fluidOpacity, 0.16) : pipe.fluidOpacity;
   const labelY = mid.pt.y + (disabled ? 0 : -wallW * 0.7 - 4);
 
   return (
@@ -103,9 +105,9 @@ function PipeViewImpl({
       <g opacity={dimOpacity}>
         <path d={d} fill="none" stroke="#7d8b99" strokeOpacity={0.55} strokeWidth={wallW + 2.4} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={pipe.wallColor} strokeOpacity={wallOpacity} strokeWidth={wallW} strokeLinejoin="round" strokeLinecap="round" />
-        <path d={d} fill="none" stroke={pipe.fluidColor} strokeOpacity={pipe.fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" />
-        <path ref={(el) => { if (el) flowRefMap.set(pipe.id, el); else flowRefMap.delete(pipe.id); }} data-flow={pipe.id} d={d} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={Math.max(2, fluidW * 0.42)} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />
-        {pipe.showArrow && (
+        <path d={d} fill="none" stroke={pipe.fluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" />
+        {!disabled && <path ref={(el) => { if (el) flowRefMap.set(pipe.id, el); else flowRefMap.delete(pipe.id); }} data-flow={pipe.id} d={d} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={Math.max(2, fluidW * 0.42)} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />}
+        {!disabled && pipe.showArrow && (
           <g transform={`translate(${mid.pt.x} ${mid.pt.y}) rotate(${arrowAngle})`}>
             <path d={`M ${wallW * 0.9 + 4} 0 L ${-wallW * 0.25} ${-wallW * 0.62 - 3} L ${-wallW * 0.25} ${wallW * 0.62 + 3} Z`} fill={pipe.fluidColor} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />
           </g>

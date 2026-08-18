@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseDiagramJSON } from "../export";
 import { computeDisabledPipes, pipeEngineeringDisabled, pipeEffectiveDisabled, pipeTeachingOverride, setCachedPipes } from "../geometry";
+import bcmtsRaw from "../../BCMTS.json";
 
 describe("工程状态与教学显示状态分离", () => {
   it("旧版 forceStop 加载后迁移为教学覆盖，工程判定仍按真实拓扑执行", () => {
@@ -41,5 +42,19 @@ describe("工程状态与教学显示状态分离", () => {
     expect(disabled.has("p1out")).toBe(true);
     expect(disabled.has("p2out")).toBe(false);
     expect(disabled.has("common")).toBe(false);
+  });
+
+  it("BCMTS 总进水阀关闭且水泵停止时，流量计至热水锅炉底部补水链必须全部停流", () => {
+    const d = parseDiagramJSON(JSON.stringify(bcmtsRaw));
+    d.nodes.find((n) => n.id === "n_ms7jr4mj2wu7sw")!.pumpOn = false;
+    d.nodes.find((n) => n.id === "n_ms7jsb6764ggp8")!.valveState = "closed";
+    setCachedPipes(d.pipes, d.nodes);
+    const labels = ["管路 61", "管路 62", "管路 4", "管路 5", "管路 3"];
+    for (const label of labels) {
+      const pipe = d.pipes.find((p) => p.label === label);
+      expect(pipe, `${label} 应存在`).toBeTruthy();
+      expect(pipeEngineeringDisabled(pipe!, d.nodes), `${label} 应按工程状态停流`).toBe(true);
+      expect(pipeEffectiveDisabled(pipe!, d.nodes), `${label} 应按画面状态停流`).toBe(true);
+    }
   });
 });

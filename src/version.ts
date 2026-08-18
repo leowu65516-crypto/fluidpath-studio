@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.7.0";
+export const APP_VERSION = "1.7.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.7.1",
+    date: "2026-08-18",
+    highlights: [
+      "修复停流管仍保留流动粒子与箭头、容易被误读为介质持续流动的问题",
+      "新增 BCMTS 总进水阀关闭且水泵停止时，流量计至热水锅炉补水链全停流的回归测试",
+    ],
+  },
   {
     version: "1.7.0",
     date: "2026-08-18",

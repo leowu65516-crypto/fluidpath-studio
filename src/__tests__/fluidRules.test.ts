@@ -84,6 +84,12 @@ describe("液路介质物理常识规则", () => {
     expect(checkPipeFluid(pipe("steam", undefined, "t_r"), [tee])).toHaveLength(0);
   });
 
+  it("清洗废液 cleanWaste 与废液一样不被约束（终端废液）", () => {
+    const boiler = node("hotWaterBoiler", "hb", [port("hb_i", "bottom")]);
+    // cleanWaste 流入锅炉也不应报错（废液类不做介质约束）
+    expect(checkPipeFluid(pipe("cleanWaste", undefined, "hb_i"), [boiler])).toHaveLength(0);
+  });
+
   it("正确示例 MSY2.json 不应产生介质冲突", () => {
     const issues = checkDiagramFluid(msy2 as unknown as Diagram);
     const flat = [...issues.values()].flat();

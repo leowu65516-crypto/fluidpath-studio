@@ -18,7 +18,7 @@ import {
   snap,
   pipeEffectiveDisabled
 } from "../geometry";
-import { NodeSymbol, spoutTips } from "../symbols";
+import { NodeSymbol, spoutTips, defOf } from "../symbols";
 import { MiniMap } from "./MiniMap";
 import { PipeView } from "./PipeView";
 import { useT } from "../i18n";
@@ -874,8 +874,16 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
     const scenario = ui.scenario;
     const nodeActive = scenario ? scenario.activeNodes.includes(node.id) : true;
     const nodeDim = scenario ? !nodeActive : false;
+    // 悬停浮动提示：元件名 + 类型 + 当前状态（解决元件多、文字小找不到）
+    const stateHint = (() => {
+      if (node.type === "pump" || node.type === "milkPump") return node.pumpOn !== false ? "运行" : "停止";
+      if (node.type === "solenoid2") return node.valveState === "open" ? "开" : "关";
+      if (node.type === "solenoid3") return node.valvePath === "A" ? "A 路" : node.valvePath === "B" ? "B 路" : "关";
+      return "";
+    })();
     return (
       <g key={node.id}>
+        <title>{node.label || defOf(node.type, node.variant).label}{stateHint ? `（${stateHint}）` : ""}{node.fault ? " · 故障" : ""}</title>
         {/* 故障模拟红色标记（教学用） */}
         {node.fault && (
           <g pointerEvents="none" transform={`translate(${node.x + node.width} ${node.y})`}>

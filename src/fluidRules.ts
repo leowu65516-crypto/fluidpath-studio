@@ -101,7 +101,7 @@ function makeIssue(
 /** 检查单条管路的介质冲突（两端各查一次） */
 export function checkPipeFluid(pipe: Pipe, nodes: DiagramNode[]): FluidIssue[] {
   const issues: FluidIssue[] = [];
-  if (!pipe.fluidType || pipe.fluidType === "custom" || pipe.fluidType === "wasteLiquid") return issues;
+  if (!pipe.fluidType || pipe.fluidType === "custom" || pipe.fluidType === "wasteLiquid" || pipe.fluidType === "cleanWaste") return issues;
 
   const portToNode = new Map<string, DiagramNode>();
   for (const n of nodes) for (const p of n.ports) portToNode.set(p.id, n);

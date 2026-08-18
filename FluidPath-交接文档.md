@@ -304,7 +304,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npx vitest run                   # 全量测试（当前 232 个，34 文件）
+npx vitest run                   # 全量测试（当前 233 个，34 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -367,7 +367,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：34 文件 / 232 用例全绿，tsc 无错误。**
+**当前全量：34 文件 / 233 用例全绿，tsc 无错误。**
 
 ---
 
@@ -394,6 +394,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.4.0 | 2026-08-18 | 新增介质「清洗废液」；元件悬停浮动提示（名称+类型+状态） |
 | 1.3.0 | 2026-08-18 | 工程化：git 基线提交、统一预设状态原语（presets.ts）、关键流程 E2E、i18n 补全工况/图层/弹窗 |
 | 1.2.0 | 2026-08-18 | 工况改清晰面板（记住开关/恢复，内联输入）；图层面板修复裁剪+选中本层/双击改名/删除归默认层；启动默认最简图；移除全部 window.prompt（Electron 不支持），改用应用内输入弹窗/内联输入 |
 | 1.1.0 | 2026-08-18 | 诊断分层/因果链/教学解释/总览；功能链联动；场景↔工况；自动保存+版本历史（5 份）；十字四通/端口上限 8/stub 延长/进出口可视化；演示角色自适应；移除透明按钮；修复工具栏下拉被裁剪；工况改为独立面板（大保存按钮+三步引导）；启动默认改为最简「水泵→冲泡缸→咖啡出口」 |

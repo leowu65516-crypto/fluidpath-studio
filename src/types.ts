@@ -107,7 +107,7 @@ export type NodeFault = "pumpStuck" | "valveStuckOpen" | "valveStuckClosed";
 export type FlowDirection = "forward" | "reverse";
 export type ParticleDensity = "low" | "medium" | "high";
 
-export type FluidType = "steam" | "coldWater" | "hotWater" | "coffee" | "air" | "milk" | "coldMilk" | "hotMilk" | "coldMilkFoam" | "hotMilkFoam" | "wasteLiquid" | "custom";
+export type FluidType = "steam" | "coldWater" | "hotWater" | "coffee" | "air" | "milk" | "coldMilk" | "hotMilk" | "coldMilkFoam" | "hotMilkFoam" | "wasteLiquid" | "cleanWaste" | "custom";
 export type PipeMaterial = "blackPTFE" | "whitePTFE" | "silicone" | "reinforced" | "custom";
 
 export interface Pipe {
@@ -172,6 +172,7 @@ export const FLUID_PRESETS: FluidPreset[] = [
   { key: "coldMilkFoam", label: "冷奶沫", color: "#f0f4f8" },
   { key: "hotMilkFoam", label: "热奶沫", color: "#f8efe0" },
   { key: "wasteLiquid", label: "废液", color: "#8a9ba8" },
+  { key: "cleanWaste", label: "清洗废液", color: "#7d8a5a" },
   { key: "air", label: "空气", color: "#93c2c9" },
   { key: "custom", label: "其他/自定义", color: "#2f7fd6" }
 ];

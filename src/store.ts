@@ -77,13 +77,62 @@ export interface AutosaveVersion {
 }
 
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+let sourceFilePath: string | null = null;
+let fileAutosaveEnabled = false;
+let fileAutosavePath: string | null = null;
+let fileAutosaveTicker: ReturnType<typeof setInterval> | null = null;
+
+type ElectronBridge = { writeAutosaveCopy?: (payload: { sourcePath: string; json: string }) => Promise<{ path: string }> };
+
+export function setSourceFilePath(path: string | null) {
+  sourceFilePath = path;
+  fileAutosaveEnabled = false;
+  fileAutosavePath = null;
+  if (fileAutosaveTicker) { clearInterval(fileAutosaveTicker); fileAutosaveTicker = null; }
+  setUI({});
+}
+
+export function fileAutosaveStatus() {
+  return { enabled: fileAutosaveEnabled, sourcePath: sourceFilePath, copyPath: fileAutosavePath };
+}
+
+/** 开启后每分钟将当前图纸原子写入原 JSON 同目录的 .autosave.json 副本。 */
+export async function setFileAutosave(enabled: boolean): Promise<{ enabled: boolean; path?: string }> {
+  if (!enabled) {
+    fileAutosaveEnabled = false;
+    fileAutosavePath = null;
+    if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
+    if (fileAutosaveTicker) { clearInterval(fileAutosaveTicker); fileAutosaveTicker = null; }
+    setUI({});
+    return { enabled: false };
+  }
+  const bridge = (window as Window & { electron?: ElectronBridge }).electron;
+  if (!sourceFilePath || !bridge?.writeAutosaveCopy) throw new Error("请先通过桌面版打开 JSON 图纸，再开启同路径自动保存");
+  fileAutosaveEnabled = true;
+  const result = await writeFileAutosave(state.diagram);
+  if (fileAutosaveTicker) clearInterval(fileAutosaveTicker);
+  fileAutosaveTicker = setInterval(() => { void writeFileAutosave(state.diagram); }, 60_000);
+  setUI({});
+  return { enabled: true, path: result };
+}
+
+async function writeFileAutosave(diagram: Diagram): Promise<string | undefined> {
+  const bridge = (window as Window & { electron?: ElectronBridge }).electron;
+  if (!fileAutosaveEnabled || !sourceFilePath || !bridge?.writeAutosaveCopy) return undefined;
+  const result = await bridge.writeAutosaveCopy({ sourcePath: sourceFilePath, json: JSON.stringify({ ...diagram, _version: 3, _autosavedAt: new Date().toISOString() }, null, 2) });
+  fileAutosavePath = result.path;
+  return result.path;
+}
 
 /** 编辑后防抖调度自动保存（800ms 无变化才落盘） */
 export function scheduleAutosave(diagram: Diagram) {
   if (!diagram.id || diagram.nodes.length === 0) return;
   try { localStorage.setItem(LAST_DIAGRAM_KEY, diagram.id); } catch { /* ignore */ }
   if (autosaveTimer) clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(() => persistAutosave(diagram), 800);
+  autosaveTimer = setTimeout(() => {
+    persistAutosave(diagram);
+    void writeFileAutosave(diagram);
+  }, fileAutosaveEnabled ? 60_000 : 800);
 }
 
 function persistAutosave(diagram: Diagram) {
@@ -105,6 +154,7 @@ function persistAutosave(diagram: Diagram) {
 export function flushAutosave(diagram: Diagram) {
   if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
   persistAutosave(diagram);
+  void writeFileAutosave(diagram);
 }
 
 export function getAutosaveVersions(diagramId: string): AutosaveVersion[] {

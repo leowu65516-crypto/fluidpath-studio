@@ -158,6 +158,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <button className="btn wide" onClick={() => setSelectionDisabled(true)}>{t("置灰选中")}</button>
               <button className="btn wide" onClick={() => setSelectionDisabled(false)}>{t("取消置灰")}</button>
             </div>
+            <button className="btn wide" onClick={() => window.dispatchEvent(new Event("fluidpath:open-advice"))}>🔍 {t("诊断所选范围")}</button>
             <button className="btn danger wide" onClick={deleteSelection}>{t("删除所选")}</button>
             {ui.selection.nodes.length > 1 && (
               <>
@@ -812,15 +813,10 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               />
             </Row>
             <Row label={t("画布背景")}>
-              <input
-                type="color"
-                value={diagram.settings.background}
-                onChange={(e) =>
-                  updateDiagram((d) => {
-                    d.settings.background = e.target.value;
-                  }, false)
-                }
-              />
+              <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                {["#ffffff", "#f3f7fb", "#eef2f7", "#f5f2eb", "#eff6f0", "#f8f1f4"].map((color) => <button key={color} title={color} onClick={() => updateDiagram((d) => { d.settings.background = color; }, false)} style={{ width: 19, height: 19, borderRadius: 3, border: `2px solid ${diagram.settings.background === color ? "var(--accent)" : "var(--border)"}`, background: color, cursor: "pointer" }} />)}
+                <input type="color" value={diagram.settings.background} onChange={(e) => updateDiagram((d) => { d.settings.background = e.target.value; }, false)} />
+              </div>
             </Row>
             <Row label={t("显示网格")}>
               <input

@@ -19,7 +19,7 @@ import {
   pipeEffectiveDisabled,
   pipeTeachingOverride
 } from "../geometry";
-import { NodeSymbol, spoutTips, defOf } from "../symbols";
+import { NodeSymbol, spoutTips, defOf, nodeCanvasLabel } from "../symbols";
 import { MiniMap } from "./MiniMap";
 import { PipeView } from "./PipeView";
 import { useT } from "../i18n";
@@ -82,7 +82,7 @@ export interface CanvasHandle {
 
 export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SVGSVGElement | null> }) {
   const app = useAppState();
-  const { t } = useT();
+  const { t, lang } = useT();
   const { diagram, ui } = app;
   const blinkIds = new Set(ui.blink?.ids ?? []);
   const blinkStamp = ui.blink?.stamp ?? 0;
@@ -891,7 +891,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
     })();
     return (
       <g key={node.id}>
-        <title>{node.label || defOf(node.type, node.variant).label}{stateHint ? `（${stateHint}）` : ""}{node.fault ? " · 故障" : ""}</title>
+        <title>{nodeCanvasLabel(node, lang) || defOf(node.type, node.variant).label}{stateHint ? `（${stateHint}）` : ""}{node.fault ? " · 故障" : ""}</title>
         {/* 故障模拟红色标记（教学用） */}
         {node.fault && (
           <g pointerEvents="none" transform={`translate(${node.x + node.width} ${node.y})`}>
@@ -1070,7 +1070,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           )}
         </g>
         {/* 节点标签 — 永远在旋转组外，保持水平 */}
-        {node.type !== "label" && node.type !== "shape" && (
+        {diagram.settings.showNodeLabels !== false && node.type !== "label" && node.type !== "shape" && (
           <text
             x={node.x + node.width / 2} y={node.y + node.height + 18}
             textAnchor="middle" fontSize={node.fontSize ?? 13} fill="var(--node-label)"
@@ -1078,7 +1078,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             data-ui="1"
             style={{ cursor: "text" }}
             onDoubleClick={(e) => { e.stopPropagation(); beginLabelEdit("node", node.id, node.x + node.width / 2, node.y + node.height + 18, node.label); }}
-          >{node.label}</text>
+          >{nodeCanvasLabel(node, lang)}</text>
         )}
       </g>
     );
@@ -1196,6 +1196,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                 onLintClick={(pp) => openAdviceAndFocus(pp.id)}
                 funcChain={funcPipeSet.has(p.id)}
                 showFluidLabels={diagram.settings.showFluidLabels !== false}
+                showPipeLabels={diagram.settings.showPipeLabels !== false}
+                showFluidColors={diagram.settings.showFluidColors !== false}
                 flowRefMap={flowRefs.current}
                 onPipeBodyMouseDown={onPipeBodyMouseDown}
                 onVertexMouseDown={onVertexMouseDown}

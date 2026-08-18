@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld("electron", {
   onOpenFile: (callback) => {
     ipcRenderer.on("open-file", (_event, payload) => callback(payload));
   },
+  writeAutosaveCopy: (payload) => ipcRenderer.invoke("write-autosave-copy", payload),
 });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PromptDialog } from "./PromptDialog";
-import { useAppState, addLayer, removeLayer, toggleLayerVisibility, setCurrentLayer, setSelection, blinkElements, renameLayer } from "../store";
+import { useAppState, addLayer, removeLayer, toggleLayerVisibility, setCurrentLayer, setSelection, blinkElements, renameLayer, updateDiagram } from "../store";
 import { useT } from "../i18n";
 
 /** 顶部工具栏的图层面板（固定面板）：可见性、当前图层、新建/删除/改名、定位本层 */
@@ -68,6 +68,15 @@ export function LayerPanel({ onClose }: { onClose: () => void }) {
             </div>
           );
         })}
+      </div>
+      <div className="layer-export-controls">
+        <b>{t("导出整理")}</b>
+        <label><input type="checkbox" checked={diagram.settings.showNodeLabels !== false} onChange={(e) => updateDiagram((d) => { d.settings.showNodeLabels = e.target.checked; }, false)} /> {t("显示元器件名称")}</label>
+        <label><input type="checkbox" checked={diagram.settings.showPipeLabels !== false} onChange={(e) => updateDiagram((d) => { d.settings.showPipeLabels = e.target.checked; }, false)} /> {t("显示管路编号属性")}</label>
+        <label><input type="checkbox" checked={diagram.settings.showFluidLabels === true} onChange={(e) => updateDiagram((d) => { d.settings.showFluidLabels = e.target.checked; }, false)} /> {t("显示介质文字")}</label>
+        <label><input type="checkbox" checked={diagram.settings.showFluidColors !== false} onChange={(e) => updateDiagram((d) => { d.settings.showFluidColors = e.target.checked; }, false)} /> {t("显示介质颜色")}</label>
+        <button className="btn wide" onClick={() => updateDiagram((d) => { d.settings.showNodeLabels = false; d.settings.showPipeLabels = false; d.settings.showFluidLabels = false; d.settings.showFluidColors = false; }, false)}>{t("清洁导出模式")}</button>
+        <button className="btn ghost wide" onClick={() => updateDiagram((d) => { d.settings.showNodeLabels = true; d.settings.showPipeLabels = true; d.settings.showFluidLabels = true; d.settings.showFluidColors = true; }, false)}>{t("恢复全部显示")}</button>
       </div>
       <div className="layer-add">
         <input

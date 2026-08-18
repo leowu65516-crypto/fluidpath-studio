@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, dialog } = require("electron");
+const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
@@ -67,6 +67,18 @@ function createWindow() {
 
   return win;
 }
+
+ipcMain.handle("write-autosave-copy", async (_event, { sourcePath, json }) => {
+  if (typeof sourcePath !== "string" || !sourcePath.endsWith(".json") || typeof json !== "string") {
+    throw new Error("自动保存需要先打开一个 JSON 图纸");
+  }
+  const parsed = path.parse(sourcePath);
+  const target = path.join(parsed.dir, `${parsed.name}.autosave.json`);
+  const temp = `${target}.tmp`;
+  fs.writeFileSync(temp, json, "utf8");
+  fs.renameSync(temp, target);
+  return { path: target };
+});
 
 app.whenReady().then(() => {
   const win = createWindow();

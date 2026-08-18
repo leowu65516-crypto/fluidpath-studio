@@ -213,6 +213,10 @@ export interface DiagramSettings {
   flowScale?: number;
   /** 是否在管路上自动显示介质名称 */
   showFluidLabels?: boolean;
+  /** 导出整理：是否显示元器件名称、管路编号与介质颜色。 */
+  showNodeLabels?: boolean;
+  showPipeLabels?: boolean;
+  showFluidColors?: boolean;
   /** 背景样式：点阵/方格/纯色 */
   backgroundType?: "dot" | "grid" | "solid";
   /** 记录保存时的应用版本（预留：版本历史/兼容迁移用） */

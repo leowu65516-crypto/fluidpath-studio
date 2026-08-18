@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import {
   canRedo,
   canUndo,
-  createWorkingCopy,
+  fileAutosaveStatus,
   fitToScreen,
   loadDiagram,
   markSaved,
   newDiagram,
   redo,
   setGlobalFlowScale,
+  setFileAutosave,
+  setSourceFilePath,
   setSelectionDisabled,
   setStyleBrush,
   setZoomCenter,
@@ -176,6 +178,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       try {
         const d = parseDiagramJSON(text);
         loadDiagram(d);
+        setSourceFilePath((file as File & { path?: string }).path ?? null);
         // 加载后引导提示
         const tips: string[] = [];
         const nodeCount = d.nodes?.length ?? 0;
@@ -234,8 +237,8 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" title={t("打开 JSON")} onClick={() => fileRef.current?.click()}>
         <Icon d="M3 8l3-4h5l2 3h8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />{t("打开 JSON")}
       </button>
-      <button className="tb-btn" title={t("导入分享码")} onClick={() => setImportOpen(true)}>
-        <Icon d="M9 12h6M9 16h6M7 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" />{t("导入分享码")}
+      <button className="tb-btn sq" title={t("导入分享码")} aria-label={t("导入分享码")} onClick={() => setImportOpen(true)}>
+        <Icon d="M9 12h6M9 16h6M7 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" />
       </button>
       <button
         className="tb-btn"
@@ -248,15 +251,17 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" />{t("保存到本地")}
       </button>
       <button
-        className={`tb-btn${diagram.settings.workingCopyOf ? " active" : ""}`}
-        disabled={!!diagram.settings.workingCopyOf}
-        title={diagram.settings.workingCopyOf ? t("当前正在编辑副本") : t("创建编辑副本说明")}
+        className={`tb-btn sq${fileAutosaveStatus().enabled ? " active" : ""}`}
+        title={fileAutosaveStatus().enabled ? t("关闭同路径自动保存") : t("开启同路径自动保存")}
+        aria-label={t("自动保存")}
         onClick={() => {
-          const copy = createWorkingCopy();
-          toast(`${t("已创建编辑副本")}：${copy.name}`);
+          const enabled = !fileAutosaveStatus().enabled;
+          setFileAutosave(enabled).then((result) => {
+            toast(result.enabled ? `${t("自动保存已开启")}：${result.path}` : t("自动保存已关闭"));
+          }).catch((err: Error) => toast(err.message, "error"));
         }}
       >
-        <Icon d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3M14 3h5a2 2 0 0 1 2 2v10M12 15l9-9M16 6h5v5" />{t(diagram.settings.workingCopyOf ? "编辑副本" : "副本编辑")}
+        <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM8 13l2 2 5-5" />
       </button>
       <div className="tb-sep" />
       <button className="tb-btn" disabled={!canUndo()} onClick={undo} title="Undo">
@@ -287,6 +292,11 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         {playing ? <Icon d="M10 5v14M15 5v14" /> : <Icon d="M7 5l12 7-12 7z" />}
         {playing ? t("暂停全部") : t("播放全部")}
       </button>
+      <div className="flow-scale-group tb-flow-inline" title={t("流速")}>
+        <span className="flow-scale-label">{t("流速")}</span>
+        <input type="range" min={50} max={250} value={Math.round((diagram.settings.flowScale ?? 1) * 100)} onChange={(e) => setGlobalFlowScale(Number(e.target.value) / 100)} />
+        <span className="flow-scale-val">×{(diagram.settings.flowScale ?? 1).toFixed(1)}</span>
+      </div>
       <button className="tb-btn" onClick={onOpenScenario} title={t("演示/讲述模式：按场景逐步讲解液路")}>
         <Icon d="M3 5l15 7-15 7zM19 4v16" />{t("演示")}
       </button>
@@ -370,21 +380,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         )}
       </div>
       </div>
-      )}
-      {!collapsed && (
-        <div className="tb-row tb-row-flow">
-          <div className="flow-scale-group" title={t("流速")}>
-            <span className="flow-scale-label">{t("流速")}</span>
-            <input
-              type="range"
-              min={50}
-              max={250}
-              value={Math.round((diagram.settings.flowScale ?? 1) * 100)}
-              onChange={(e) => setGlobalFlowScale(Number(e.target.value) / 100)}
-            />
-            <span className="flow-scale-val">×{(diagram.settings.flowScale ?? 1).toFixed(1)}</span>
-          </div>
-        </div>
       )}
       {importOpen && (
         <PromptDialog

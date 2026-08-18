@@ -53,7 +53,12 @@ export function ValidationPanel({ onClose }: { onClose: () => void }) {
   return (
     <aside className="validation-panel" data-ui="1">
       <div className="validation-head"><h2>✓ {t("工况验收")}</h2><button className="advice-close" onClick={onClose}>✕</button></div>
-      <p className="validation-help">{t("记录当前泵阀状态，并指定哪些管路必须流动或停流。验证在副本中运行，不会改动当前画布。")}</p>
+      <div className="validation-help">
+        <b>{t("验收是做什么的")}</b>
+        <p>{t("把关键工况写成可重复检查的工程规则。以后换 JSON、改连线或升级程序时，一键运行就能发现本应停流却仍在流动的问题。")}</p>
+        <ol><li>{t("第一步：在画布上设好泵阀工况")}</li><li>{t("第二步：选中关键管路，标为应流或应停")}</li><li>{t("第三步：保存案例并运行全部验收")}</li></ol>
+        <small>{t("验证在内存副本中运行，不会改变当前画布。")}</small>
+      </div>
 
       <div className="validation-create">
         <input value={name} placeholder={t("验收名称，例如：断水停泵")} onChange={(e) => setName(e.target.value)} />

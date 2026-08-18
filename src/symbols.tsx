@@ -19,6 +19,34 @@ export interface NodeDef {
   ports: PortTemplate[];
 }
 
+/** 元件库与新建元件的英文名称。既有图纸名称保持用户原文，不做危险的自动改写。 */
+const NODE_LABEL_EN: Partial<Record<NodeType, string>> = {
+  tank: "Tank", pressureTank: "Pressure tank", syrupBottle: "Syrup bottle", boiler: "Boiler (legacy)",
+  hotWaterBoiler: "Hot-water boiler", steamBoiler: "Steam boiler", pump: "Water pump", milkPump: "Milk pump",
+  valve: "Shut-off valve", checkValve: "Check valve", solenoid2: "2-way solenoid", solenoid3: "3-way solenoid",
+  pulseAirValve: "Pulse air valve", safetyValve: "Safety valve", opv: "OPV relief valve", pressureRegulator: "Pressure regulator",
+  tee: "Tee fitting", teeY: "Y tee", teeF: "F tee", cross: "Cross fitting", elbow: "Elbow", coupling: "Coupling", metalCoupling: "Metal coupling",
+  heatExchanger: "Heat exchanger", filter: "Filter", metalFilter: "Metal mesh filter", brewChamber: "Brew chamber", powderMixer: "Powder mixer",
+  inlet: "Inlet", outlet: "Outlet", connector: "Connector", hotWaterWand: "Hot-water wand", steamWand: "Steam wand", groupHead: "Group head",
+  coffeeOutlet: "Coffee outlet", milkOutlet: "Milk outlet", hotWaterOutlet: "Hot-water outlet", flowMeter: "Flow meter", pressureGauge: "Pressure gauge",
+  pressureSensor: "Pressure sensor", pressureSwitch: "Inlet pressure switch", ntcProbe: "NTC probe", sensor: "Sensor",
+  shape: "Custom shape", label: "Text label", arrow: "Flow arrow", annotation: "Annotation", image: "Image",
+};
+
+export function nodeDisplayLabel(def: NodeDef, lang = typeof document === "undefined" ? "zh" : document.documentElement.lang) {
+  if (lang !== "en") return def.label;
+  if (def.type === "coffeeOutlet") return def.variant === "double" ? "Coffee outlet (double)" : "Coffee outlet (single)";
+  if (def.type === "milkOutlet") return def.variant === "double" ? "Milk outlet (double)" : "Milk outlet (single)";
+  return NODE_LABEL_EN[def.type] ?? def.label;
+}
+
+export function nodeCanvasLabel(node: DiagramNode, lang: "zh" | "en") {
+  const def = defOf(node.type, node.variant);
+  return lang === "en" && (node.label === def.label || node.label === "自定义" || node.label === "文本标签")
+    ? nodeDisplayLabel(def, lang)
+    : node.label;
+}
+
 export const NODE_DEFS: NodeDef[] = [
   // ===== 容器 =====
   { type: "tank", label: "储液罐", group: "容器", width: 110, height: 140, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }, { position: "top", direction: "in" }, { position: "bottom", direction: "out" }] },
@@ -112,7 +140,7 @@ export function createNode(type: NodeType, x: number, y: number, label?: string,
   return {
     id: nodeId,
     type,
-    label: label ?? (type === "shape" ? "自定义" : def.label),
+    label: label ?? (type === "shape" ? (typeof document !== "undefined" && document.documentElement.lang === "en" ? "Custom" : "自定义") : nodeDisplayLabel(def)),
     x,
     y,
     width: def.width,

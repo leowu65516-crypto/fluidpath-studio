@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.9.0";
+export const APP_VERSION = "1.10.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,17 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.10.0",
+    date: "2026-08-18",
+    highlights: [
+      "元件库与新建元件支持英文名称；新增多种工作台背景预设",
+      "图层面板新增导出整理：批量隐藏名称、管路属性、介质文字和介质颜色",
+      "新增同路径 JSON 副本自动保存开关：开启后立即生成副本，并每分钟自动写入",
+      "验收面板改为三步教学工作流，支持多选对象后的批量编辑和选中范围诊断",
+      "工具栏恢复为最多两行并修复窄宽度下按钮截断",
+    ],
+  },
   {
     version: "1.9.0",
     date: "2026-08-18",

@@ -96,9 +96,7 @@ body {
   overflow-y: hidden;
 }
 
-.toolbar .tb-row-flow {
-  min-height: 26px;
-}
+.tb-flow-inline { flex: 0 0 auto; }
 
 .toolbar.collapsed {
   padding: 2px 8px;
@@ -1389,6 +1387,8 @@ body[data-theme="dark"] .welcome-overlay {
 }
 .layer-close { border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 14px; }
 .layer-list { display: flex; flex-direction: column; gap: 2px; max-height: 200px; overflow-y: auto; }
+.layer-export-controls { display: grid; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border); font-size: 11.5px; }
+.layer-export-controls label { display: flex; align-items: center; gap: 6px; color: var(--text); }
 .layer-row {
   display: flex;
   align-items: center;
@@ -1616,6 +1616,10 @@ body[data-theme="dark"] .welcome-overlay {
 .validation-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
 .validation-head h2 { margin: 0; font-size: 16px; }
 .validation-help { padding: 10px 16px; margin: 0; font-size: 12px; line-height: 1.55; color: var(--text-dim); background: #eef7ff; }
+.validation-help b { color: var(--text); font-size: 13px; }
+.validation-help p { margin: 4px 0 6px; }
+.validation-help ol { margin: 0 0 6px 18px; color: var(--text); }
+.validation-help small { color: var(--text-dim); }
 .validation-create { padding: 12px 16px; border-bottom: 1px solid var(--border); display: grid; gap: 8px; }
 .validation-create input { width: 100%; box-sizing: border-box; }
 .validation-buttons { display: flex; gap: 6px; }

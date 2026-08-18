@@ -14,7 +14,7 @@ import { WelcomePanel } from "./components/WelcomePanel";
 import { AdvicePanel } from "./components/AdvicePanel";
 import { ValidationPanel } from "./components/ValidationPanel";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard } from "./store";
-import { loadDiagram, newDiagram, insertTemplate, store } from "./store";
+import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave } from "./store";
 import type { AutosaveVersion } from "./store";
 import { decompressDiagram, parseDiagramJSON } from "./export";
@@ -95,9 +95,10 @@ export default function App() {
       electron?: { onOpenFile?: (cb: (p: { path: string; content: string }) => void) => () => void };
     }).electron;
     if (!api?.onOpenFile) return;
-    return api.onOpenFile(({ content }) => {
+    return api.onOpenFile(({ path, content }) => {
       try {
         loadDiagram(parseDiagramJSON(content));
+        setSourceFilePath(path);
       } catch (err) {
         console.error("打开工程文件失败:", err);
         alert(`打开失败：${(err as Error).message}`);
@@ -186,6 +187,7 @@ export default function App() {
           if (f) {
             f.text().then((text) => {
               try { loadDiagram(parseDiagramJSON(text)); } catch (err) { alert(`打开失败：${(err as Error).message}`); }
+              setSourceFilePath((f as File & { path?: string }).path ?? null);
             });
           }
           e.target.value = "";

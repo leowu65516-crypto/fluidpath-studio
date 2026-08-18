@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { NODE_DEFS, NODE_GROUPS, NodeSymbol, createNode } from "../symbols";
+import { NODE_DEFS, NODE_GROUPS, NodeSymbol, createNode, nodeDisplayLabel } from "../symbols";
 import { addNodeAt } from "../store";
 import { useT } from "../i18n";
 import type { NodeDef } from "../symbols";
 
-function LibraryItem({ def }: { def: NodeDef }) {
+function LibraryItem({ def, lang }: { def: NodeDef; lang: "zh" | "en" }) {
   // 避免每次渲染都重新生成随机 ID 的预览节点
   const preview = useMemo(() => createNode(def.type, 0, 0, undefined, def.variant), [def.type, def.variant]);
   const scale = Math.min(34 / def.width, 34 / def.height);
@@ -12,7 +12,7 @@ function LibraryItem({ def }: { def: NodeDef }) {
     <div
       className="lib-item"
       draggable
-      title={`拖拽到画布添加「${def.label}」`}
+      title={`${lang === "en" ? "Drag to add" : "拖拽到画布添加"} ${nodeDisplayLabel(def, lang)}`}
       onDragStart={(e) => {
         e.dataTransfer.setData("application/fluidpath-node", def.type);
         if (def.variant) e.dataTransfer.setData("application/fluidpath-variant", def.variant);
@@ -25,14 +25,14 @@ function LibraryItem({ def }: { def: NodeDef }) {
           <NodeSymbol node={{ ...preview, label: def.type === "label" ? "文本" : def.type === "shape" ? "文字" : preview.label, fontSize: def.type === "shape" ? 26 : preview.fontSize }} />
         </g>
       </svg>
-      <span>{def.label}</span>
+      <span>{nodeDisplayLabel(def, lang)}</span>
     </div>
   );
 }
 
 export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle?: () => void }) {
   const [search, setSearch] = useState("");
-  const { t } = useT();
+  const { t, lang } = useT();
   const [closedGroups, setClosedGroups] = useState<Set<string>>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("fluidpath.libraryGroups") ?? "[]");
@@ -50,7 +50,7 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
   };
 
   const filtered = search.trim()
-    ? NODE_DEFS.filter((d) => d.label.toLowerCase().includes(search.toLowerCase()))
+    ? NODE_DEFS.filter((d) => `${d.label} ${nodeDisplayLabel(d, "en")}`.toLowerCase().includes(search.toLowerCase()))
     : NODE_DEFS;
 
   // 搜索模式下按组分组，只显示有匹配的分组
@@ -109,7 +109,7 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
                 {!closed && (
                   <div className="lib-grid">
                     {group.items.map((def) => (
-                      <LibraryItem key={`${def.type}_${def.variant ?? ""}`} def={def} />
+                      <LibraryItem key={`${def.type}_${def.variant ?? ""}`} def={def} lang={lang} />
                     ))}
                   </div>
                 )}

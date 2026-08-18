@@ -31,6 +31,8 @@ interface PipeViewProps {
   onLintClick?: (pipe: Pipe) => void;
   funcChain: boolean;            // 元件→整机功能链高亮
   showFluidLabels: boolean;
+  showPipeLabels: boolean;
+  showFluidColors: boolean;
   flowRefMap: Map<string, SVGPathElement>;
   onPipeBodyMouseDown: (e: React.MouseEvent, pipe: Pipe, pts: Pt[], selected: boolean) => void;
   onVertexMouseDown: (e: React.MouseEvent, pipe: Pipe, pts: Pt[], vIndex: number) => void;
@@ -43,7 +45,7 @@ interface PipeViewProps {
 
 function PipeViewImpl({
   pipe, index, nodes, selected, crossHop, allPolys,
-  scenarioActive, scenarioDim, blink, blinkStamp, showFluidLabels,
+  scenarioActive, scenarioDim, blink, blinkStamp, showFluidLabels, showPipeLabels, showFluidColors,
   chainGlow, chainStamp, lintMsg, onLintClick, funcChain,
   flowRefMap, onPipeBodyMouseDown, onVertexMouseDown, onContextMenu, onRemoveVertex, onLabelDoubleClick,
   issues, onFluidIssueClick,
@@ -51,6 +53,7 @@ function PipeViewImpl({
   const pts = pipePolyline(pipe, nodes);
   if (!pts || pts.length < 2) return null;
   const disabled = pipeEffectiveDisabled(pipe, nodes);
+  const visibleFluidColor = showFluidColors ? pipe.fluidColor : "#aab4bf";
   const wallW = pipe.visualDiameter + 5;
   const lowers: HopObstacle[] = [];
   if (crossHop) {
@@ -88,7 +91,7 @@ function PipeViewImpl({
       {disabled && <title>已置灰（停止流动）</title>}
       {/* 演示高亮发光层 */}
       {scenarioActive && (
-        <path d={d} fill="none" stroke={pipe.fluidColor} strokeWidth={wallW + 8} strokeOpacity={0.35} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={d} fill="none" stroke={visibleFluidColor} strokeWidth={wallW + 8} strokeOpacity={0.35} strokeLinejoin="round" strokeLinecap="round" />
       )}
       {/* 定位闪烁发光层（回路诊断/场景演示） */}
       {blink && (
@@ -105,19 +108,17 @@ function PipeViewImpl({
       <g opacity={dimOpacity}>
         <path d={d} fill="none" stroke="#7d8b99" strokeOpacity={0.55} strokeWidth={wallW + 2.4} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={pipe.wallColor} strokeOpacity={wallOpacity} strokeWidth={wallW} strokeLinejoin="round" strokeLinecap="round" />
-        <path d={d} fill="none" stroke={pipe.fluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={d} fill="none" stroke={visibleFluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" />
         {!disabled && <path ref={(el) => { if (el) flowRefMap.set(pipe.id, el); else flowRefMap.delete(pipe.id); }} data-flow={pipe.id} d={d} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={Math.max(2, fluidW * 0.42)} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />}
         {!disabled && pipe.showArrow && (
           <g transform={`translate(${mid.pt.x} ${mid.pt.y}) rotate(${arrowAngle})`}>
-            <path d={`M ${wallW * 0.9 + 4} 0 L ${-wallW * 0.25} ${-wallW * 0.62 - 3} L ${-wallW * 0.25} ${wallW * 0.62 + 3} Z`} fill={pipe.fluidColor} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />
+            <path d={`M ${wallW * 0.9 + 4} 0 L ${-wallW * 0.25} ${-wallW * 0.62 - 3} L ${-wallW * 0.25} ${wallW * 0.62 + 3} Z`} fill={visibleFluidColor} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />
           </g>
         )}
         {/* 管路文字标签（双击就地编辑） */}
-        {pipe.label && (
-          <text x={mid.pt.x} y={labelY} textAnchor="middle" fontSize={11} fill={disabled ? "#8a9ba8" : "var(--text)"} fontFamily="system-ui, sans-serif" fontWeight={500} stroke="#ffffff" strokeWidth={3} paintOrder="stroke" style={{ cursor: "text" }} data-ui="1" onDoubleClick={(e) => { e.stopPropagation(); onLabelDoubleClick(pipe.id, mid.pt.x, labelY, pipe.label); }}>
+        {showPipeLabels && pipe.label && <text x={mid.pt.x} y={labelY} textAnchor="middle" fontSize={11} fill={disabled ? "#8a9ba8" : "var(--text)"} fontFamily="system-ui, sans-serif" fontWeight={500} stroke="#ffffff" strokeWidth={3} paintOrder="stroke" style={{ cursor: "text" }} data-ui="1" onDoubleClick={(e) => { e.stopPropagation(); onLabelDoubleClick(pipe.id, mid.pt.x, labelY, pipe.label); }}>
             {`${pipe.label}${pipe.nominalDiameter ? " · " + pipe.nominalDiameter : ""}`}
-          </text>
-        )}
+          </text>}
         {/* 结构问题即时 lint 红点（标签右侧，编辑时实时提示） */}
         {lintMsg && (
           <g data-ui="1" transform={`translate(${mid.pt.x + 30} ${labelY})`} style={{ cursor: "pointer" }}
@@ -137,8 +138,8 @@ function PipeViewImpl({
         {/* 自动介质标签 */}
         {showFluidLabels && pipe.fluidType && pipe.fluidType !== "custom" && (
           <g pointerEvents="none">
-            <rect x={mid.pt.x - 30} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 21 : 5)} width={60} height={15} rx={4} fill={pipe.fluidColor} fillOpacity={0.18} stroke={pipe.fluidColor} strokeWidth={1} />
-            <text x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 31 : 15)} textAnchor="middle" fontSize={9.5} fill={pipe.fluidColor} fontFamily="system-ui, sans-serif" fontWeight={650}>
+            <rect x={mid.pt.x - 30} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 21 : 5)} width={60} height={15} rx={4} fill={visibleFluidColor} fillOpacity={0.18} stroke={visibleFluidColor} strokeWidth={1} />
+          <text x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 31 : 15)} textAnchor="middle" fontSize={9.5} fill={visibleFluidColor} fontFamily="system-ui, sans-serif" fontWeight={650}>
               {FLUID_PRESETS.find((f) => f.key === pipe.fluidType)?.label ?? pipe.fluidType}
             </text>
           </g>

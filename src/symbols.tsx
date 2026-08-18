@@ -52,7 +52,7 @@ export const NODE_DEFS: NodeDef[] = [
   { type: "heatExchanger", label: "换热器", group: "处理", width: 140, height: 110, fill: "#f2f9f5", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }, { position: "top", direction: "in" }, { position: "bottom", direction: "out" }] },
   { type: "filter", label: "过滤器", group: "处理", width: 84, height: 96, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.3, direction: "in" }, { position: "right", offset: 0.3, direction: "out" }] },
   { type: "metalFilter", label: "矩形金属滤网", group: "处理", width: 96, height: 56, fill: "#f3f5f7", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }] },
-  { type: "brewChamber", label: "冲泡缸", group: "处理", width: 96, height: 140, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "top", direction: "in" }, { position: "bottom", direction: "out" }] },
+  { type: "brewChamber", label: "冲泡缸", group: "处理", width: 96, height: 140, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "top", direction: "out" }] },
   { type: "powderMixer", label: "粉料搅拌器", group: "处理", width: 100, height: 120, fill: "#fdf9f0", stroke: "#3d4c5e", ports: [{ position: "top", direction: "in" }, { position: "bottom", direction: "out" }] },
   // ===== 连接 =====
   { type: "inlet", label: "入口端", group: "连接", width: 72, height: 36, fill: "#eef4fb", stroke: "#3d4c5e", ports: [{ position: "right", direction: "out" }] },

@@ -255,6 +255,24 @@ export function loadDiagram(diagram: Diagram) {
   }, 50);
 }
 
+/** 创建独立编辑副本。后续自动保存使用新 ID，因此不会写入原图的备份历史。 */
+export function createWorkingCopy() {
+  const original = state.diagram;
+  const copy = structuredClone(original);
+  copy.id = uid("diagram");
+  copy.name = `${original.name || "未命名液路图"}（编辑副本）`;
+  copy.settings.workingCopyOf = original.settings.workingCopyOf ?? original.id;
+  copy.settings.workingCopyStartedAt = new Date().toISOString();
+  past = [];
+  future = [];
+  setState({
+    ...state,
+    diagram: copy,
+    ui: { ...state.ui, dirty: true, selection: { nodes: [], pipes: [] } }
+  });
+  return copy;
+}
+
 export function newDiagram() {
   loadDiagram(createEmptyDiagram());
 }

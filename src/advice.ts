@@ -55,6 +55,7 @@ const JUNCTION_TYPES = new Set([
   "tee", "teeY", "teeF", "cross", "elbow", "checkValve", "coupling", "metalCoupling",
   "connector", "filter", "metalFilter", "flowMeter", "pressureGauge",
   "pressureSensor", "pressureSwitch", "heatExchanger", "opv", "safetyValve",
+  "brewChamber",
 ]);
 
 /** 诊断范围：框选/多选后只对范围内元素做诊断 */

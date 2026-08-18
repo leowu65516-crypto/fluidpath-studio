@@ -411,12 +411,12 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                       <option value="diamond">{t("菱形")}</option>
                     </select>
                   </Row>
-                  <Row label={`文字大小 ${node.fontSize ?? 15}px`}>
+                  <Row label={`${t("元器件文字大小")} ${node.fontSize ?? 13}px`}>
                     <input
                       type="range"
-                      min={10}
-                      max={48}
-                      value={node.fontSize ?? 15}
+                      min={8}
+                      max={32}
+                      value={node.fontSize ?? 13}
                       onChange={(e) => patchNode(node.id, { fontSize: Number(e.target.value) }, false)}
                       onMouseUp={() => patchNode(node.id, {}, true)}
                     />

@@ -224,6 +224,10 @@ export interface DiagramSettings {
   }>;
   /** 图纸验收工况：预设泵阀状态 + 必须流动/停止的管路，用于回归验证。 */
   validationCases?: ValidationCase[];
+  /** 从哪张原图创建的编辑副本；仅用于标识，原图内容不会被覆盖。 */
+  workingCopyOf?: string;
+  /** 编辑副本的创建时间。 */
+  workingCopyStartedAt?: string;
 }
 
 export interface ValidationCase {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   canRedo,
   canUndo,
+  createWorkingCopy,
   fitToScreen,
   loadDiagram,
   markSaved,
@@ -20,6 +21,7 @@ import { ConditionPanel } from "./ConditionPanel";
 import { PromptDialog } from "./PromptDialog";
 import { useT } from "../i18n";
 import { LayerPanel } from "./LayerPanel";
+import { toast } from "../toast";
 
 function Icon({ d }: { d: string }) {
   return (
@@ -232,8 +234,8 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" title={t("打开 JSON")} onClick={() => fileRef.current?.click()}>
         <Icon d="M3 8l3-4h5l2 3h8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />{t("打开 JSON")}
       </button>
-      <button className="tb-btn" title="导入分享码" onClick={() => setImportOpen(true)}>
-        <Icon d="M9 12h6M9 16h6M7 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" />导入分享码
+      <button className="tb-btn" title={t("导入分享码")} onClick={() => setImportOpen(true)}>
+        <Icon d="M9 12h6M9 16h6M7 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" />{t("导入分享码")}
       </button>
       <button
         className="tb-btn"
@@ -244,6 +246,17 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         }}
       >
         <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" />{t("保存到本地")}
+      </button>
+      <button
+        className={`tb-btn${diagram.settings.workingCopyOf ? " active" : ""}`}
+        disabled={!!diagram.settings.workingCopyOf}
+        title={diagram.settings.workingCopyOf ? t("当前正在编辑副本") : t("创建编辑副本说明")}
+        onClick={() => {
+          const copy = createWorkingCopy();
+          toast(`${t("已创建编辑副本")}：${copy.name}`);
+        }}
+      >
+        <Icon d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3M14 3h5a2 2 0 0 1 2 2v10M12 15l9-9M16 6h5v5" />{t(diagram.settings.workingCopyOf ? "编辑副本" : "副本编辑")}
       </button>
       <div className="tb-sep" />
       <button className="tb-btn" disabled={!canUndo()} onClick={undo} title="Undo">
@@ -274,24 +287,9 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         {playing ? <Icon d="M10 5v14M15 5v14" /> : <Icon d="M7 5l12 7-12 7z" />}
         {playing ? t("暂停全部") : t("播放全部")}
       </button>
-      <button className="tb-btn" onClick={onOpenScenario} title="演示/讲述模式：按场景逐步讲解液路">
+      <button className="tb-btn" onClick={onOpenScenario} title={t("演示/讲述模式：按场景逐步讲解液路")}>
         <Icon d="M3 5l15 7-15 7zM19 4v16" />{t("演示")}
       </button>
-      <button className="tb-btn" onClick={onOpenValidation} title="定义并运行图纸工况验收">
-        <Icon d="M5 12l4 4L19 6" />验收
-      </button>
-      <div className="tb-sep" />
-      <div className="flow-scale-group" title={t("流速")}>
-        <span className="flow-scale-label">{t("流速")}</span>
-        <input
-          type="range"
-          min={50}
-          max={250}
-          value={Math.round((diagram.settings.flowScale ?? 1) * 100)}
-          onChange={(e) => setGlobalFlowScale(Number(e.target.value) / 100)}
-        />
-        <span className="flow-scale-val">×{(diagram.settings.flowScale ?? 1).toFixed(1)}</span>
-      </div>
       </>}
       </div>
       {!collapsed && (
@@ -322,16 +320,19 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" onClick={onOpenHelp} title={t("使用指南")}>
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 9a3 3 0 0 1 6 0c0 3-3 2-3 5M12 17h.01" />{t("使用指南")}
       </button>
-      <button className="tb-btn" onClick={onOpenAdvice} title="回路诊断：智能检查液路并给出修改建议">
-        <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M12 16.5h.01" />回路诊断
+      <button className="tb-btn" onClick={onOpenAdvice} title={t("回路诊断：智能检查液路并给出修改建议")}>
+        <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M12 16.5h.01" />{t("回路诊断")}
       </button>
-      <button className={`tb-btn${condOpen ? " active" : ""}`} onClick={() => setCondOpen((v) => !v)} title="工况：把当前阀位/泵开关存成方案，一键切换对比">
-        <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M8 12h8" />工况
+      <button className={`tb-btn${condOpen ? " active" : ""}`} onClick={() => setCondOpen((v) => !v)} title={t("工况：把当前阀位/泵开关存成方案，一键切换对比")}>
+        <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M8 12h8" />{t("工况")}
+      </button>
+      <button className="tb-btn" onClick={onOpenValidation} title={t("定义并运行图纸工况验收")}>
+        <Icon d="M5 12l4 4L19 6" />{t("验收")}
       </button>
       {condOpen && <ConditionPanel onClose={() => setCondOpen(false)} />}
       <div className="layer-wrap" ref={layerRef}>
-        <button className={`tb-btn${layerOpen ? " active" : ""}`} onClick={() => setLayerOpen((v) => !v)} title="图层管理">
-          <Icon d="M3 5h18l-2 6v8H5v-8L3 5zM5 19h14" />图层
+        <button className={`tb-btn${layerOpen ? " active" : ""}`} onClick={() => setLayerOpen((v) => !v)} title={t("图层管理")}>
+          <Icon d="M3 5h18l-2 6v8H5v-8L3 5zM5 19h14" />{t("图层")}
         </button>
         {layerOpen && <LayerPanel onClose={() => setLayerOpen(false)} />}
       </div>
@@ -350,7 +351,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       {/* 导出下拉菜单 */}
       <div className="export-dropdown" ref={exportRef}>
         <button className="tb-btn export-main" onClick={() => doExport(lastExport)} title={`Ctrl+E 快速导出 ${lastExport.toUpperCase()} · 点击 ▼ 选择格式`}>
-          <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />导出 {lastExport.toUpperCase()}
+          <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />{t("导出")} {lastExport.toUpperCase()}
         </button>
         <button className={`tb-btn sq export-toggle ${exportOpen ? "active" : ""}`} onClick={(e) => { menuRectFrom(e.currentTarget); setExportOpen(!exportOpen); }} title="选择导出格式">▼</button>
         {exportOpen && (
@@ -369,6 +370,21 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         )}
       </div>
       </div>
+      )}
+      {!collapsed && (
+        <div className="tb-row tb-row-flow">
+          <div className="flow-scale-group" title={t("流速")}>
+            <span className="flow-scale-label">{t("流速")}</span>
+            <input
+              type="range"
+              min={50}
+              max={250}
+              value={Math.round((diagram.settings.flowScale ?? 1) * 100)}
+              onChange={(e) => setGlobalFlowScale(Number(e.target.value) / 100)}
+            />
+            <span className="flow-scale-val">×{(diagram.settings.flowScale ?? 1).toFixed(1)}</span>
+          </div>
+        </div>
       )}
       {importOpen && (
         <PromptDialog

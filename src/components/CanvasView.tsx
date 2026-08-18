@@ -1073,7 +1073,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
         {node.type !== "label" && node.type !== "shape" && (
           <text
             x={node.x + node.width / 2} y={node.y + node.height + 18}
-            textAnchor="middle" fontSize={13} fill="var(--node-label)"
+            textAnchor="middle" fontSize={node.fontSize ?? 13} fill="var(--node-label)"
             fontFamily="system-ui, -apple-system, sans-serif"
             data-ui="1"
             style={{ cursor: "text" }}

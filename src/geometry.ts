@@ -213,7 +213,7 @@ const PASS_THROUGH_TYPES = new Set([
   "shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "cross", "elbow",
   "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "pump", "milkPump",
   "solenoid2", "solenoid3", "pulseAirValve", "pressureRegulator", "flowMeter",
-  "tank", "boiler", "hotWaterBoiler", "steamBoiler",
+  "tank", "boiler", "hotWaterBoiler", "steamBoiler", "brewChamber",
 ]);
 
 // ===== 故障模拟（教学用）：故障状态覆盖元件正常状态 =====
@@ -679,7 +679,7 @@ function pipeEffectiveDisabledRecursive(
     const passThrough = new Set(["shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "elbow",
       "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "pump", "milkPump",
       "solenoid2", "solenoid3", "pulseAirValve", "pressureRegulator",
-      "tank", "boiler", "hotWaterBoiler", "steamBoiler"]);
+      "tank", "boiler", "hotWaterBoiler", "steamBoiler", "brewChamber"]);
     if (!passThrough.has(n.type)) return false;
 
     // 方向性传播：当前管 P 连到节点 n。

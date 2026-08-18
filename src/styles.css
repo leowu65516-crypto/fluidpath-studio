@@ -96,6 +96,10 @@ body {
   overflow-y: hidden;
 }
 
+.toolbar .tb-row-flow {
+  min-height: 26px;
+}
+
 .toolbar.collapsed {
   padding: 2px 8px;
 }

@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.8.0";
+export const APP_VERSION = "1.9.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.9.0",
+    date: "2026-08-18",
+    highlights: [
+      "修复冲泡缸在无进水/停泵时仍让后置咖啡链显示流动的问题，并加入全链回归测试",
+      "新增「副本编辑」：一键建立独立图纸，后续自动保存只更新副本，原图保持不变",
+      "工具栏与工况验收支持中英文一键切换；元器件名称文字大小可调且真实生效",
+    ],
+  },
   {
     version: "1.8.0",
     date: "2026-08-18",

@@ -302,6 +302,30 @@ const EN: Record<string, string> = {
   // 使用指南 / BOM
   "使用指南": "Guide",
   "导出 BOM 清单": "Export BOM",
+
+  // 工况面板
+  "工况 · 开关方案": "Conditions · presets",
+  "记住": "Save",
+  "恢复": "Restore",
+  "已记住的开关方案": "Saved presets",
+  "还没有方案 —— 先在图上摆好开关，再在上面起名点「记住」。": "No presets yet — set the switches on canvas, then name & tap Save.",
+  "保存之后怎么做：": "After saving:",
+  "把图上所有": "Remember the on/off state of",
+  "以后想回到这套状态，点「恢复」就全变回来。不是文件，就存在这张图里。": "Restore it anytime with one tap. Not a file — lives inside this drawing.",
+  "阀门 / 泵的「开/关」状态记下来，起个名": "all valves/pumps, and give it a name",
+
+  // 图层面板
+  "图层": "Layers",
+  "显示本层": "Show layer",
+  "隐藏本层": "Hide layer",
+  "选中本层所有元件并定位": "Select & locate this layer",
+  "删除图层（本层元件归入其他图层）": "Delete layer (contents move to another)",
+  "图层改名": "Rename layer",
+  "改名": "Rename",
+  "新图层名称…": "New layer name…",
+
+  // 弹窗
+  "确定": "OK",
 };
 
 const LangContext = createContext<{ lang: Lang; t: (zh: string) => string; setLang: (l: Lang) => void }>({

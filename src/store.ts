@@ -15,7 +15,8 @@ import type {
 import { createSampleDiagram, createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagram, createMilkFoamDiagram, createCommercialMachineDiagram, createDemoMachineDiagram, createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "./sample";
 import { createNode } from "./symbols";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
-import { getScenario, collectScenarioState, resolveScenarioRoles } from "./scenarios";
+import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsToPreset } from "./scenarios";
+import { snapshotStates, applyStates, type PresetState } from "./presets";
 import { toast } from "./toast";
 import type { FixAction } from "./advice";
 
@@ -307,19 +308,6 @@ function expandScenarioNodes(diagram: Diagram, seeds: Set<string>): Set<string> 
   return expanded;
 }
 
-/** 应用单个泵/阀动作到节点 */
-function applyValveAction(node: DiagramNode, action: import("./scenarios").ValveAction) {
-  switch (action) {
-    case "pump-run": node.pumpOn = true; break;
-    case "pump-stop": node.pumpOn = false; break;
-    case "open": node.valveState = "open"; break;
-    case "closed": node.valveState = "closed"; break;
-    case "A": node.valvePath = "A"; break;
-    case "B": node.valvePath = "B"; break;
-    case "off": node.valvePath = "off"; break;
-  }
-}
-
 /**
  * 进入演示模式并跳到指定步骤：
  * 1. 首次进入：快照当前图纸，并把所有泵/阀复位到中性基线（泵停、两通关、三通 off），
@@ -346,10 +334,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0) {
         else if (n.type === "solenoid3") n.valvePath = "off";
       }
     }
-    for (const [nodeId, action] of Object.entries(valves)) {
-      const node = d.nodes.find((n) => n.id === nodeId);
-      if (node) applyValveAction(node, action);
-    }
+    applyStates(d, valveActionsToPreset(valves));
   }, false);
   // 闪烁定位本步新增的元件（换步骤时脉冲高亮新激活项，便于快速找到）
   if (isNewEntry) {
@@ -401,26 +386,12 @@ export function exitScenario() {
 
 // ===== 工况快照（阀位组合保存/恢复，随图纸保存与分享） =====
 
-export interface WorkConditionState {
-  pumpOn?: boolean;
-  valveState?: "open" | "closed";
-  valvePath?: "A" | "B" | "off";
-}
-
-function snapshotCurrentStates(d: Diagram): Record<string, WorkConditionState> {
-  const st: Record<string, WorkConditionState> = {};
-  for (const n of d.nodes) {
-    if (n.type === "pump" || n.type === "milkPump") st[n.id] = { pumpOn: n.pumpOn !== false };
-    else if (n.type === "solenoid2") st[n.id] = { valveState: n.valveState === "open" ? "open" : "closed" };
-    else if (n.type === "solenoid3") st[n.id] = { valvePath: n.valvePath ?? "A" };
-  }
-  return st;
-}
+export type WorkConditionState = PresetState;
 
 /** 保存当前全部泵/阀状态为命名的工况 */
 export function saveWorkCondition(name: string) {
   const d = state.diagram;
-  const state2 = snapshotCurrentStates(d);
+  const state2 = snapshotStates(d);
   updateDiagram((draft) => {
     const list = draft.settings.workConditions ?? [];
     const idx = list.findIndex((c) => c.name === name);
@@ -435,13 +406,7 @@ export function applyWorkCondition(name: string) {
   const cond = state.diagram.settings.workConditions?.find((c) => c.name === name);
   if (!cond) return;
   updateDiagram((d) => {
-    for (const n of d.nodes) {
-      const st = cond.state[n.id];
-      if (!st) continue;
-      if (n.type === "pump" || n.type === "milkPump") n.pumpOn = st.pumpOn !== false;
-      else if (n.type === "solenoid2") n.valveState = st.valveState === "open" ? "open" : "closed";
-      else if (n.type === "solenoid3") n.valvePath = st.valvePath ?? "A";
-    }
+    applyStates(d, cond.state);
   });
   blinkElements(Object.keys(cond.state));
 }

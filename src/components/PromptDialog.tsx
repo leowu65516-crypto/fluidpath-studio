@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useT } from "../i18n";
 
 /**
  * 应用内文本输入弹窗（Electron 不支持 window.prompt，统一用它替代）。
@@ -14,7 +15,8 @@ export function PromptDialog(props: {
   onSubmit: (text: string) => void;
   onClose: () => void;
 }) {
-  const { title, label, defaultValue = "", multiline = false, placeholder, submitLabel = "确定", onSubmit, onClose } = props;
+  const { t } = useT();
+  const { title, label, defaultValue = "", multiline = false, placeholder, submitLabel = t("确定"), onSubmit, onClose } = props;
   const [value, setValue] = useState(defaultValue);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
@@ -54,7 +56,7 @@ export function PromptDialog(props: {
         )}
         <div className="prompt-actions">
           <button className="btn" onClick={submit}>{submitLabel}</button>
-          <button className="btn ghost" onClick={onClose}>取消</button>
+          <button className="btn ghost" onClick={onClose}>{t("取消")}</button>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAppState, saveWorkCondition, applyWorkCondition, deleteWorkCondition, listWorkConditions } from "../store";
+import { useT } from "../i18n";
 import { toast } from "../toast";
 
 /**
@@ -9,6 +10,7 @@ import { toast } from "../toast";
  */
 export function ConditionPanel({ onClose }: { onClose: () => void }) {
   useAppState(); // 订阅图纸变化
+  const { t } = useT();
   const [name, setName] = useState("");
   const list = listWorkConditions();
 
@@ -27,7 +29,7 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
   return (
     <div className="cond-panel" data-ui="1">
       <div className="cond-panel-head">
-        <h3>💾 工况 · 开关方案</h3>
+        <h3>💾 {t("工况 · 开关方案")}</h3>
         <button className="cond-panel-close" onClick={onClose}>✕</button>
       </div>
 
@@ -43,22 +45,22 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
       <div className="cond-save-row">
         <input
           value={name}
-          placeholder="起个名，如：做咖啡 / 清洗 / 待机"
+          placeholder={t("起个名，如：做咖啡 / 清洗 / 待机")}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") save(); }}
         />
-        <button className="cond-save-btn" onClick={save}>💾 记住</button>
+        <button className="cond-save-btn" onClick={save}>💾 {t("记住")}</button>
       </div>
 
-      <div className="cond-list-title">已记住的开关方案（{list.length}）</div>
+      <div className="cond-list-title">{t("已记住的开关方案")}（{list.length}）</div>
       {list.length === 0 ? (
-        <div className="cond-empty">还没有方案 —— 先在图上摆好开关，再在上面起名点「记住」。</div>
+        <div className="cond-empty">{t("还没有方案 —— 先在图上摆好开关，再在上面起名点「记住」。")}</div>
       ) : (
         <div className="cond-list">
           {list.map((c) => (
             <div key={c.name} className="cond-row">
               <span className="cond-name">{c.name}</span>
-              <button className="btn" onClick={() => apply(c.name)}>▶ 恢复</button>
+              <button className="btn" onClick={() => apply(c.name)}>▶ {t("恢复")}</button>
               <button className="btn ghost sq" title="删除" onClick={() => { if (confirm(`删除方案「${c.name}」？`)) deleteWorkCondition(c.name); }}>✕</button>
             </div>
           ))}
@@ -66,7 +68,7 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
       )}
 
       <div className="cond-note">
-        <b>保存之后怎么做：</b>方案会出现在上面的列表里。之后把图上开关拨乱了，就点这个方案的「▶ 恢复」一键变回；再打开「回路诊断」能直接看各出口流/停。
+        <b>{t("保存之后怎么做：")}</b>方案会出现在上面的列表里。之后把图上开关拨乱了，就点这个方案的「▶ 恢复」一键变回；再打开「回路诊断」能直接看各出口流/停。
       </div>
     </div>
   );

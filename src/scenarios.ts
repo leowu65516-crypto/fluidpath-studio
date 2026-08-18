@@ -1,6 +1,7 @@
 /** 演示/讲述模式：场景定义（按元件角色自适应匹配当前图纸） */
 
 import type { Diagram, DiagramNode, NodeType } from "./types";
+import type { PresetState, PresetStateMap } from "./presets";
 
 export type ValveAction =
   | "pump-run"   // 泵运行
@@ -166,4 +167,24 @@ export function collectScenarioState(
     }
   }
   return { activeNodes, valves };
+}
+
+/** 单个阀动作 → 预设状态原语 */
+export function valveActionToPreset(action: ValveAction): PresetState {
+  switch (action) {
+    case "pump-run": return { pumpOn: true };
+    case "pump-stop": return { pumpOn: false };
+    case "open": return { valveState: "open" };
+    case "closed": return { valveState: "closed" };
+    case "A": return { valvePath: "A" };
+    case "B": return { valvePath: "B" };
+    case "off": return { valvePath: "off" };
+  }
+}
+
+/** 一组节点级阀动作 → 预设状态（演示步骤与工况共用同一套状态原语） */
+export function valveActionsToPreset(valves: Record<string, ValveAction>): PresetStateMap {
+  const out: PresetStateMap = {};
+  for (const [nodeId, action] of Object.entries(valves)) out[nodeId] = valveActionToPreset(action);
+  return out;
 }

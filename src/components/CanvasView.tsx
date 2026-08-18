@@ -16,7 +16,8 @@ import {
   setCachedPipes,
   simplify,
   snap,
-  pipeEffectiveDisabled
+  pipeEffectiveDisabled,
+  pipeTeachingOverride
 } from "../geometry";
 import { NodeSymbol, spoutTips, defOf } from "../symbols";
 import { MiniMap } from "./MiniMap";
@@ -773,7 +774,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
     } else if (kind === "pipe" && id) {
       if (!sel.pipes.includes(id)) selectPipe(id);
       const p = store.get().diagram.pipes.find((x) => x.id === id);
-      const pipeStopped = !!p && !p.forceFlow && pipeEffectiveDisabled(p, store.get().diagram.nodes);
+      const pipeStopped = !!p && pipeTeachingOverride(p) !== "flow" && pipeEffectiveDisabled(p, store.get().diagram.nodes);
       if (pipeStopped) {
         items.push({ label: "🔍 为什么停流？", onClick: () => showStopCause(p!.id, e.clientX, e.clientY) });
         items.push({ label: "---", divider: true });

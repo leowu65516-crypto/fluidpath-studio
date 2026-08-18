@@ -1039,27 +1039,26 @@ export function setSelectionDisabled(disabled: boolean) {
   });
 }
 
-/** 临时强制/取消强制流动（对指定管路，忽略停流判定） */
+/** 设置/清除教学显示覆盖（不改变工程有效状态）。 */
 export function setPipesForceFlow(ids: string[], on: boolean) {
   if (!ids.length) return;
   updateDiagram((d) => {
     d.pipes.forEach((p) => {
       if (ids.includes(p.id)) {
-        if (on) p.forceFlow = true;
-        else delete p.forceFlow;
+        if (on) p.teachingOverride = "flow";
+        else if (p.teachingOverride === "flow") delete p.teachingOverride;
       }
     });
   });
 }
 
-/** 临时强制/取消强制停止（对指定管路，无视其他状态停止流动） */
 export function setPipesForceStop(ids: string[], on: boolean) {
   if (!ids.length) return;
   updateDiagram((d) => {
     d.pipes.forEach((p) => {
       if (ids.includes(p.id)) {
-        if (on) p.forceStop = true;
-        else delete p.forceStop;
+        if (on) p.teachingOverride = "stop";
+        else if (p.teachingOverride === "stop") delete p.teachingOverride;
       }
     });
   });

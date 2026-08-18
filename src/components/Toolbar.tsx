@@ -15,7 +15,7 @@ import {
   updateDiagram,
   useAppState
 } from "../store";
-import { exportGIF, exportJSON, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram } from "../export";
+import { exportEngineeringJSON, exportGIF, exportJSON, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram } from "../export";
 import { ConditionPanel } from "./ConditionPanel";
 import { PromptDialog } from "./PromptDialog";
 import { useT } from "../i18n";
@@ -100,6 +100,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       case "pdf": exportPDF(svgRef.current, diagram, undefined); break;
       case "gif": onExportGIF(); break;
       case "json": exportJSON(diagram); markSaved(); break;
+      case "engineering-json": exportEngineeringJSON(diagram); break;
       case "share": {
         if (location.protocol === "file:") {
           // Electron file:// 下 location.origin 为 "null"，改用「分享码」方案
@@ -359,6 +360,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
             <button className="export-item" onClick={() => doExport("svg")}><span className="export-badge">📐</span> SVG 矢量<small>可编辑 · 无限缩放</small></button>
             <hr />
             <button className="export-item" onClick={() => doExport("json")}><span className="export-badge">💾</span> 工程文件 (.json)<small>完整数据</small></button>
+            <button className="export-item" onClick={() => doExport("engineering-json")}><span className="export-badge">🛡️</span> 工程 JSON<small>不含教学显示覆盖</small></button>
             <button className="export-item" onClick={() => doExport("share")}><span className="export-badge">🔗</span> 分享链接<small>复制即用</small></button>
           </div>
         )}

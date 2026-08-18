@@ -110,6 +110,8 @@ export type ParticleDensity = "low" | "medium" | "high";
 
 export type FluidType = "steam" | "coldWater" | "hotWater" | "coffee" | "air" | "milk" | "coldMilk" | "hotMilk" | "coldMilkFoam" | "hotMilkFoam" | "wasteLiquid" | "cleanWaste" | "custom";
 export type PipeMaterial = "blackPTFE" | "whitePTFE" | "silicone" | "reinforced" | "custom";
+/** 仅用于讲解画面的人工覆盖，不参与工程液路判定。 */
+export type TeachingFlowOverride = "flow" | "stop";
 
 export interface Pipe {
   id: string;
@@ -148,9 +150,11 @@ export interface Pipe {
   disabled?: boolean;
   /** 故障模拟（教学用）：管路堵塞 */
   fault?: "pipeBlocked";
-  /** 临时强制流动：忽略停流判定，始终显示流动（应付画图/判定 bug 的临时手段） */
+  /** 讲解画面覆盖：只改变动画显示，不改变工程有效状态或工程导出。 */
+  teachingOverride?: TeachingFlowOverride;
+  /** @deprecated 旧版教学覆盖字段；加载时自动迁移为 teachingOverride。 */
   forceFlow?: boolean;
-  /** 临时强制停止：无视其他状态，强制该管路停止流动 */
+  /** @deprecated 旧版教学覆盖字段；加载时自动迁移为 teachingOverride。 */
   forceStop?: boolean;
   /** 管路中段标注文字（如直径/介质/编号） */
   annotation?: string;

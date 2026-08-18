@@ -391,6 +391,19 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
 
   const queue: Array<{ pid: string; phase: FlowPhase }> = [...seedPipes].map(([pid, phase]) => ({ pid, phase }));
   const visited = new Set<string>(); // pid|phase：同一管路可被不同相位到达
+
+  // 汇流点只要还有另一条可能供液的入侧，就不能把一条停流支路扩散到公共出侧。
+  // 递归层仍会在所有入侧均停时判停；这里优先避免 BFS 的过度停流。
+  function hasAlternateInflow(node: DiagramNode, currentPid: string): boolean {
+    for (const candidate of pipes) {
+      if (candidate.id === currentPid || isolatedDisabled.has(candidate.id)) continue;
+      const e = edgeOf(candidate);
+      if (!e.v || e.v.node.id !== node.id) continue;
+      if (!disabledPipes.has(candidate.id)) return true;
+    }
+    return false;
+  }
+
   while (queue.length) {
     const { pid, phase } = queue.shift()!;
     const vkey = pid + "|" + phase;
@@ -425,6 +438,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       const portDirs = node.ports.map((p) => p.direction);
       const directed = portDirs.includes("in") && portDirs.includes("out");
       if (directed && phase === "push" && arr.port.direction !== "in") continue;
+      if (phase === "push" && !directed && hasAlternateInflow(node, pid)) continue;
       if (node.type === "solenoid3") {
         // 到达非激活出侧 → 不穿越
         const path = valve3EffectivePath(node);
@@ -559,28 +573,42 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
 export function pipeEffectiveDisabled(
   pipe: Pipe,
   nodes: DiagramNode[],
-  visitedPipes?: Set<string>
+  visitedPipes?: Set<string>,
+  ignoreTeachingOverride = false
 ): boolean {
-  if (pipe.forceFlow) return false; // 临时强制流动：覆盖一切停流判定
-  if (pipe.forceStop) return true; // 临时强制停止：无视其他状态
+  const override = pipe.teachingOverride ?? (pipe.forceFlow ? "flow" : pipe.forceStop ? "stop" : undefined);
+  if (!ignoreTeachingOverride && override === "flow") return false;
+  if (!ignoreTeachingOverride && override === "stop") return true;
   if (pipe.disabled || pipe.fault === "pipeBlocked") return true;
   // 优先查预计算缓存（含泵/阀断点双向传播）
   if (_cachedDisabled.size > 0 && _cachedDisabled.has(pipe.id)) return true;
   // 供液侧递归判定
-  const supplyStopped = pipeEffectiveDisabledRecursive(pipe, nodes, visitedPipes);
+  const supplyStopped = pipeEffectiveDisabledRecursive(pipe, nodes, visitedPipes, ignoreTeachingOverride);
   if (supplyStopped) return true;
   // 需求域：供液到达但下游无任何开放去处（全关死路）→ 不流动
   if (_demand.size > 0 && !_demand.has(pipe.id)) return true;
   return false;
 }
 
+/** 工程有效判定：只基于拓扑、泵阀状态和故障，不受讲解画面覆盖影响。 */
+export function pipeEngineeringDisabled(pipe: Pipe, nodes: DiagramNode[]): boolean {
+  return pipeEffectiveDisabled(pipe, nodes, undefined, true);
+}
+
+/** 取得教学显示覆盖，兼容尚未迁移的旧工程文件。 */
+export function pipeTeachingOverride(pipe: Pipe): "flow" | "stop" | undefined {
+  return pipe.teachingOverride ?? (pipe.forceFlow ? "flow" : pipe.forceStop ? "stop" : undefined);
+}
+
 function pipeEffectiveDisabledRecursive(
   pipe: Pipe,
   nodes: DiagramNode[],
-  visitedPipes?: Set<string>
+  visitedPipes?: Set<string>,
+  ignoreTeachingOverride = false
 ): boolean {
-  if (pipe.forceFlow) return false; // 临时强制流动
-  if (pipe.forceStop) return true; // 临时强制停止
+  const override = pipe.teachingOverride ?? (pipe.forceFlow ? "flow" : pipe.forceStop ? "stop" : undefined);
+  if (!ignoreTeachingOverride && override === "flow") return false;
+  if (!ignoreTeachingOverride && override === "stop") return true;
   if (pipe.disabled || pipe.fault === "pipeBlocked") return true;
   const visited = visitedPipes ?? new Set<string>();
   if (visited.has(pipe.id)) return false;
@@ -598,7 +626,7 @@ function pipeEffectiveDisabledRecursive(
       for (const oe of [op.fromPortId, op.toPortId]) {
         if (!oe || oe !== portId) continue;
         count++;
-        if (!pipeEffectiveDisabled(op, nodes, visited)) return false; // 任一流动 → 有供液
+        if (!pipeEffectiveDisabled(op, nodes, visited, ignoreTeachingOverride)) return false; // 任一流动 → 有供液
       }
     }
     return count > 0; // 有管且全停 → 断供；无管 → 维持既有行为（不判停）
@@ -690,7 +718,7 @@ function pipeEffectiveDisabledRecursive(
     }
     if (inboundPipes.length === 0) return false; // 无入侧管 → 不判停
     for (const op of inboundPipes) {
-      if (!pipeEffectiveDisabled(op, nodes, visited)) return false; // 任一入侧流动 → 有流
+      if (!pipeEffectiveDisabled(op, nodes, visited, ignoreTeachingOverride)) return false; // 任一入侧流动 → 有流
     }
     return true; // 全部入侧停流 → 本管停
   }

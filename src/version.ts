@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.6.0";
+export const APP_VERSION = "1.7.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.7.0",
+    date: "2026-08-18",
+    highlights: [
+      "修复多支路汇流时，停泵支路错误传播到公共出管的问题",
+      "教学显示覆盖与工程有效状态分离；新增不含教学覆盖的工程 JSON 导出",
+      "旧版 forceFlow / forceStop 图纸加载时自动迁移为显式教学覆盖",
+    ],
+  },
   {
     version: "1.6.0",
     date: "2026-08-18",

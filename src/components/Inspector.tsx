@@ -38,7 +38,7 @@ import {
   setPipesForceStop,
 } from "../store";
 import { defOf, NodeSymbol } from "../symbols";
-import { findPort, portWorldPos, pipeEffectiveDisabled } from "../geometry";
+import { findPort, portWorldPos, pipeEngineeringDisabled, pipeTeachingOverride } from "../geometry";
 import { traceStopCause } from "../advice";
 import { traceFunctionalChain, chainPathSummary } from "../functionalChain";
 import { FLUID_PRESETS, MATERIAL_PRESETS } from "../types";
@@ -121,8 +121,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
   const multi = ui.selection.nodes.length + ui.selection.pipes.length > 1;
   const pipeIssues = pipe ? checkPipeFluid(pipe, diagram.nodes) : [];
   const pipeStallCause = useMemo(() => {
-    if (!pipe || pipe.forceFlow) return null;
-    if (!pipeEffectiveDisabled(pipe, diagram.nodes)) return null;
+    if (!pipe || !pipeEngineeringDisabled(pipe, diagram.nodes)) return null;
     return traceStopCause(pipe, diagram);
   }, [pipe, diagram]);
   // 元件→整机功能链（单选时展示所在链）
@@ -782,14 +781,14 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <input type="checkbox" checked={pipe.fault === "pipeBlocked"} onChange={(e) => patchPipe(pipe.id, { fault: e.target.checked ? "pipeBlocked" : undefined })} />
                 <span style={{ fontSize: 12, color: "var(--text-dim)" }}>管路堵塞（停止流动）</span>
               </Row>
-              <Row label="▶ 强制流动">
-                <input type="checkbox" checked={!!pipe.forceFlow} onChange={(e) => patchPipe(pipe.id, { forceFlow: e.target.checked || undefined })} />
-                <span style={{ fontSize: 12, color: "var(--text-dim)" }}>临时强制流动（忽略停流判定）</span>
+              <Row label="教学显示覆盖">
+                <div className="seg">
+                  <button className={!pipeTeachingOverride(pipe) ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: undefined })}>工程判定</button>
+                  <button className={pipeTeachingOverride(pipe) === "flow" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "flow" })}>讲解流动</button>
+                  <button className={pipeTeachingOverride(pipe) === "stop" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "stop" })}>讲解停流</button>
+                </div>
               </Row>
-              <Row label="⏹ 强制停止">
-                <input type="checkbox" checked={!!pipe.forceStop} onChange={(e) => patchPipe(pipe.id, { forceStop: e.target.checked || undefined })} />
-                <span style={{ fontSize: 12, color: "var(--text-dim)" }}>临时强制停止（无视其他状态）</span>
-              </Row>
+              {pipeTeachingOverride(pipe) && <div className="insp-tip">教学覆盖只影响动画显示；诊断和工程导出仍采用工程有效状态。</div>}
               <Row label={t("路径")}>
                 <button className="btn" title={t("清除手动调整的路径点，恢复自动走线")} onClick={() => patchPipe(pipe.id, { points: [] })}>{t("重置走线")}</button>
               </Row>

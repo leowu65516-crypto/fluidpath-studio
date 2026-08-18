@@ -12,7 +12,7 @@
 - 项目路径：`/Users/leo/Documents/测试`（注意：**中文路径**）
 - **已 git 初始化**（2026-08-18 起，每个版本一个 commit，历史可回退）；改前仍建议 `cp` 备份到 `/tmp`
 - 技术栈：Electron（主进程 CJS）+ React 18 + TypeScript（strict）+ Vite 5 + Vitest（jsdom）
-- 打包：electron-builder（未签名，arm64）；产物 `release/FluidPath Studio-1.6.0-arm64.dmg`
+- 打包：electron-builder（未签名，arm64）；当前产物 `release/FluidPath Studio-1.7.0-arm64.dmg`
 - Node 路径：`/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin`（**每条命令都要先 `export PATH=.../bin:$PATH`**）
 
 ### 关键文件地图
@@ -34,7 +34,7 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 34 个测试文件 / 234 用例，见 §6 |
+| `src/__tests__/` | 35 个测试文件 / 236 用例，见 §6 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
 | `BCTMS.json`（项目根） | 另一台机型 BCTMS 快照（62/70，供 flow-isolation 测试） |
@@ -321,7 +321,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 2. **快冲需要奶泵开**：奶泵关时快冲水到达奶泵死路（快冲单向阀挡回罐），引擎正确显示全停。
 3. 排废场景中咖啡侧要有料（冲泡 A 给料）才会流动；排废总管受蒸汽排废阀总控。
 4. 三通阀 A/B 端口位约定：left=in、right=A、bottom=B（牛奶排废阀端口镜像，引擎按 direction 推断已处理）。
-5. **BFS push 无三通 AND 裁决（未修）**：泵停 + 其排废阀开 B 时，push 会穿过该阀污染共享排废总管，即使其他废液仍在流入。规避：排废时把牛奶排废阀置 A 或保持奶泵开启。根修方向：push 在节点扩展前检查"该节点是否还有未停流入侧管"，有则不扩散（递归层会兜底补判）。
+5. **汇流保护（1.7 已修）**：BFS push 到达非定向汇流接头时，若存在另一条未停流的入侧管，不再把单一停流支路扩散到公共出管；递归层仍在所有入侧均停时判停。
 
 ---
 
@@ -332,7 +332,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npx vitest run                   # 全量测试（当前 234 个，34 文件）
+npx vitest run                   # 全量测试（当前 236 个，35 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -345,7 +345,7 @@ git status && git add -A && git commit -m "..."   # 每版一个 commit（见 §
 1. `npm run build`（Vite 构建 dist）
 2. `npx electron-builder --mac --config.electronDist=node_modules/electron/dist`
 3. `npx electron scripts/verify-asar.cjs` → `ASAR_LOAD_RESULT hasApp:true hasCanvas:true`
-4. 产物：`release/FluidPath Studio-1.6.0-arm64.dmg`（版本号随 `package.json`；未签名；macOS 首次打开需右键 → 打开）
+4. 产物：`release/FluidPath Studio-1.7.0-arm64.dmg`（版本号随 `package.json`；未签名；macOS 首次打开需右键 → 打开）
 
 ### 5.3 环境坑（全部实测）
 
@@ -398,7 +398,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：34 文件 / 234 用例全绿，tsc 无错误。**
+**当前全量：35 文件 / 236 用例全绿，tsc 无错误。**
 
 ---
 
@@ -407,7 +407,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 1. **先诊断后动手**：结论 + 归因 + 方案 + 下一步，确认后再改。分层归因（哪层停的）→ 对照实验（改一个变量看 diff）→ 最小复现（合成拓扑）三步法极有效。
 2. **引擎语义要物理自洽**：多流源系统里"泵 = 独立动力源/域边界"是核心不变量；suck/push 是方向语义，压力域是归属语义，二者正交。
 3. **并集架构的代价**：BFS∪递归 让保守层的过度停流无法被精确层纠正 → 宁可收紧 BFS 扩散边界（护栏），也别指望递归兜底。
-4. **场景演示会污染图纸数据**：forceFlow/forceStop 是运行时标记，演示中途保存文件会固化它们 → 加载陌生图纸先扫这些标记。
+4. **教学覆盖与工程状态分离（1.7）**：`teachingOverride` 只影响画面动画；诊断使用工程有效状态，工程 JSON 导出会剔除教学覆盖。旧版 `forceFlow` / `forceStop` 加载时自动迁移。
 5. **标签会重复，ID 不会**：一切程序化引用用 id，标签仅用于展示。
 6. **图纸修复与引擎修复分清**：同一现象可能是图纸接错、也可能是引擎 bug——用引擎跑标准工况对照，别急着改错一边。
 7. **Electron 没有 window.prompt**：任何"弹窗让用户输入"都要用应用内组件，别用浏览器 prompt——它静默返回空，表现为"点了没反应"。
@@ -417,7 +417,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 ---
 
-*文档结束。接手后建议第一步：`npx vitest run` 确认 234 绿，再读 `src/geometry.ts` 的 `computeDisabledPipes`（相位 BFS + 压力域）与 `computeDemandPipes`（需求域 per-root BFS）。*
+*文档结束。接手后建议第一步：`npx vitest run` 确认 236 绿，再读 `src/geometry.ts` 的 `computeDisabledPipes`（相位 BFS + 压力域）与 `computeDemandPipes`（需求域 per-root BFS）。*
 
 
 ---
@@ -429,6 +429,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.7.0 | 2026-08-18 | 修复共享汇流处停流误传播；教学显示覆盖与工程状态分离；新增工程 JSON 导出与旧覆盖字段自动迁移 |
 | 1.6.0 | 2026-08-18 | 新增元件「冲泡缸」（处理组，简笔密闭腔+上下活塞）；接入介质规则/需求终点/场景角色/启动最简图 |
 | 1.5.0 | 2026-08-18 | 工况切换差异对比高亮；管路箭头颜色跟随介质；选中管路两端端口高亮+连接关系提示 |
 | 1.4.0 | 2026-08-18 | 新增介质「清洗废液」；元件悬停浮动提示（名称+类型+状态） |

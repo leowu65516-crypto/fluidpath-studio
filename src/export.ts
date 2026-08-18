@@ -245,6 +245,18 @@ export function exportJSON(diagram: Diagram) {
   download(`${diagram.name || "fluidpath"}.json`, new Blob([json], { type: "application/json" }));
 }
 
+/** 工程图纸导出：剔除所有讲解覆盖，避免人工动画状态进入工程交付。 */
+export function exportEngineeringJSON(diagram: Diagram) {
+  const out = structuredClone(diagram);
+  for (const pipe of out.pipes) {
+    delete pipe.teachingOverride;
+    delete pipe.forceFlow;
+    delete pipe.forceStop;
+  }
+  const json = JSON.stringify({ ...out, _version: 3, _exportedAt: new Date().toISOString(), _exportProfile: "engineering" }, null, 2);
+  download(`${diagram.name || "fluidpath"}_工程版.json`, new Blob([json], { type: "application/json" }));
+}
+
 /** 检测是否为旧版 JSON 格式（position/size/style 嵌套对象） */
 function isOldFormatNode(n: any): boolean {
   return n && typeof n === "object" && ("position" in n || "size" in n || "style" in n);
@@ -298,6 +310,13 @@ function migratePipe(p: any): void {
   if (p.path && Array.isArray(p.path) && (!p.points || !p.points.length)) {
     p.points = p.path;
   }
+  // 1.7 起把旧的强制流/停字段迁移为明确的教学显示覆盖。
+  if (!p.teachingOverride) {
+    if (p.forceFlow) p.teachingOverride = "flow";
+    else if (p.forceStop) p.teachingOverride = "stop";
+  }
+  delete p.forceFlow;
+  delete p.forceStop;
 }
 
 export function parseDiagramJSON(text: string): Diagram {
@@ -309,8 +328,9 @@ export function parseDiagramJSON(text: string): Diagram {
   const hasOldNodes = data.nodes.some(isOldFormatNode);
   if (hasOldNodes) {
     data.nodes.forEach(migrateNode);
-    data.pipes.forEach(migratePipe);
   }
+  // 管路字段迁移与节点格式无关，所有历史图纸都需要执行。
+  data.pipes.forEach(migratePipe);
   data.settings = {
     showGrid: true,
     background: "#eef2f7",

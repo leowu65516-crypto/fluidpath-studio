@@ -14,7 +14,7 @@
 
 import type { Diagram, FluidType, Pipe } from "./types";
 import { checkDiagramFluid, fluidLabel } from "./fluidRules";
-import { pipeEffectiveDisabled, setCachedPipes, pumpEffectiveOn, valve2EffectiveOpen, valve3EffectivePath, findPort } from "./geometry";
+import { pipeEngineeringDisabled, pipeTeachingOverride, setCachedPipes, pumpEffectiveOn, valve2EffectiveOpen, valve3EffectivePath, findPort } from "./geometry";
 
 /** 可执行的修复动作 */
 export type FixAction =
@@ -98,7 +98,6 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram): { reason: string; 
     if (visited.has(p.id)) return null;
     visited.add(p.id);
     const label = p.label || "未命名";
-    if (p.forceStop) return { reason: `管路「${label}」被强制停止（forceStop）`, ids: [p.id] };
     if (p.disabled) return { reason: `管路「${label}」被禁用`, ids: [p.id] };
     if (p.fault === "pipeBlocked") return { reason: `管路「${label}」堵塞（故障模拟）`, ids: [p.id] };
     const { u } = effectiveEnds(diagram, p);
@@ -144,7 +143,7 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram): { reason: string; 
           ? oe.v && oe.v.node.id === n.id
           : oe.v && inPortIds.has(oe.v.port.id);
         if (!feedsHere) continue;
-        if (!pipeEffectiveDisabled(op, diagram.nodes)) { anyFlowingUpstream = true; break; }
+        if (!pipeEngineeringDisabled(op, diagram.nodes)) { anyFlowingUpstream = true; break; }
         const sub = walk(op);
         if (sub) return { reason: sub.reason, ids: [...sub.ids, p.id] };
       }
@@ -165,6 +164,23 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
   setCachedPipes(diagram.pipes, diagram.nodes);
 
   // ===== 结构问题（与阀位/泵态无关） =====
+
+  // 教学覆盖不计入结构问题，但必须显式告知：画面动画与工程状态已分离。
+  for (const p of diagram.pipes) {
+    if (scoped && pipeIds && !pipeIds.has(p.id)) continue;
+    const override = pipeTeachingOverride(p);
+    if (!override) continue;
+    out.push({
+      id: `teaching_override_${p.id}`,
+      severity: "info",
+      category: "state",
+      kind: "teaching-override",
+      title: "教学显示覆盖",
+      message: `「${p.label || "未命名"}」被设置为教学${override === "flow" ? "强制流动" : "强制停流"}；工程判定与画面显示已分离。`,
+      fixLabel: "在属性面板清除覆盖",
+      elementIds: [p.id],
+    });
+  }
 
   // 1) 介质冲突（物理常识）
   const fluidMap = checkDiagramFluid(diagram);
@@ -386,7 +402,7 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
     if (!OUTLET_TYPES.has(n.type)) continue;
     for (const p of diagram.pipes) {
       if (!p.toPortId || !n.ports.some((pt) => pt.id === p.toPortId)) continue;
-      if (p.forceFlow || !pipeEffectiveDisabled(p, diagram.nodes)) continue;
+      if (!pipeEngineeringDisabled(p, diagram.nodes)) continue;
       const cause = traceStopCause(p, diagram);
       // 根因是可修元件时给出对应修复动作（开阀/启泵），否则只做定位
       let fix: FixAction | undefined;
@@ -428,6 +444,7 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
     "valve-closed": "电磁阀关闭会切断该支路，下游管路随之停流。教学演示中关闭阀门多为有意为之。",
     fault: "故障标记是教学演练用的：注入故障后观察停流如何向下游传播，再配合因果链定位根因。确认是故意注入的可忽略。",
     "outlet-stalled": "出口没有介质到达：要么被上游的关阀/停泵切断（点开因果链可见根因），要么下游本身就是死路。",
+    "teaching-override": "教学覆盖只改变画面动画，工程判定仍以泵、阀、故障与拓扑为准，避免讲解效果掩盖真实断流。",
   };
   for (const a of out) a.why = WHY[a.kind] ?? undefined;
   // 按严重度排序：error > warning > info；同级别结构问题在前

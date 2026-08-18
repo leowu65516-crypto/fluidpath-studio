@@ -42,6 +42,7 @@ export type NodeType =
   | "steamWand"
   | "coffeeOutlet"
   | "groupHead" // 冲煮头（Group Head）
+  | "brewChamber" // 冲泡缸（密闭腔 + 上下活塞萃取）
   | "milkOutlet"
   | "hotWaterOutlet"
   | "flowMeter"

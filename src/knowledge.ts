@@ -122,6 +122,11 @@ export const KNOWLEDGE: Record<string, DeviceKnowledge> = {
     role: "直角接头：改变管路方向 90°",
     principle: "连接两个垂直方向的管路，介质不变。",
   },
+  brewChamber: {
+    role: "冲泡缸：密封腔体，上下活塞挤压咖啡粉完成萃取",
+    principle: "热水从顶部注入密闭腔浸润咖啡粉，上、下活塞相对挤压，咖啡液从底部流出。",
+    common: "萃取压力由上下活塞提供；密闭腔是咖啡粉与水混合萃取的地方。",
+  },
   heatExchanger: {
     role: "换热器：在两种介质间传递热量（冷热两侧互不混合）",
     principle: "冷热两路通过壁面换热，两侧介质各自独立。",

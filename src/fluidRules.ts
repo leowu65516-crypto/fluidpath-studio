@@ -37,6 +37,7 @@ const RULES: DeviceFluidRule[] = [
   // 出口类
   { type: "coffeeOutlet", in: ["coffee"], inPreferred: "coffee" },
   { type: "groupHead", in: ["hotWater"], inPreferred: "hotWater", out: ["coffee"], outPreferred: "coffee" },
+  { type: "brewChamber", in: ["hotWater"], inPreferred: "hotWater", out: ["coffee"], outPreferred: "coffee" },
   { type: "milkOutlet", in: MILK, inPreferred: "hotMilk" },
   { type: "hotWaterOutlet", in: ["hotWater"], inPreferred: "hotWater" },
   { type: "hotWaterWand", in: ["hotWater"], inPreferred: "hotWater" },

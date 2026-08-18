@@ -236,7 +236,7 @@ export function createSampleDiagram(): Diagram {
 export function createMinimalBrewDiagram(): Diagram {
   const pump = createNode("pump", 120, 120, "水泵");
   pump.pumpOn = true;
-  const brew = createNode("shape", 320, 100, "冲泡缸", "rect");
+  const brew = createNode("brewChamber", 320, 110, "冲泡缸");
   const out = createNode("coffeeOutlet", 520, 120, "咖啡出口");
   return {
     id: uid("diagram"),
@@ -246,7 +246,7 @@ export function createMinimalBrewDiagram(): Diagram {
       pipe("供水", portOn(pump, "right"), portOn(brew, "left"), "#2f7fd6", [], { fluidType: "coldWater" }),
       pipe("咖啡", portOn(brew, "right"), portOn(out, "left"), "#7b4a2d", [], { fluidType: "coffee" }),
     ],
-    settings: { showGrid: true, background: "#eef2f7", globalAnimationPlaying: true, crossoverHops: true, appVersion: "1.5.0" },
+    settings: { showGrid: true, background: "#eef2f7", globalAnimationPlaying: true, crossoverHops: true, appVersion: "1.6.0" },
   };
 }
 

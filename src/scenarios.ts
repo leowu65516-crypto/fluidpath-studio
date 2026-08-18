@@ -49,7 +49,7 @@ const ROLE_RULES: RoleRule[] = [
   { role: "steamBoiler", types: ["steamBoiler"], keywords: [] },
   { role: "refillValve", types: ["solenoid2"], keywords: ["补水"] },
   { role: "brewV3", types: ["solenoid3"], keywords: ["冲泡"] },
-  { role: "brewChamber", types: ["shape"], keywords: ["冲泡缸"] },
+  { role: "brewChamber", types: ["shape", "brewChamber"], keywords: ["冲泡缸"] },
   { role: "coffeeDrainV3", types: ["solenoid3"], keywords: ["咖啡排废"] },
   { role: "coffeeOut", types: ["coffeeOutlet"], keywords: [] },
   { role: "milkTank", types: ["tank"], keywords: [] },

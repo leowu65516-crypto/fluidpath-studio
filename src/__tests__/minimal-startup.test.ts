@@ -6,7 +6,7 @@ import { store, loadDiagram, updateDiagram, saveWorkCondition, applyWorkConditio
 describe("启动默认最简图", () => {
   it("createSampleDiagram 返回三元件：水泵→冲泡缸→咖啡出口", () => {
     const d = createSampleDiagram();
-    expect(d.nodes.map((n) => n.type)).toEqual(["pump", "shape", "coffeeOutlet"]);
+    expect(d.nodes.map((n) => n.type)).toEqual(["pump", "brewChamber", "coffeeOutlet"]);
     expect(d.nodes.map((n) => n.label)).toEqual(["水泵", "冲泡缸", "咖啡出口"]);
     expect(d.pipes.length).toBe(2);
   });

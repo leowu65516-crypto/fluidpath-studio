@@ -467,7 +467,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
 const DEMAND_SINK_TYPES = new Set([
   "boiler", "hotWaterBoiler", "steamBoiler",
   "coffeeOutlet", "milkOutlet", "hotWaterOutlet", "hotWaterWand", "steamWand", "outlet",
-  "tank",
+  "tank", "brewChamber",
 ]);
 /** 源/动力边界：需求倒推不穿越（泵、罐、进水口、锅炉本体） */
 const DEMAND_BOUNDARY_TYPES = new Set([

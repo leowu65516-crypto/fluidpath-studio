@@ -52,6 +52,7 @@ export const NODE_DEFS: NodeDef[] = [
   { type: "heatExchanger", label: "换热器", group: "处理", width: 140, height: 110, fill: "#f2f9f5", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }, { position: "top", direction: "in" }, { position: "bottom", direction: "out" }] },
   { type: "filter", label: "过滤器", group: "处理", width: 84, height: 96, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.3, direction: "in" }, { position: "right", offset: 0.3, direction: "out" }] },
   { type: "metalFilter", label: "矩形金属滤网", group: "处理", width: 96, height: 56, fill: "#f3f5f7", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }] },
+  { type: "brewChamber", label: "冲泡缸", group: "处理", width: 96, height: 140, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "top", direction: "in" }, { position: "bottom", direction: "out" }] },
   { type: "powderMixer", label: "粉料搅拌器", group: "处理", width: 100, height: 120, fill: "#fdf9f0", stroke: "#3d4c5e", ports: [{ position: "top", direction: "in" }, { position: "bottom", direction: "out" }] },
   // ===== 连接 =====
   { type: "inlet", label: "入口端", group: "连接", width: 72, height: 36, fill: "#eef4fb", stroke: "#3d4c5e", ports: [{ position: "right", direction: "out" }] },
@@ -593,6 +594,27 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
         <g>
           <rect x={2} y={2} width={w - 4} height={h - 4} rx={10} {...common} />
           <path d={zig.join(" ")} fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        </g>
+      );
+    }
+    case "brewChamber": {
+      // 冲泡缸：矩形机体 + 中部密闭腔（萃取咖啡）+ 上下活塞挤压（简笔）
+      const cx = w / 2;
+      return (
+        <g>
+          <rect x={2} y={2} width={w - 4} height={h - 4} rx={8} {...common} />
+          {/* 密闭腔（中部萃取区） */}
+          <rect x={16} y={h * 0.3} width={w - 32} height={h * 0.4} rx={6} fill="none" stroke={stroke} strokeWidth={1.5} strokeDasharray="3 2" />
+          {/* 上活塞：杆 + 板 */}
+          <line x1={cx} y1={5} x2={cx} y2={h * 0.3 - 2} stroke={stroke} strokeWidth={2} />
+          <rect x={16} y={h * 0.3 - 5} width={w - 32} height={7} rx={3} fill={stroke} />
+          {/* 下活塞：杆 + 板 */}
+          <line x1={cx} y1={h * 0.7 + 2} x2={cx} y2={h - 5} stroke={stroke} strokeWidth={2} />
+          <rect x={16} y={h * 0.7 - 2} width={w - 32} height={7} rx={3} fill={stroke} />
+          {/* 咖啡粉示意 */}
+          <circle cx={cx - 12} cy={h * 0.5} r={2.2} fill={stroke} opacity={0.5} />
+          <circle cx={cx} cy={h * 0.5 + 5} r={2.2} fill={stroke} opacity={0.5} />
+          <circle cx={cx + 12} cy={h * 0.5} r={2.2} fill={stroke} opacity={0.5} />
         </g>
       );
     }

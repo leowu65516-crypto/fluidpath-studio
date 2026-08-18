@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PromptDialog } from "./PromptDialog";
 import {
   deleteSelection,
   duplicateSelection,
@@ -23,6 +24,8 @@ import {
   getRedoCount,
   generateLegend,
   insertTemplate,
+  listSavedTemplates,
+  saveCurrentAsTemplate,
   applyStylePreset,
   getStylePresets,
   copyPipeStyle,
@@ -116,6 +119,8 @@ function BatchReplace({ nodeIds, pipeIds }: { nodeIds: string[]; pipeIds: string
 export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle?: () => void }) {
   const { diagram, ui } = useAppState();
   const { t } = useT();
+  const [savedTemplates, setSavedTemplates] = useState(() => listSavedTemplates());
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const node = ui.selection.nodes.length === 1 ? diagram.nodes.find((n) => n.id === ui.selection.nodes[0]) : undefined;
   const pipe = !node && ui.selection.pipes.length === 1 ? diagram.pipes.find((p) => p.id === ui.selection.pipes[0]) : undefined;
   const multi = ui.selection.nodes.length + ui.selection.pipes.length > 1;
@@ -867,27 +872,31 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             <Row label={t("介质标签")}>
               <input type="checkbox" checked={diagram.settings.showFluidLabels === true} onChange={(e) => updateDiagram((d) => { d.settings.showFluidLabels = e.target.checked; }, false)} />
             </Row>
+            <Row label={`${t("元器件文字大小")} ${diagram.settings.nodeLabelFontSize ?? 13}px`}>
+              <input
+                type="range"
+                min={8}
+                max={32}
+                value={diagram.settings.nodeLabelFontSize ?? 13}
+                onChange={(e) => updateDiagram((d) => { d.settings.nodeLabelFontSize = Number(e.target.value); }, false)}
+              />
+            </Row>
             <Section title={t("操作")}>
               <div className="btn-row">
                 <button className="btn wide" onClick={() => generateLegend(100, 100)}>{t("📊 生成图例")}</button>
                 <button className="btn wide" onClick={() => downloadBom(diagram)}>{t("📋 导出 BOM 清单")}</button>
               </div>
-              <Row label={t("插入模板")}>
+            <Row label={t("插入模板")}>
                 <select
                   value=""
                   onChange={(e) => { if (e.target.value) { insertTemplate(e.target.value); e.target.value = ""; } }}
                 >
                   <option value="">{t("选择模板…")}</option>
                   <option value="循环回路">{t("🔄 循环回路")}</option>
-                  <option value="咖啡机水路">{t("☕ 咖啡机水路")}</option>
-                  <option value="蒸汽系统">{t("♨️ 蒸汽系统")}</option>
-                  <option value="牛奶发泡系统">{t("🥛 牛奶发泡系统")}</option>
-                  <option value="商用咖啡机整机">{t("☕ 商用咖啡机整机")}</option>
-                  <option value="半自动咖啡机（双锅炉）">{t("☕ 半自动咖啡机（双锅炉）")}</option>
-                  <option value="全自动商用咖啡机">{t("☕ 全自动商用咖啡机")}</option>
-                  <option value="咖啡机整机示例（演示）">{t("🎬 咖啡机整机示例（演示）")}</option>
+                  {savedTemplates.map((tpl) => <option key={tpl.name} value={tpl.name}>★ {tpl.name}</option>)}
                 </select>
               </Row>
+              <button className="btn wide" onClick={() => setTemplateDialogOpen(true)}>＋ {t("保存当前图纸为模板")}</button>
             </Section>
             <Section title={t("撤销历史")}>
               <div className="insp-row">
@@ -931,6 +940,17 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
           <button className="btn wide" onClick={() => addLayer(`图层 ${(diagram.settings.layers?.length ?? 0) + 1}`)}>{t("＋ 新建图层")}</button>
         </Section>
       </div>
+      )}
+      {templateDialogOpen && (
+        <PromptDialog
+          title={t("保存当前图纸为模板")}
+          label={t("模板名称")}
+          defaultValue={diagram.name || t("我的模板")}
+          placeholder={t("模板名称")}
+          submitLabel={t("保存")}
+          onSubmit={(name) => { if (saveCurrentAsTemplate(name)) setSavedTemplates(listSavedTemplates()); }}
+          onClose={() => setTemplateDialogOpen(false)}
+        />
       )}
     </div>
   );

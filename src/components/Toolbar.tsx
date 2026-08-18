@@ -173,12 +173,11 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
 
   const [postLoadTip, setPostLoadTip] = useState<string | null>(null);
 
-  function openFile(file: File) {
-    file.text().then((text) => {
+  function openFileContent(text: string, sourcePath: string | null) {
       try {
         const d = parseDiagramJSON(text);
         loadDiagram(d);
-        setSourceFilePath((file as File & { path?: string }).path ?? null);
+        setSourceFilePath(sourcePath);
         // 加载后引导提示
         const tips: string[] = [];
         const nodeCount = d.nodes?.length ?? 0;
@@ -208,7 +207,24 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       } catch (err) {
         alert(`打开失败：${(err as Error).message}`);
       }
-    });
+  }
+
+  function openFile(file: File) {
+    file.text().then((text) => openFileContent(text, (file as File & { path?: string }).path ?? null));
+  }
+
+  async function openJsonFromDesktop() {
+    const api = (window as unknown as { electron?: { openJsonFile?: () => Promise<{ path: string; content: string } | null> } }).electron;
+    if (!api?.openJsonFile) {
+      fileRef.current?.click();
+      return;
+    }
+    try {
+      const result = await api.openJsonFile();
+      if (result) openFileContent(result.content, result.path);
+    } catch (err) {
+      alert(`打开失败：${(err as Error).message}`);
+    }
   }
 
   function viewSize() {
@@ -234,7 +250,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" title={t("新建")} onClick={() => { if (confirm(t("新建") + "?")) newDiagram(); }}>
         <Icon d="M12 5v14M5 12h14" />{t("新建")}
       </button>
-      <button className="tb-btn" title={t("打开 JSON")} onClick={() => fileRef.current?.click()}>
+      <button className="tb-btn" title={t("打开 JSON")} onClick={openJsonFromDesktop}>
         <Icon d="M3 8l3-4h5l2 3h8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />{t("打开 JSON")}
       </button>
       <button className="tb-btn sq" title={t("导入分享码")} aria-label={t("导入分享码")} onClick={() => setImportOpen(true)}>
@@ -251,7 +267,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" />{t("保存到本地")}
       </button>
       <button
-        className={`tb-btn sq${fileAutosaveStatus().enabled ? " active" : ""}`}
+        className={`tb-btn${fileAutosaveStatus().enabled ? " active" : ""}`}
         title={fileAutosaveStatus().enabled ? t("关闭同路径自动保存") : t("开启同路径自动保存")}
         aria-label={t("自动保存")}
         onClick={() => {
@@ -261,7 +277,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
           }).catch((err: Error) => toast(err.message, "error"));
         }}
       >
-        <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM8 13l2 2 5-5" />
+        <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM8 13l2 2 5-5" />{t("自动保存")}
       </button>
       <div className="tb-sep" />
       <button className="tb-btn" disabled={!canUndo()} onClick={undo} title="Undo">
@@ -366,6 +382,14 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         <button className={`tb-btn sq export-toggle ${exportOpen ? "active" : ""}`} onClick={(e) => { menuRectFrom(e.currentTarget); setExportOpen(!exportOpen); }} title="选择导出格式">▼</button>
         {exportOpen && (
           <div className="export-menu" data-ui="1" style={{ position: "fixed", top: menuPos.top, right: menuPos.right, marginTop: 0 }}>
+            <div className="export-options" onClick={(e) => e.stopPropagation()}>
+              <b>{t("导出整理")}</b>
+              <label><input type="checkbox" checked={diagram.settings.showNodeLabels !== false} onChange={(e) => updateDiagram((d) => { d.settings.showNodeLabels = e.target.checked; }, false)} /> {t("显示元器件名称")}</label>
+              <label><input type="checkbox" checked={diagram.settings.showPipeLabels !== false} onChange={(e) => updateDiagram((d) => { d.settings.showPipeLabels = e.target.checked; }, false)} /> {t("显示管路编号属性")}</label>
+              <label><input type="checkbox" checked={diagram.settings.showFluidLabels === true} onChange={(e) => updateDiagram((d) => { d.settings.showFluidLabels = e.target.checked; }, false)} /> {t("显示介质文字")}</label>
+              <label><input type="checkbox" checked={diagram.settings.showFluidColors !== false} onChange={(e) => updateDiagram((d) => { d.settings.showFluidColors = e.target.checked; }, false)} /> {t("显示介质颜色")}</label>
+            </div>
+            <hr />
             <button className="export-item" onClick={() => doExport("pdf")}><span className="export-badge">📄</span> PDF 文档<small>矢量 · 适合打印</small></button>
             <button className="export-item" onClick={() => doExport("gif")} disabled={gifProgress !== null}><span className="export-badge">🎞️</span> GIF 动图<small>{gifProgress !== null ? `生成中 ${Math.round(gifProgress * 100)}%…` : "含流动动画"}</small></button>
             <button className="export-item" onClick={() => doExport("jpg")}><span className="export-badge">🖼️</span> JPG 图片<small>高压缩 · 用于文档</small></button>

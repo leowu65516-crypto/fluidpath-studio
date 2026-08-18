@@ -1073,7 +1073,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
         {diagram.settings.showNodeLabels !== false && node.type !== "label" && node.type !== "shape" && (
           <text
             x={node.x + node.width / 2} y={node.y + node.height + 18}
-            textAnchor="middle" fontSize={node.fontSize ?? 13} fill="var(--node-label)"
+            textAnchor="middle" fontSize={node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13} fill="var(--node-label)"
             fontFamily="system-ui, -apple-system, sans-serif"
             data-ui="1"
             style={{ cursor: "text" }}
@@ -1183,6 +1183,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                 pipe={p}
                 index={i}
                 nodes={diagram.nodes}
+                allPipes={diagram.pipes}
                 selected={ui.selection.pipes.includes(p.id)}
                 crossHop={crossHop}
                 allPolys={pipePolys}

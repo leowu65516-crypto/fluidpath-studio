@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.10.0";
+export const APP_VERSION = "1.11.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.11.0",
+    date: "2026-08-19",
+    highlights: [
+      "模板入口精简为循环回路，并支持自定义名称保存模板；模板跨版本保存在本机应用存储中",
+      "演示模式按当前图纸动态筛选场景，BCS 等无奶泵图纸只显示可用的冲泡咖啡讲解",
+      "蒸汽锅炉排废阀打开时，锅炉底部至排出口动态显示蒸汽介质并保持流动语义",
+    ],
+  },
   {
     version: "1.10.0",
     date: "2026-08-18",

@@ -9,6 +9,7 @@ import {
   polylineLength,
   roundedOrthPath,
   smoothPath,
+  valve2EffectiveOpen,
 } from "../geometry";
 import type { HopObstacle } from "../geometry";
 import { FLUID_PRESETS } from "../types";
@@ -18,6 +19,7 @@ interface PipeViewProps {
   pipe: Pipe;
   index: number;
   nodes: DiagramNode[];
+  allPipes: Pipe[];
   selected: boolean;
   crossHop: boolean;
   allPolys: Array<{ pts: Pt[]; halfW: number } | null>;
@@ -43,8 +45,44 @@ interface PipeViewProps {
   onFluidIssueClick?: (pipe: Pipe, e: React.MouseEvent) => void;
 }
 
+/** 蒸汽锅炉底部排废：阀门打开后，锅炉底部至排出口整段按蒸汽显示。 */
+function isSteamDrainPipe(target: Pipe, nodes: DiagramNode[], allPipes: Pipe[]): boolean {
+  const portToNode = new Map<string, DiagramNode>();
+  for (const n of nodes) for (const p of n.ports) portToNode.set(p.id, n);
+  const touching = (nodeId: string) => pipesForNode(nodeId, nodes, allPipes);
+  const starts = nodes.filter((n) => n.type === "steamBoiler").flatMap((n) => touching(n.id).filter((p) => {
+    const port = n.ports.find((x) => x.id === p.fromPortId || x.id === p.toPortId);
+    return port?.position === "bottom";
+  }));
+  const queue = starts.filter((p) => [p.fromPortId, p.toPortId]
+    .map((pid) => pid ? portToNode.get(pid) : undefined)
+    .some((n) => n?.type === "solenoid2" && valve2EffectiveOpen(n))).map((p) => p.id);
+  const visited = new Set<string>();
+  while (queue.length) {
+    const id = queue.shift()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+    const current = allPipes.find((p) => p.id === id);
+    if (!current) continue;
+    const currentNodes = [current.fromPortId, current.toPortId].map((pid) => pid ? portToNode.get(pid) : undefined).filter((n): n is DiagramNode => !!n);
+    for (const n of currentNodes) {
+      if (n.type === "solenoid2" && valve2EffectiveOpen(n)) {
+        for (const p of touching(n.id)) if (!visited.has(p.id)) queue.push(p.id);
+      }
+    }
+  }
+  return visited.has(target.id);
+}
+
+function pipesForNode(nodeId: string, nodes: DiagramNode[], allPipes: Pipe[]): Pipe[] {
+  const node = nodes.find((n) => n.id === nodeId);
+  if (!node) return [];
+  const ports = new Set(node.ports.map((p) => p.id));
+  return allPipes.filter((p) => ports.has(p.fromPortId ?? "") || ports.has(p.toPortId ?? ""));
+}
+
 function PipeViewImpl({
-  pipe, index, nodes, selected, crossHop, allPolys,
+  pipe, index, nodes, allPipes, selected, crossHop, allPolys,
   scenarioActive, scenarioDim, blink, blinkStamp, showFluidLabels, showPipeLabels, showFluidColors,
   chainGlow, chainStamp, lintMsg, onLintClick, funcChain,
   flowRefMap, onPipeBodyMouseDown, onVertexMouseDown, onContextMenu, onRemoveVertex, onLabelDoubleClick,
@@ -53,7 +91,10 @@ function PipeViewImpl({
   const pts = pipePolyline(pipe, nodes);
   if (!pts || pts.length < 2) return null;
   const disabled = pipeEffectiveDisabled(pipe, nodes);
-  const visibleFluidColor = showFluidColors ? pipe.fluidColor : "#aab4bf";
+  const steamDrain = isSteamDrainPipe(pipe, nodes, allPipes);
+  const displayFluidType = steamDrain ? "steam" : pipe.fluidType;
+  const displayFluidColor = steamDrain ? "#ef8aa0" : pipe.fluidColor;
+  const visibleFluidColor = showFluidColors ? displayFluidColor : "#aab4bf";
   const wallW = pipe.visualDiameter + 5;
   const lowers: HopObstacle[] = [];
   if (crossHop) {
@@ -136,11 +177,11 @@ function PipeViewImpl({
           </g>
         )}
         {/* 自动介质标签 */}
-        {showFluidLabels && pipe.fluidType && pipe.fluidType !== "custom" && (
+        {showFluidLabels && displayFluidType && displayFluidType !== "custom" && (
           <g pointerEvents="none">
             <rect x={mid.pt.x - 30} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 21 : 5)} width={60} height={15} rx={4} fill={visibleFluidColor} fillOpacity={0.18} stroke={visibleFluidColor} strokeWidth={1} />
           <text x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 31 : 15)} textAnchor="middle" fontSize={9.5} fill={visibleFluidColor} fontFamily="system-ui, sans-serif" fontWeight={650}>
-              {FLUID_PRESETS.find((f) => f.key === pipe.fluidType)?.label ?? pipe.fluidType}
+              {FLUID_PRESETS.find((f) => f.key === displayFluidType)?.label ?? displayFluidType}
             </text>
           </g>
         )}

@@ -3,7 +3,7 @@ import { render, act } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
 import { loadDiagram, store, enterScenario, exitScenario } from "../store";
-import { SCENARIOS, getScenario, collectScenarioState, resolveScenarioRoles } from "../scenarios";
+import { SCENARIOS, getScenario, collectScenarioState, resolveScenarioRoles, availableScenariosForDiagram } from "../scenarios";
 import bcmtsRaw from "../../BCMTS.json";
 import type { Diagram } from "../types";
 
@@ -62,6 +62,12 @@ describe("演示/讲述模式（角色自适应）", () => {
     expect(nodes.cleanV3).toBe(ID.cleanV3);
     expect(nodes.milkDrainV3).toBe(ID.milkDrainV3);
     expect(nodes.heatV3).toBe(ID.heatV3);
+  });
+
+  it("缺少奶泵的图纸只显示冲泡咖啡，不显示热牛奶", () => {
+    const d = toDiagram(bcmtsRaw);
+    d.nodes = d.nodes.filter((n) => n.id !== ID.milkPump);
+    expect(availableScenariosForDiagram(d).map((s) => s.id)).toEqual(["coffee"]);
   });
 
   it("collectScenarioState 按角色累积激活节点与阀状态", () => {

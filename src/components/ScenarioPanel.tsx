@@ -1,17 +1,8 @@
 import { useState } from "react";
 import { PromptDialog } from "./PromptDialog";
-import { SCENARIOS, getScenario, resolveScenarioRoles } from "../scenarios";
-import { enterScenario, setScenarioStep, exitScenario, useAppState, loadDiagram, saveWorkCondition } from "../store";
-import { createDemoMachineDiagram } from "../sample";
+import { availableScenariosForDiagram, getScenario } from "../scenarios";
+import { enterScenario, setScenarioStep, exitScenario, useAppState, saveWorkCondition } from "../store";
 import { useT } from "../i18n";
-
-const ROLE_LABELS: Record<string, string> = {
-  waterInlet: "进水口", waterPump: "水泵", inletValve: "进水总阀", hotBoiler: "热水锅炉",
-  steamBoiler: "蒸汽锅炉", refillValve: "蒸汽锅炉补水阀", brewV3: "咖啡冲泡三通阀",
-  brewChamber: "冲泡缸", coffeeDrainV3: "咖啡排废三通阀", coffeeOut: "咖啡出口",
-  milkTank: "储液罐", milkInValve: "进奶阀", milkPump: "奶泵", cleanV3: "牛奶清洗三通阀",
-  milkDrainV3: "牛奶排废三通阀", heatV3: "牛奶加热三通阀", milkOut: "牛奶出口",
-};
 
 export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   const { ui, diagram } = useAppState();
@@ -24,10 +15,8 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   const step = scenario?.steps[stepIndex];
   const isLast = scenario ? stepIndex >= scenario.steps.length - 1 : false;
 
-  // 按元件角色在当前图纸中解析：无任何可匹配元件的场景禁用
-  const resolved = resolveScenarioRoles(diagram);
-  const unusable = new Set(SCENARIOS.filter((s) => !s.allNodes.some((role) => resolved.nodes[role])).map((s) => s.id));
-  const missingLabels = resolved.missing.map((r) => ROLE_LABELS[r] ?? r);
+  // 按场景关键角色过滤，避免只有通用储罐/阀门时误显示热牛奶。
+  const availableScenarios = availableScenariosForDiagram(diagram);
 
   if (picking || !scenario) {
     return (
@@ -43,34 +32,23 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
         </div>
         <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 4 }}>{t("选择一个场景，按步骤讲述液路工作过程")}：</div>
-          {diagram.nodes.length > 0 && missingLabels.length > 0 && (
-            <div style={{ fontSize: 12, color: "#b06d1a", background: "#fdf3e7", border: "1px solid #e0a34b", borderRadius: 6, padding: "8px 10px", lineHeight: 1.7 }}>
-              ⚠️ {t("当前图纸缺少部分演示元件")}：{missingLabels.join("、")}。
-              <button
-                onClick={() => loadDiagram(createDemoMachineDiagram())}
-                style={{ marginLeft: 6, fontSize: 12, padding: "2px 8px", borderRadius: 5, border: "1px solid var(--border)", background: "var(--input-bg)", color: "var(--text)", cursor: "pointer" }}
-              >{t("加载咖啡机示例图")}</button>
-            </div>
-          )}
-          {SCENARIOS.map((s) => (
+          {availableScenarios.length === 0 && <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("当前图纸没有可用的演示场景")}</div>}
+          {availableScenarios.map((s) => (
             <button
               key={s.id}
-              disabled={unusable.has(s.id)}
               onClick={() => { enterScenario(s.id, 0); setPicking(false); }}
               style={{
                 display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
                 borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)",
-                color: "var(--text)", cursor: unusable.has(s.id) ? "not-allowed" : "pointer", fontSize: 13.5, textAlign: "left",
-                opacity: unusable.has(s.id) ? 0.45 : 1,
+                color: "var(--text)", cursor: "pointer", fontSize: 13.5, textAlign: "left",
+                opacity: 1,
               }}
-              onMouseEnter={(e) => { if (!unusable.has(s.id)) { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "var(--accent-soft)"; } }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "var(--accent-soft)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--surface)"; }}
             >
               <span style={{ fontSize: 20 }}>{s.icon}</span>
               <span style={{ flex: 1 }}>{s.title}</span>
-              {unusable.has(s.id)
-                ? <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{t("缺少元件")}</span>
-                : <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{s.steps.length} {t("步")}</span>}
+              <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{s.steps.length} {t("步")}</span>
             </button>
           ))}
           <button onClick={onClose} style={{ marginTop: 4, fontSize: 12.5, padding: "8px 0", borderRadius: 6, border: "none", background: "transparent", color: "var(--text-dim)", cursor: "pointer" }}>

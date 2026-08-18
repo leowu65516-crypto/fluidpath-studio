@@ -140,6 +140,21 @@ export const SCENARIOS: Scenario[] = [
   },
 ];
 
+/** 当前图纸实际可以讲述的场景。关键角色缺失时不显示该场景，避免误报演示元件。 */
+export function availableScenariosForDiagram(diagram: Diagram): Scenario[] {
+  const { nodes } = resolveScenarioRoles(diagram);
+  const has = (...roles: string[]) => roles.every((role) => Boolean(nodes[role]));
+  return SCENARIOS.filter((scenario) => {
+    if (scenario.id === "coffee") {
+      return has("waterPump", "brewChamber", "coffeeOut");
+    }
+    if (scenario.id === "milk") {
+      return has("milkPump", "heatV3", "milkOut");
+    }
+    return scenario.allNodes.some((role) => Boolean(nodes[role]));
+  });
+}
+
 export function getScenario(id: string): Scenario | undefined {
   return SCENARIOS.find((s) => s.id === id);
 }

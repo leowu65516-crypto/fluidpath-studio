@@ -298,6 +298,7 @@ export function loadDiagram(diagram: Diagram) {
   });
   // 延迟一帧执行适应画布（等待 SVG 布局完成）
   setTimeout(() => {
+    if (typeof document === "undefined") return;
     const svg = document.querySelector(".main-canvas");
     if (svg) {
       fitToScreen(svg.clientWidth || 1200, svg.clientHeight || 800);
@@ -1736,6 +1737,34 @@ export function generateLegend(x: number, y: number) {
 }
 
 // ===== 标准回路模板 =====
+const USER_TEMPLATES_KEY = "fluidpath.userTemplates.v1";
+
+export interface UserTemplateRecord {
+  name: string;
+  diagram: Diagram;
+  createdAt: string;
+}
+
+export function listSavedTemplates(): UserTemplateRecord[] {
+  try {
+    const raw = localStorage.getItem(USER_TEMPLATES_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch { return []; }
+}
+
+export function saveCurrentAsTemplate(name: string): boolean {
+  const clean = name.trim();
+  if (!clean) return false;
+  const list = listSavedTemplates().filter((x) => x.name !== clean);
+  list.unshift({ name: clean, diagram: structuredClone(state.diagram), createdAt: new Date().toISOString() });
+  try { localStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(list.slice(0, 30))); return true; } catch { return false; }
+}
+
+export function deleteSavedTemplate(name: string) {
+  try { localStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(listSavedTemplates().filter((x) => x.name !== name))); } catch { /* ignore */ }
+}
+
 export function insertTemplate(name: string) {
   const templates: Record<string, () => Diagram> = {
     "循环回路": () => {
@@ -1759,8 +1788,10 @@ export function insertTemplate(name: string) {
     "全自动商用咖啡机": () => createFullAutoMachineDiagram(),
   };
   const tpl = templates[name];
-  if (!tpl) return;
-  const diagram = tpl();
+  const saved = listSavedTemplates().find((x) => x.name === name);
+  if (!tpl && !saved) return;
+  const diagram = saved ? structuredClone(saved.diagram) : tpl!();
+  diagram.id = uid("diagram");
   loadDiagram(diagram);
 }
 

@@ -80,6 +80,16 @@ ipcMain.handle("write-autosave-copy", async (_event, { sourcePath, json }) => {
   return { path: target };
 });
 
+ipcMain.handle("open-json-file", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [{ name: "JSON 图纸", extensions: ["json"] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const filePath = result.filePaths[0];
+  return { path: filePath, content: fs.readFileSync(filePath, "utf8") };
+});
+
 app.whenReady().then(() => {
   const win = createWindow();
 

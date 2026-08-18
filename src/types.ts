@@ -217,6 +217,8 @@ export interface DiagramSettings {
   showNodeLabels?: boolean;
   showPipeLabels?: boolean;
   showFluidColors?: boolean;
+  /** 全局元器件名称字号（单个元件未设置专属字号时使用）。 */
+  nodeLabelFontSize?: number;
   /** 背景样式：点阵/方格/纯色 */
   backgroundType?: "dot" | "grid" | "solid";
   /** 记录保存时的应用版本（预留：版本历史/兼容迁移用） */

@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld("electron", {
   onOpenFile: (callback) => {
     ipcRenderer.on("open-file", (_event, payload) => callback(payload));
   },
+  openJsonFile: () => ipcRenderer.invoke("open-json-file"),
   writeAutosaveCopy: (payload) => ipcRenderer.invoke("write-autosave-copy", payload),
 });

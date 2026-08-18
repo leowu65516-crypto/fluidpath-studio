@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.7.1";
+export const APP_VERSION = "1.8.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.8.0",
+    date: "2026-08-18",
+    highlights: [
+      "新增图纸工况验收：记录泵阀状态及管路应流/应停断言，在副本中一键运行",
+      "BCMTS 内置「断水停泵：锅炉补水链停流」验收工况，支持随 JSON 保存与交付",
+    ],
+  },
   {
     version: "1.7.1",
     date: "2026-08-18",

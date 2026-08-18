@@ -29,7 +29,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void }) {
+export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenValidation }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenValidation?: () => void }) {
   const { diagram, ui } = useAppState();
   const { t, lang, setLang } = useT();
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -276,6 +276,9 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       </button>
       <button className="tb-btn" onClick={onOpenScenario} title="演示/讲述模式：按场景逐步讲解液路">
         <Icon d="M3 5l15 7-15 7zM19 4v16" />{t("演示")}
+      </button>
+      <button className="tb-btn" onClick={onOpenValidation} title="定义并运行图纸工况验收">
+        <Icon d="M5 12l4 4L19 6" />验收
       </button>
       <div className="tb-sep" />
       <div className="flow-scale-group" title={t("流速")}>

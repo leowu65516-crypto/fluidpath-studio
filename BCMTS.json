@@ -3650,7 +3650,25 @@
     ],
     "backgroundType": "grid",
     "showFluidLabels": false,
-    "flowScale": 1.21
+    "flowScale": 1.21,
+    "validationCases": [
+      {
+        "id": "validation_water_supply_off",
+        "name": "断水停泵：锅炉补水链停流",
+        "state": {
+          "n_ms7jr4mj2wu7sw": { "pumpOn": false },
+          "n_ms7jsb6764ggp8": { "valveState": "closed" }
+        },
+        "mustFlowPipeIds": [],
+        "mustStopPipeIds": [
+          "pipe_msvyy54n6v8h",
+          "pipe_msvyy6kr6wr7",
+          "pipe_ms7k8plmp02b72",
+          "pipe_ms7k97tvt96uz2",
+          "pipe_ms7k87u8l8re4p"
+        ]
+      }
+    ]
   },
   "_version": 2,
   "_exportedAt": "2026-08-17T06:00:12.509Z"

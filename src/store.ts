@@ -10,7 +10,8 @@ import type {
   PortPosition,
   Pt,
   Selection,
-  ShapeVariant
+  ShapeVariant,
+  ValidationCase
 } from "./types";
 import { createSampleDiagram, createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagram, createMilkFoamDiagram, createCommercialMachineDiagram, createDemoMachineDiagram, createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "./sample";
 import { createNode } from "./symbols";
@@ -430,6 +431,35 @@ export function deleteWorkCondition(name: string) {
 
 export function listWorkConditions(): Array<{ name: string; state: Record<string, WorkConditionState> }> {
   return state.diagram.settings.workConditions ?? [];
+}
+
+/** 保存验收工况：记录当前泵阀状态与用户指定的应流/应停管路。 */
+export function saveValidationCase(name: string, mustFlowPipeIds: string[], mustStopPipeIds: string[]) {
+  const validationCase: ValidationCase = {
+    id: uid("validation"),
+    name,
+    state: snapshotStates(state.diagram),
+    mustFlowPipeIds: [...new Set(mustFlowPipeIds)],
+    mustStopPipeIds: [...new Set(mustStopPipeIds)],
+  };
+  updateDiagram((d) => {
+    const list = d.settings.validationCases ?? [];
+    const idx = list.findIndex((c) => c.name === name);
+    if (idx >= 0) validationCase.id = list[idx].id;
+    if (idx >= 0) list[idx] = validationCase;
+    else list.push(validationCase);
+    d.settings.validationCases = list;
+  });
+}
+
+export function deleteValidationCase(id: string) {
+  updateDiagram((d) => {
+    d.settings.validationCases = (d.settings.validationCases ?? []).filter((c) => c.id !== id);
+  });
+}
+
+export function listValidationCases(): ValidationCase[] {
+  return state.diagram.settings.validationCases ?? [];
 }
 
 export function hasActiveScenario() {

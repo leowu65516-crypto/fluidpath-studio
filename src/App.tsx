@@ -12,6 +12,7 @@ import { ScenarioPanel } from "./components/ScenarioPanel";
 import { HelpPanel } from "./components/HelpPanel";
 import { WelcomePanel } from "./components/WelcomePanel";
 import { AdvicePanel } from "./components/AdvicePanel";
+import { ValidationPanel } from "./components/ValidationPanel";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard } from "./store";
 import { loadDiagram, newDiagram, insertTemplate, store } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave } from "./store";
@@ -34,6 +35,7 @@ export default function App() {
   const [showScenario, setShowScenario] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
   // 状态栏诊断徽章点击 → 打开回路诊断面板
   useEffect(() => {
     const onOpen = () => setShowAdvice(true);
@@ -166,11 +168,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className="app">
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={() => setShowHelp(true)} onOpenAdvice={() => setShowAdvice((v) => !v)} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={() => setShowHelp(true)} onOpenAdvice={() => { setShowValidation(false); setShowAdvice((v) => !v); }} onOpenValidation={() => { setShowAdvice(false); setShowValidation((v) => !v); }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <CanvasView svgRefOut={svgRef} />
-          {showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
+          {showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : showValidation ? <ValidationPanel onClose={() => setShowValidation(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
         </div>
         <StatusBar />
       </div>

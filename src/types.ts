@@ -222,6 +222,16 @@ export interface DiagramSettings {
     name: string;
     state: Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>;
   }>;
+  /** 图纸验收工况：预设泵阀状态 + 必须流动/停止的管路，用于回归验证。 */
+  validationCases?: ValidationCase[];
+}
+
+export interface ValidationCase {
+  id: string;
+  name: string;
+  state: Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>;
+  mustFlowPipeIds: string[];
+  mustStopPipeIds: string[];
 }
 
 export interface Diagram {

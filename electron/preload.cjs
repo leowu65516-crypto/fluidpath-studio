@@ -7,4 +7,7 @@ contextBridge.exposeInMainWorld("electron", {
   },
   openJsonFile: () => ipcRenderer.invoke("open-json-file"),
   writeAutosaveCopy: (payload) => ipcRenderer.invoke("write-autosave-copy", payload),
+  onCloseRequested: (callback) => { ipcRenderer.on("close-requested", () => callback()); },
+  confirmClose: () => ipcRenderer.send("app-close-confirmed"),
+  saveJsonDialog: (json) => ipcRenderer.invoke("save-json-dialog", json),
 });

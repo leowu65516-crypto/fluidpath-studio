@@ -19,7 +19,7 @@ import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, re
 import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave } from "./store";
 import type { AutosaveVersion } from "./store";
-import { decompressDiagram, parseDiagramJSON } from "./export";
+import { decompressDiagram, parseDiagramJSON, exportJSON } from "./export";
 import { getBinding, matchKeys } from "./shortcuts";
 
 const ARROW_DELTA: Record<string, [number, number]> = {
@@ -48,6 +48,21 @@ export default function App() {
   // 崩溃恢复：启动时检测未保存的自动备份；退出前强制落盘
   const [recover, setRecover] = useState<{ id: string; versions: AutosaveVersion[] } | null>(null);
   const [recoverHistory, setRecoverHistory] = useState(false);
+  // 关闭时询问是否另存（桌面版；空白且未修改直接关闭）
+  const [closePrompt, setClosePrompt] = useState(false);
+  useEffect(() => {
+    const api = (window as unknown as { electron?: { onCloseRequested?: (cb: () => void) => void; confirmClose?: () => void } }).electron;
+    if (!api?.onCloseRequested) return;
+    const onClose = () => {
+      const d = store.get().diagram;
+      if (d.nodes.length === 0 && !store.get().ui.dirty) {
+        api.confirmClose?.();
+      } else {
+        setClosePrompt(true);
+      }
+    };
+    api.onCloseRequested(onClose);
+  }, []);
   useEffect(() => {
     const id = lastEditedDiagramId();
     if (id) {
@@ -164,6 +179,24 @@ export default function App() {
     try { localStorage.setItem("fluidpath.welcomed", "1"); } catch { /* ignore */ }
   }
 
+  async function handleCloseSave() {
+    const d = store.get().diagram;
+    const api = (window as unknown as { electron?: { saveJsonDialog?: (json: string) => Promise<unknown>; confirmClose?: () => void } }).electron;
+    try {
+      if (api?.saveJsonDialog) {
+        await api.saveJsonDialog(JSON.stringify({ ...d, _version: 2, _exportedAt: new Date().toISOString() }, null, 2));
+      } else {
+        exportJSON(d); // 网页兜底：浏览器下载
+      }
+    } catch { /* ignore */ }
+    setClosePrompt(false);
+    api?.confirmClose?.();
+  }
+  function handleCloseNoSave() {
+    setClosePrompt(false);
+    (window as unknown as { electron?: { confirmClose?: () => void } }).electron?.confirmClose?.();
+  }
+
   function handleWelcomeAction(id: string) {
     if (id === "help") { closeWelcome(); setShowHelp(true); return; }
     if (id === "new") newDiagram();
@@ -210,6 +243,20 @@ export default function App() {
       {showShortcutSettings && <ShortcutSettings onClose={() => setShowShortcutSettings(false)} />}
       {showScenario && <ScenarioPanel onClose={() => setShowScenario(false)} />}
       {/* 崩溃恢复横幅 */}
+      {/* 关闭前询问是否另存 */}
+      {closePrompt && (
+        <div className="close-save-overlay" data-ui="1">
+          <div className="close-save-card">
+            <div className="close-save-title">💾 是否另存图纸到本地？</div>
+            <div className="close-save-sub">当前图纸有未保存的内容</div>
+            <div className="close-save-actions">
+              <button className="btn" onClick={handleCloseSave}>💾 另存到本地</button>
+              <button className="btn ghost" onClick={handleCloseNoSave}>不保存，直接退出</button>
+              <button className="btn ghost" onClick={() => setClosePrompt(false)}>取消</button>
+            </div>
+          </div>
+        </div>
+      )}
       {recover && !recoverHistory && (
         <div className="recover-banner" data-ui="1">
           <span>💾 检测到未保存的自动备份（{recover.versions.length} 个版本，{new Date(recover.versions[0].ts).toLocaleTimeString()}）</span>

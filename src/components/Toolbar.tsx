@@ -2,14 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import {
   canRedo,
   canUndo,
-  fileAutosaveStatus,
   fitToScreen,
   loadDiagram,
   markSaved,
   newDiagram,
   redo,
   setGlobalFlowScale,
-  setFileAutosave,
   setSourceFilePath,
   setSelectionDisabled,
   setStyleBrush,
@@ -23,7 +21,7 @@ import { ConditionPanel } from "./ConditionPanel";
 import { PromptDialog } from "./PromptDialog";
 import { useT } from "../i18n";
 import { LayerPanel } from "./LayerPanel";
-import { toast } from "../toast";
+
 
 function Icon({ d }: { d: string }) {
   return (
@@ -274,19 +272,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         }}
       >
         <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" />{t("保存到本地")}
-      </button>
-      <button
-        className={`tb-btn${fileAutosaveStatus().enabled ? " active" : ""}`}
-        title={fileAutosaveStatus().enabled ? t("关闭同路径自动保存") : t("开启同路径自动保存")}
-        aria-label={t("自动保存")}
-        onClick={() => {
-          const enabled = !fileAutosaveStatus().enabled;
-          setFileAutosave(enabled).then((result) => {
-            toast(result.enabled ? `${t("自动保存已开启")}：${result.path}` : t("自动保存已关闭"));
-          }).catch((err: Error) => toast(err.message, "error"));
-        }}
-      >
-        <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM8 13l2 2 5-5" />{t("自动保存")}
       </button>
       <div className="tb-sep" />
       <button className="tb-btn" disabled={!canUndo()} onClick={undo} title="Undo">

@@ -17,7 +17,10 @@ function sendOpenFile(win, filePath) {
   }
 }
 
+let allowClose = false;
+
 function createWindow() {
+  allowClose = false;
   const win = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -65,8 +68,34 @@ function createWindow() {
     shell.openExternal(url);
   });
 
+  // 关闭前询问是否另存：阻止默认关闭，通知渲染进程弹确认框
+  win.on("close", (e) => {
+    if (allowClose) return;
+    e.preventDefault();
+    win.webContents.send("close-requested");
+  });
+
   return win;
 }
+
+// 渲染进程确认后真正关闭
+ipcMain.on("app-close-confirmed", () => {
+  allowClose = true;
+  const win = BrowserWindow.getAllWindows()[0];
+  if (win) win.close();
+});
+
+// 「另存到本地」：弹系统保存对话框写 JSON
+ipcMain.handle("save-json-dialog", async (_event, json) => {
+  if (typeof json !== "string") throw new Error("invalid json payload");
+  const result = await dialog.showSaveDialog({
+    defaultPath: "fluidpath-diagram.json",
+    filters: [{ name: "JSON 图纸", extensions: ["json"] }],
+  });
+  if (result.canceled || !result.filePath) return { saved: false };
+  fs.writeFileSync(result.filePath, json, "utf8");
+  return { saved: true, path: result.filePath };
+});
 
 ipcMain.handle("write-autosave-copy", async (_event, { sourcePath, json }) => {
   if (typeof sourcePath !== "string" || !sourcePath.endsWith(".json") || typeof json !== "string") {

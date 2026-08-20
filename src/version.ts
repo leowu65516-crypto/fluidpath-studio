@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.12.0";
+export const APP_VERSION = "1.13.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,11 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.13.0",
+    date: "2026-08-19",
+    highlights: ["移除工具栏自动保存按钮；关闭窗口时询问是否另存图纸到本地（桌面版）"],
+  },
   {
     version: "1.11.0",
     date: "2026-08-19",

@@ -60,6 +60,7 @@ export const NODE_DEFS: NodeDef[] = [
   // ===== 动力 =====
   { type: "pump", label: "水泵", group: "动力", width: 90, height: 90, fill: "#eef4fb", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }] },
   { type: "milkPump", label: "奶泵", group: "动力", width: 90, height: 90, fill: "#fdf8ee", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }] },
+  { type: "airPump", label: "空气泵", group: "动力", width: 90, height: 90, fill: "#e8f6ea", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }] },
   // ===== 控制 =====
   { type: "valve", label: "截止阀", group: "控制", width: 70, height: 54, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.72, direction: "in" }, { position: "right", offset: 0.72, direction: "out" }] },
   { type: "checkValve", label: "单向阀", group: "控制", width: 70, height: 48, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }] },
@@ -292,6 +293,32 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <Flame cx={w * 0.5} cy={h * 0.85} s={Math.min(w, h) * 0.16} />
         </g>
       );
+    case "airPump": {
+      // 空气泵：外观同水泵/奶泵（淡绿），中间是三叶风扇（区别于齿轮）
+      const r = Math.min(w, h) / 2 - 3;
+      const cx = w / 2;
+      const cy = h / 2;
+      const running = node.pumpOn !== false;
+      return (
+        <g opacity={running ? 1 : 0.55}>
+          <circle cx={cx} cy={cy} r={r} fill={fill} stroke={stroke} strokeWidth={sw} />
+          {/* 三叶风扇（运行才旋转） */}
+          <g className={running ? "fp-gear" : undefined}>
+            {[0, 120, 240].map((a) => {
+              const rad = (a * Math.PI) / 180;
+              const x1 = cx + r * 0.16 * Math.cos(rad);
+              const y1 = cy + r * 0.16 * Math.sin(rad);
+              const x2 = cx + r * 0.55 * Math.cos(rad);
+              const y2 = cy + r * 0.55 * Math.sin(rad);
+              return <line key={a} x1={x1.toFixed(1)} y1={y1.toFixed(1)} x2={x2.toFixed(1)} y2={y2.toFixed(1)} stroke={stroke} strokeWidth={sw + 2} strokeLinecap="round" />;
+            })}
+            <circle cx={cx} cy={cy} r={r * 0.16} fill={stroke} stroke="none" />
+          </g>
+          {/* 状态指示：泵体正上方 */}
+          <circle cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
+        </g>
+      );
+    }
     case "pump": {
       const r = Math.min(w, h) / 2 - 3;
       const cx = w / 2;

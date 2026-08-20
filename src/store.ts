@@ -399,7 +399,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0) {
     if (isNewEntry) {
       // 基线复位：所有泵停、两通阀关、三通阀 off（场景步骤只激活自己需要的）
       for (const n of d.nodes) {
-        if (n.type === "pump" || n.type === "milkPump") n.pumpOn = false;
+        if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = false;
         else if (n.type === "solenoid2") n.valveState = "closed";
         else if (n.type === "solenoid3") n.valvePath = "off";
       }

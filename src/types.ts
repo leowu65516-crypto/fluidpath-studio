@@ -16,6 +16,7 @@ export type NodeType =
   | "boiler" // 旧版兼容，等同热水锅炉
   | "pump"
   | "milkPump"
+  | "airPump" // 空气泵（气路动力）
   | "valve"
   | "checkValve"
   | "solenoid2"

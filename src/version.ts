@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.13.0";
+export const APP_VERSION = "1.14.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,11 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.14.0",
+    date: "2026-08-20",
+    highlights: ["元件库动力组新增「空气泵」（淡绿色，三叶风扇图标；接入引擎/介质规则/知识库）"],
+  },
   {
     version: "1.13.0",
     date: "2026-08-19",

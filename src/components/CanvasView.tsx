@@ -705,7 +705,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
       patchNode(nodeId, { valveState: node.valveState === "closed" ? "open" : "closed" });
     } else if (node.type === "solenoid3" && path) {
       patchNode(nodeId, { valvePath: path });
-    } else if (node.type === "pump" || node.type === "milkPump") {
+    } else if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") {
       patchNode(nodeId, { pumpOn: node.pumpOn === false ? true : false });
     }
   }
@@ -884,7 +884,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
     const nodeDim = scenario ? !nodeActive : false;
     // 悬停浮动提示：元件名 + 类型 + 当前状态（解决元件多、文字小找不到）
     const stateHint = (() => {
-      if (node.type === "pump" || node.type === "milkPump") return node.pumpOn !== false ? "运行" : "停止";
+      if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") return node.pumpOn !== false ? "运行" : "停止";
       if (node.type === "solenoid2") return node.valveState === "open" ? "开" : "关";
       if (node.type === "solenoid3") return node.valvePath === "A" ? "A 路" : node.valvePath === "B" ? "B 路" : "关";
       return "";
@@ -1061,7 +1061,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             )
           )}
           {/* 泵画布开关（开/停，默认显示，属性可关） */}
-          {(node.type === "pump" || node.type === "milkPump") && node.showStateOnDiagram !== false && (
+          {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && node.showStateOnDiagram !== false && (
             <g>
               <rect x={8} y={node.height + 24} width={node.width - 16} height={20} rx={10} fill="#f0f4f9" stroke="#b9c6d4" strokeWidth={1} />
               <rect x={node.pumpOn === false ? 10 : node.width - 28} y={node.height + 26} width={18} height={16} rx={8} fill={node.pumpOn === false ? "#d9534f" : "#3fae6a"} stroke="#fff" strokeWidth={1.2} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id); }} />

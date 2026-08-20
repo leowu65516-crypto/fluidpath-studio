@@ -105,7 +105,7 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram): { reason: string; 
     if (u) {
       const n = u.node;
       if (n.disabled) return { reason: `「${n.label || n.type}」被禁用，无法向下游供液`, ids: [n.id, p.id] };
-      if (n.type === "pump" || n.type === "milkPump") {
+      if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") {
         if (!pumpEffectiveOn(n)) {
           const why = n.fault === "pumpStuck" ? "卡死（故障模拟）" : "未运行";
           return { reason: `「${n.label}」${why}，无法向下游供液`, ids: [n.id, p.id] };
@@ -311,7 +311,7 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
   // 6) 泵未运行 / 阀关闭（带故障标记的归入「故障模拟」，且不给修复动作——卡死元件无法被"启动"修复）
   for (const n of diagram.nodes) {
     if (scoped && nodeIds && !nodeIds.has(n.id)) continue;
-    if ((n.type === "pump" || n.type === "milkPump") && !pumpEffectiveOn(n)) {
+    if ((n.type === "pump" || n.type === "milkPump" || n.type === "airPump") && !pumpEffectiveOn(n)) {
       if (n.fault) {
         out.push({
           id: `fault_${n.id}`,
@@ -369,7 +369,7 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
   for (const n of diagram.nodes) {
     if (scoped && nodeIds && !nodeIds.has(n.id)) continue;
     if (!n.fault) continue;
-    if ((n.type === "pump" || n.type === "milkPump" || n.type === "solenoid2")) continue; // 已由 6) 覆盖
+    if ((n.type === "pump" || n.type === "milkPump" || n.type === "airPump" || n.type === "solenoid2")) continue; // 已由 6) 覆盖
     out.push({
       id: `fault_${n.id}`,
       severity: "warning",

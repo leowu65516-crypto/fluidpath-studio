@@ -503,7 +503,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <div className="insp-tip">{t("仅导通所选路径：右侧(A) / 下方(B)；未选中的出口所连管路自动置灰、停止流动。勾选「画布显示」后，电磁阀下方出现可点击三档选择。")}</div>
               </Section>
             )}
-            {(node.type === "pump" || node.type === "milkPump") && (
+            {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && (
               <Section title={t("泵控制")}>
                 <Row label={t("运行状态")}>
                   <div className="seg">
@@ -525,7 +525,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               )}
               <button className="btn danger wide" onClick={deleteSelection}>{t("删除节点")}</button>
             </Section>
-            {(node.type === "pump" || node.type === "milkPump" || node.type === "solenoid2" || node.type === "solenoid3") && (
+            {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump" || node.type === "solenoid2" || node.type === "solenoid3") && (
               <Section title="🔧 故障模拟（教学）">
                 <Row label="故障状态">
                   <select
@@ -533,7 +533,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                     onChange={(e) => patchNode(node.id, { fault: e.target.value === "none" ? undefined : e.target.value as NodeFault })}
                   >
                     <option value="none">无故障</option>
-                    {(node.type === "pump" || node.type === "milkPump") && <option value="pumpStuck">泵卡死（不运转）</option>}
+                    {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && <option value="pumpStuck">泵卡死（不运转）</option>}
                     {(node.type === "solenoid2" || node.type === "solenoid3") && (
                       <>
                         <option value="valveStuckOpen">阀卡开（无法关闭）</option>

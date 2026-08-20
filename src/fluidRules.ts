@@ -45,6 +45,7 @@ const RULES: DeviceFluidRule[] = [
   // 泵：水泵只走水，奶泵只走奶
   { type: "pump", in: WATER, inPreferred: "coldWater", out: WATER, outPreferred: "coldWater" },
   { type: "milkPump", in: MILK, inPreferred: "milk", out: MILK, outPreferred: "milk" },
+  { type: "airPump", in: ["air"], inPreferred: "air", out: ["air"], outPreferred: "air" },
   // OPV 泄压阀：旁通泵出的水（未加热）
   { type: "opv", in: WATER, inPreferred: "coldWater", out: WATER, outPreferred: "coldWater" },
 ];

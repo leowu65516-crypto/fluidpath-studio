@@ -193,7 +193,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         }
         // 检测演示模式可用性
         const hasValves = d.nodes?.some((n: any) =>
-          n.type === "solenoid2" || n.type === "solenoid3" || n.type === "pump" || n.type === "milkPump"
+          n.type === "solenoid2" || n.type === "solenoid3" || n.type === "pump" || n.type === "milkPump" || n.type === "airPump"
         );
         if (hasValves) {
           tips.push(`🎬 含电磁阀/泵 → 工具栏「演示模式」可逐步讲解液路原理`);

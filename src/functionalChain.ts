@@ -22,7 +22,7 @@ const SINK_BOUNDARY = new Set([
 
 /** 方向性元件：只走其进/出侧端口 */
 const DIRECTIONAL = new Set([
-  "pump", "milkPump", "solenoid2", "solenoid3", "checkValve",
+  "pump", "milkPump", "airPump", "solenoid2", "solenoid3", "checkValve",
 ]);
 
 export interface FunctionalChain {
@@ -46,7 +46,7 @@ function effectiveEnds(diagram: Diagram, pipe: Pipe): Ends {
 /** 节点当前是否允许介质流过（关阀/停泵/三通 off → 不可穿越） */
 function flowable(n: DiagramNode): boolean {
   if (n.disabled) return false;
-  if (n.type === "pump" || n.type === "milkPump") return pumpEffectiveOn(n);
+  if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") return pumpEffectiveOn(n);
   if (n.type === "solenoid2") return valve2EffectiveOpen(n);
   if (n.type === "solenoid3") return valve3EffectivePath(n) !== "off";
   return true;

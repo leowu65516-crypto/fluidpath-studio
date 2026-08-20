@@ -211,7 +211,7 @@ export function setCachedPipes(pipes: Pipe[], nodes?: DiagramNode[]) {
 /** 直通类节点（停流传播可穿过） */
 const PASS_THROUGH_TYPES = new Set([
   "shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "cross", "elbow",
-  "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "pump", "milkPump",
+  "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "pump", "milkPump", "airPump",
   "solenoid2", "solenoid3", "pulseAirValve", "pressureRegulator", "flowMeter",
   "tank", "boiler", "hotWaterBoiler", "steamBoiler", "brewChamber",
 ]);
@@ -279,7 +279,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         }
       }
     }
-    if (n.type === "pump" || n.type === "milkPump") {
+    if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") {
       if (!pumpEffectiveOn(n)) {
         // 入侧管 → suck（向上游追溯）；出侧管 → push（顺流向下游）
         for (const p of n.ports) {
@@ -340,7 +340,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
   {
     const pq: string[] = [];
     for (const n of nodes) {
-      if ((n.type === "pump" || n.type === "milkPump") && pumpEffectiveOn(n)) {
+      if ((n.type === "pump" || n.type === "milkPump" || n.type === "airPump") && pumpEffectiveOn(n)) {
         for (const p of n.ports) {
           if (p.direction !== "out") continue;
           for (const pipe of pipes) {
@@ -366,7 +366,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       if (node.type === "shape" && node.label.includes("排废")) continue;
       if (node.type === "inlet" || node.type === "tank" || node.type === "pressureTank" || node.type === "syrupBottle") continue;
       if (node.disabled) continue;
-      if (node.type === "pump" || node.type === "milkPump") continue;
+      if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") continue;
       if (!PASS_THROUGH_TYPES.has(node.type)) continue;
       if (node.type === "solenoid2" && !valve2EffectiveOpen(node)) continue;
       if (node.type === "solenoid3" && valve3EffectivePath(node) === "off") continue;
@@ -425,7 +425,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       if (node.type === "inlet" || node.type === "tank" || node.type === "pressureTank" || node.type === "syrupBottle") continue;
       if (node.disabled) continue;
       // 泵是动力源/断点本身：任何相位都不穿越（运行中的泵为独立动力源）
-      if (node.type === "pump" || node.type === "milkPump") continue;
+      if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") continue;
       // 锅炉是供水基础设施：suck 不得逆行穿越（下游某泵停转的吸侧失压
       // 不应经锅炉抽空由其他泵维持的主供水链；下游停流由 push 顺向负责）
       if (phase === "suck" && (node.type === "boiler" || node.type === "hotWaterBoiler" || node.type === "steamBoiler")) continue;
@@ -485,7 +485,7 @@ const DEMAND_SINK_TYPES = new Set([
 ]);
 /** 源/动力边界：需求倒推不穿越（泵、罐、进水口、锅炉本体） */
 const DEMAND_BOUNDARY_TYPES = new Set([
-  "pump", "milkPump", "tank", "pressureTank", "syrupBottle", "inlet",
+  "pump", "milkPump", "airPump", "tank", "pressureTank", "syrupBottle", "inlet",
   "boiler", "hotWaterBoiler", "steamBoiler",
 ]);
 
@@ -534,7 +534,7 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
   for (const n of nodes) {
     if (DEMAND_SINK_TYPES.has(n.type) && !n.disabled) roots.push(n);
     else if (n.type === "shape" && ((n.label || "").includes("排废") || (n.label || "").includes("冲泡")) && !n.disabled) roots.push(n);
-    else if ((n.type === "pump" || n.type === "milkPump") && pumpEffectiveOn(n) && !n.disabled) roots.push(n);
+    else if ((n.type === "pump" || n.type === "milkPump" || n.type === "airPump") && pumpEffectiveOn(n) && !n.disabled) roots.push(n);
   }
   for (const root of roots) {
     const hasDemandNode = new Set<string>();
@@ -639,7 +639,7 @@ function pipeEffectiveDisabledRecursive(
     const n = ref.node;
 
     if (n.disabled) return true;
-    if (n.type === "pump" || n.type === "milkPump") {
+    if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") {
       // 泵关闭/卡死：前后液路都停流
       if (!pumpEffectiveOn(n)) return true;
       // 泵打开：出侧（direction=out 的端口）依赖入侧（direction=in）上游供液；入侧无供液则出侧无介质
@@ -677,7 +677,7 @@ function pipeEffectiveDisabledRecursive(
     // 注意：电磁阀（solenoid2/3）不在其中，避免阀门间环回；
     // 它们自身的停流通过上方专门分支 + 泵/阀的「上游依赖」逻辑处理。
     const passThrough = new Set(["shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "elbow",
-      "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "pump", "milkPump",
+      "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "pump", "milkPump", "airPump",
       "solenoid2", "solenoid3", "pulseAirValve", "pressureRegulator",
       "tank", "boiler", "hotWaterBoiler", "steamBoiler", "brewChamber"]);
     if (!passThrough.has(n.type)) return false;

@@ -53,6 +53,11 @@ export const KNOWLEDGE: Record<string, DeviceKnowledge> = {
     principle: "与水泵同理，但接触食品级材质，只输送奶类介质。",
     common: "奶路必须每日清洗，否则残留奶垢会滋生细菌。",
   },
+  airPump: {
+    role: "空气泵：气路动力源，输送空气（如注气/气辅冲泡）",
+    principle: "与水泵同原理，只是输送介质为空气；运行时前后气路有流动。",
+    common: "介质类型应设为「空气」；停泵时前后气路停流。",
+  },
   valve: {
     role: "截止阀：手动开闭水路",
     principle: "转动手柄使阀芯升降，实现通断或节流。",

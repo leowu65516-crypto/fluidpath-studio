@@ -73,7 +73,7 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
     const pumps: Array<{ id: string; label: string; on: boolean; fault?: string }> = [];
     const boilers: Array<{ id: string; label: string; type: string }> = [];
     for (const n of diagram.nodes) {
-      if (n.type === "pump" || n.type === "milkPump") pumps.push({ id: n.id, label: n.label || n.type, on: n.pumpOn !== false, fault: n.fault });
+      if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") pumps.push({ id: n.id, label: n.label || n.type, on: n.pumpOn !== false, fault: n.fault });
       else if (n.type === "hotWaterBoiler" || n.type === "steamBoiler") boilers.push({ id: n.id, label: n.label || n.type, type: n.type });
     }
     return { pumps, boilers };

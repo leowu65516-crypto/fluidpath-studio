@@ -439,3 +439,53 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | 1.2.0 | 2026-08-18 | 工况改清晰面板（记住开关/恢复，内联输入）；图层面板修复裁剪+选中本层/双击改名/删除归默认层；启动默认最简图；移除全部 window.prompt（Electron 不支持），改用应用内输入弹窗/内联输入 |
 | 1.1.0 | 2026-08-18 | 诊断分层/因果链/教学解释/总览；功能链联动；场景↔工况；自动保存+版本历史（5 份）；十字四通/端口上限 8/stub 延长/进出口可视化；演示角色自适应；移除透明按钮；修复工具栏下拉被裁剪；工况改为独立面板（大保存按钮+三步引导）；启动默认改为最简「水泵→冲泡缸→咖啡出口」 |
 | 1.0.0 | 2026-08-17 | 初始发布（含 BCMTS 回流修复、per-root 需求域） |
+
+---
+
+## 9. 在线部署（GitHub Pages / 网页版）
+
+> 现状（2026-08-19）：应用是 React + Vite 纯前端，`npm run build` 产出静态 `dist/`（浏览器直接运行）。
+> Electron 只是桌面壳（文件对话框）；核心画布 / 仿真 / 诊断 / 工况 / 演示全部浏览器可跑。
+> 已核实兼容点：文件打开用 `<input type=file>`、保存/导出用浏览器下载、分享码/链接为网页设计、`vite base:"./"` 已配好 → 可直接部署 GitHub Pages。
+
+### 9.1 为什么能网页化（已核实的兼容点）
+
+- 工具栏「打开 JSON」= 隐藏的 `<input type=file>`（非 Electron 原生对话框）；App 欢迎页同款。
+- 导出 JSON/PNG/SVG/PDF/GIF 用 Blob 下载（浏览器原生）。
+- 分享码/分享链接有 `location.protocol === "file:"` 分支，网页版走 `buildShareLink`。
+- 渲染进程不依赖 `window.electronAPI`（preload 仅桌面用）。
+- 自动保存 / 崩溃恢复用 localStorage（浏览器原生）。
+
+### 9.2 部署架构
+
+```
+GitHub 仓库（public）
+  └─ .github/workflows/deploy.yml   # push 到 main → 自动 build → 部署 Pages
+  └─ dist/ 由 vite build 生成（base:"./" 已配好，子路径可跑）
+GitHub Pages URL: https://<user>.github.io/<repo>/
+```
+
+### 9.3 密码门（重要限制，如实记录）
+
+- **GitHub Pages 本身不支持密码**；免费 Pages 只支持 public 仓库。
+- 用户选择：public 仓库 + **客户端固定密码门**（进入应用前先输固定密码，密码混淆存储于 JS）。
+- **强度说明**：防"路人 / 误点链接"级别，**不是真正安全**——public 仓库源码与 JS 里都能找到密码，懂行的人可提取。
+- 若将来要真密码 / 私有源码 → 私有仓库 + 付费托管（Vercel / Netlify Pro）或 Cloudflare Access。
+- 配套：`robots.txt` 禁止收录，降低被搜索引擎索引的概率。
+
+### 9.4 后续更新流程（易用性）
+
+1. 本地开发 → `npx vitest run` 全绿 → 升版本号（见 §5.5 纪律）→ `npm run build`（本地可先验 dist）。
+2. `git add -A && git commit && git push origin main`。
+3. **GitHub Actions 自动**：build → 部署 Pages → 数分钟后线上更新。
+4. 改密码：改密码门配置 + push 即可。
+5. 网页版用户数据在各自浏览器 localStorage；跨设备靠分享码 / 链接。
+
+### 9.5 待办（2026-08-19，接手 AI 从这里继续）
+
+- [ ] 用户已提供 GitHub 用户名：`leowu65516-crypto`（LeoWU65）
+- [ ] 待用户提供：仓库名、Personal Access Token（经典 token 需 `repo` + `workflow` 权限）
+- [ ] 创建 `.github/workflows/deploy.yml`（Actions：checkout → node → build → deploy-pages）
+- [ ] 加客户端密码门（入口页 + 固定密码配置 + 混淆）
+- [ ] `robots.txt` 禁收录；发布并验证线上可打开
+- [ ] 本地 `package.json` 版本与线上说明同步

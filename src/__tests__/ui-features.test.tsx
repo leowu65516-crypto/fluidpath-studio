@@ -12,6 +12,8 @@ import {
 } from "../store";
 import b2c from "../../MSY2.json";
 
+beforeEach(() => { try { localStorage.setItem("fluidpath.lang", "zh"); } catch { /* ignore */ } });
+
 function renderApp() {
   return render(
     <LangProvider>
@@ -38,6 +40,7 @@ function toDiagram(json: any) {
 describe("UI 集成：批量编辑、管路标注、样式刷、流速", () => {
   beforeEach(() => {
     localStorage.clear();
+    localStorage.setItem("fluidpath.lang", "zh");
   });
 
   it("多选管路后属性面板显示批量编辑区", () => {

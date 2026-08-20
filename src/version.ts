@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.11.0";
+export const APP_VERSION = "1.12.0";
 
 export interface ChangelogEntry {
   version: string;

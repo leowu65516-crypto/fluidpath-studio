@@ -242,6 +242,15 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         </svg>
         {!collapsed && <span>FluidPath Studio</span>}
       </div>
+      {!collapsed && (
+        <input
+          className="diagram-name"
+          value={diagram.name ?? ""}
+          title={t("图纸名称（保存/导出时用作文件名，可直接修改）")}
+          onChange={(e) => updateDiagram((d) => { d.name = e.target.value; })}
+          spellCheck={false}
+        />
+      )}
       <button className="tb-btn tb-collapse" onClick={onToggle} title={collapsed ? t("展开工具栏") : t("折叠工具栏")} aria-label={collapsed ? t("展开工具栏") : t("折叠工具栏")}>
         {collapsed ? "▼" : "▲"}
       </button>

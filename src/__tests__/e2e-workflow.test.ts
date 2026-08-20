@@ -12,9 +12,8 @@ import bcmtsRaw from "../../BCMTS.json";
  */
 describe("关键流程 E2E", () => {
   it("完整走一遍：启动→工况→演示→诊断→导出/分享往返", () => {
-    // 1. 启动默认图是最简三元件（水泵→冲泡缸→咖啡出口）
-    expect(store.get().diagram.nodes.length).toBe(3);
-    expect(store.get().diagram.nodes.some((n) => n.type === "pump")).toBe(true);
+    // 1. 启动默认是空白图（用户要求打开即空白）
+    expect(store.get().diagram.nodes.length).toBe(0);
 
     // 2. 载入实战图 BCMTS
     loadDiagram(parseDiagramJSON(JSON.stringify(bcmtsRaw)));

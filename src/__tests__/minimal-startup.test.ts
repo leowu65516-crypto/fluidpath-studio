@@ -20,11 +20,10 @@ describe("启动默认最简图", () => {
     }
   });
 
-  it("应用启动即是最简图（store 初始图 3 元件）", () => {
+  it("应用启动为空白图（0 元件，用户要求打开即空白）", () => {
     const d = store.get().diagram;
-    expect(d.nodes.length).toBe(3);
-    expect(d.nodes.some((n) => n.type === "pump")).toBe(true);
-    expect(d.nodes.some((n) => n.type === "coffeeOutlet")).toBe(true);
+    expect(d.nodes.length).toBe(0);
+    expect(d.pipes.length).toBe(0);
   });
 });
 

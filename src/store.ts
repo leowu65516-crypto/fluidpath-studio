@@ -13,7 +13,7 @@ import type {
   ShapeVariant,
   ValidationCase
 } from "./types";
-import { createSampleDiagram, createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagram, createMilkFoamDiagram, createCommercialMachineDiagram, createDemoMachineDiagram, createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "./sample";
+import { createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagram, createMilkFoamDiagram, createCommercialMachineDiagram, createDemoMachineDiagram, createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "./sample";
 import { createNode } from "./symbols";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsToPreset } from "./scenarios";
@@ -24,7 +24,7 @@ import type { FixAction } from "./advice";
 const MAX_HISTORY = 100;
 
 let state: AppState = {
-  diagram: createSampleDiagram(),
+  diagram: createEmptyDiagram(), // 启动空白图（用户要求：打开即空白）
   ui: {
     zoom: 1,
     panX: 40,

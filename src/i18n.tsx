@@ -385,7 +385,7 @@ const LangContext = createContext<{ lang: Lang; t: (zh: string) => string; setLa
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>(() => {
-    try { return localStorage.getItem("fluidpath.lang") === "en" ? "en" : "zh"; } catch { return "zh"; }
+    try { const v = localStorage.getItem("fluidpath.lang"); return v === "zh" ? "zh" : "en"; } catch { return "en"; } // 默认英文
   });
 
   useEffect(() => {

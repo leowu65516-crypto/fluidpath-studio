@@ -1,4 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+
+beforeEach(() => { try { localStorage.setItem("fluidpath.lang", "zh"); } catch { /* ignore */ } });
 import { render, act, screen } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";

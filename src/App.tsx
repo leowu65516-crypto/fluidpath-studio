@@ -58,9 +58,13 @@ export default function App() {
     window.addEventListener("beforeunload", onUnload);
     return () => window.removeEventListener("beforeunload", onUnload);
   }, []);
-  const [showWelcome, setShowWelcome] = useState<boolean>(() => {
-    try { return localStorage.getItem("fluidpath.welcomed") !== "1"; } catch { return true; }
-  });
+  // 启动即空白工作台（不弹欢迎页）；自动打开「使用指南」方便新用户
+  const [showWelcome, setShowWelcome] = useState<boolean>(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShowHelp(true), 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const welcomeFileRef = useRef<HTMLInputElement | null>(null);
   // 三栏折叠状态：折叠后收起为窄条，让出画布视角（localStorage 持久化）
   const [collapsed, setCollapsed] = useState<{ library: boolean; inspector: boolean; toolbar: boolean }>(() => {

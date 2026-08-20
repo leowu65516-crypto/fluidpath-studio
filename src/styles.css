@@ -1699,3 +1699,11 @@ body[data-theme="dark"] .welcome-overlay {
 .gate-card input:focus { outline: none; border-color: var(--accent); }
 .gate-err { color: #d64545; font-size: 12.5px; margin: 8px 0 0; }
 .gate-btn { width: 100%; margin-top: 12px; padding: 10px 0; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+/* ==== 图纸名称编辑框 ==== */
+.diagram-name {
+  width: 150px; padding: 3px 8px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text); font-size: 12px; font-family: inherit;
+}
+.diagram-name:focus { outline: none; border-color: var(--accent); }

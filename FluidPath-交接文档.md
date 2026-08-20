@@ -12,7 +12,8 @@
 - 项目路径：`/Users/leo/Documents/测试`（注意：**中文路径**）
 - **已 git 初始化**（2026-08-18 起，每个版本一个 commit，历史可回退）；改前仍建议 `cp` 备份到 `/tmp`
 - 技术栈：Electron（主进程 CJS）+ React 18 + TypeScript（strict）+ Vite 5 + Vitest（jsdom）
-- 打包：electron-builder（未签名，arm64）；当前产物 `release/FluidPath Studio-1.8.0-arm64.dmg`
+- 打包：electron-builder（未签名，arm64）；当前产物 `release/FluidPath Studio-1.11.0-arm64.dmg`
+- **网页版（已上线）**：https://leowu65516-crypto.github.io/fluidpath-studio/ （密码门固定密码 800866，见 §9）
 - Node 路径：`/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin`（**每条命令都要先 `export PATH=.../bin:$PATH`**）
 
 ### 关键文件地图
@@ -345,7 +346,7 @@ git status && git add -A && git commit -m "..."   # 每版一个 commit（见 §
 1. `npm run build`（Vite 构建 dist）
 2. `npx electron-builder --mac --config.electronDist=node_modules/electron/dist`
 3. `npx electron scripts/verify-asar.cjs` → `ASAR_LOAD_RESULT hasApp:true hasCanvas:true`
-4. 产物：`release/FluidPath Studio-1.8.0-arm64.dmg`（版本号随 `package.json`；未签名；macOS 首次打开需右键 → 打开）
+4. 产物：`release/FluidPath Studio-1.11.0-arm64.dmg`（版本号随 `package.json`；未签名；macOS 首次打开需右键 → 打开）
 
 ### 5.3 环境坑（全部实测）
 
@@ -486,7 +487,11 @@ GitHub Pages URL: https://<user>.github.io/<repo>/
 - [x] 用户已提供 GitHub 用户名：`leowu65516-crypto`（LeoWU65）
 - [x] 仓库名：`fluidpath-studio`
 - [x] 密码门固定密码：`800866`
-- [ ] 待用户提供：Personal Access Token（经典 token 需 `repo` + `workflow` 权限）
+- [x] 待用户提供：Personal Access Token（已提供并完成部署）
+- [x] 创建 `.github/workflows/deploy.yml`（Actions：checkout → node22 → build → upload-pages → deploy-pages）
+- [x] 客户端密码门（`src/gate.ts` 固定密码 800866，仅网页版启用，Electron/测试跳过）+ `public/robots.txt` 禁收录
+- [x] 发布并验证：**https://leowu65516-crypto.github.io/fluidpath-studio/**（HTTP 200，密码门已确认在线上包中）
+- [ ] 提示用户**撤销 Token**（`github.com/settings/tokens`）
 - [ ] 创建 `.github/workflows/deploy.yml`（Actions：checkout → node → build → deploy-pages）
 - [ ] 加客户端密码门（入口页 + 固定密码配置 + 混淆）
 - [ ] `robots.txt` 禁收录；发布并验证线上可打开

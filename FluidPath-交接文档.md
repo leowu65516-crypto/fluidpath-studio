@@ -504,7 +504,7 @@ GitHub Pages URL: https://<user>.github.io/<repo>/
 
 ### 9.6 桌面版关闭时询问另存（v1.13.0）
 
-- 主进程拦截  → 通知渲染进程弹「是否另存图纸到本地？」（另存/不保存/取消）。
-- 另存 →  写 JSON（preload ）；不保存 → 直接关；取消 → 留在界面。
-- 空白且未修改时直接关闭不弹窗。
+- 主进程拦截窗口 `close` 事件 → 通知渲染进程弹「是否另存图纸到本地？」（另存 / 不保存 / 取消）。
+- 另存 → 主进程 `dialog.showSaveDialog` 写 JSON（preload 暴露 `saveJsonDialog`）；不保存 → `confirmClose` 直接关；取消 → 留在界面。
+- 空白且未修改时直接关闭、不弹窗。
 - 网页版浏览器无法拦截关闭，沿用 beforeunload 自动保存（崩溃恢复）。

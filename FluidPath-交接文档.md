@@ -394,7 +394,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `conditions.test.ts` | 工况快照：保存/应用/删除/随图纸持久化 |
 | `cross-ports.test.ts` | 十字四通四路贯通 + 端口上限（MAX_PORTS_PER_NODE=8） |
 | `functional-chain-autosave.test.ts` | 元件→整机功能链追踪 + 自动保存/版本恢复 |
-| `minimal-startup.test.ts` | 启动默认最简图（水泵→冲泡缸→咖啡出口）全链流动 + 工况数据流 |
+| `minimal-startup.test.ts` | 启动默认空白图 + 最简图生成器全链流动 + 工况数据流 |
 | `layer.test.ts` | 图层：删除归入默认层、改名 |
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
@@ -430,6 +430,8 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.12.0 | 2026-08-19 | 启动即空白图 + 默认英文 + 自动打开使用指南；工具栏图纸名可编辑（保存文件名跟随）；网页版部署 GitHub Pages（密码门 800866，§9） |
+| 1.11.0 | 2026-08-19 | （此前版本按环境实际演进记录，见 git log） |
 | 1.8.0 | 2026-08-18 | 新增图纸工况验收矩阵：记录泵阀状态及管路应流/应停断言，一键运行且不改动当前画布；BCMTS 内置断水停泵案例 |
 | 1.7.1 | 2026-08-18 | 停流管不再显示流动粒子与箭头；新增 BCMTS「总进水阀关 + 水泵停」锅炉补水链全停流回归 |
 | 1.7.0 | 2026-08-18 | 修复共享汇流处停流误传播；教学显示覆盖与工程状态分离；新增工程 JSON 导出与旧覆盖字段自动迁移 |
@@ -491,7 +493,8 @@ GitHub Pages URL: https://<user>.github.io/<repo>/
 - [x] 创建 `.github/workflows/deploy.yml`（Actions：checkout → node22 → build → upload-pages → deploy-pages）
 - [x] 客户端密码门（`src/gate.ts` 固定密码 800866，仅网页版启用，Electron/测试跳过）+ `public/robots.txt` 禁收录
 - [x] 发布并验证：**https://leowu65516-crypto.github.io/fluidpath-studio/**（HTTP 200，密码门已确认在线上包中）
-- [ ] 提示用户**撤销 Token**（`github.com/settings/tokens`）
+- [x] 线上地址 https://leowu65516-crypto.github.io/fluidpath-studio/ 已上线（密码 800866）；更新流程：改代码 → vitest → 升版本 → push main → Actions 自动部署
+- [ ] **提醒用户撤销 Token**（`github.com/settings/tokens`；撤销后后续推送需重新授权）
 - [ ] 创建 `.github/workflows/deploy.yml`（Actions：checkout → node → build → deploy-pages）
 - [ ] 加客户端密码门（入口页 + 固定密码配置 + 混淆）
 - [ ] `robots.txt` 禁收录；发布并验证线上可打开

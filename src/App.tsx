@@ -13,6 +13,8 @@ import { HelpPanel } from "./components/HelpPanel";
 import { WelcomePanel } from "./components/WelcomePanel";
 import { AdvicePanel } from "./components/AdvicePanel";
 import { ValidationPanel } from "./components/ValidationPanel";
+import { PasswordGate } from "./components/PasswordGate";
+import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard } from "./store";
 import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave } from "./store";
@@ -36,6 +38,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [gateOk, setGateOk] = useState(() => !shouldGate() || gateAuthed());
   // 状态栏诊断徽章点击 → 打开回路诊断面板
   useEffect(() => {
     const onOpen = () => setShowAdvice(true);
@@ -166,6 +169,9 @@ export default function App() {
     closeWelcome();
   }
 
+  if (!gateOk) {
+    return <PasswordGate onPass={() => { setGateAuthed(); setGateOk(true); }} />;
+  }
   return (
     <ErrorBoundary>
       <div className="app">

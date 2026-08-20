@@ -483,8 +483,10 @@ GitHub Pages URL: https://<user>.github.io/<repo>/
 
 ### 9.5 待办（2026-08-19，接手 AI 从这里继续）
 
-- [ ] 用户已提供 GitHub 用户名：`leowu65516-crypto`（LeoWU65）
-- [ ] 待用户提供：仓库名、Personal Access Token（经典 token 需 `repo` + `workflow` 权限）
+- [x] 用户已提供 GitHub 用户名：`leowu65516-crypto`（LeoWU65）
+- [x] 仓库名：`fluidpath-studio`
+- [x] 密码门固定密码：`800866`
+- [ ] 待用户提供：Personal Access Token（经典 token 需 `repo` + `workflow` 权限）
 - [ ] 创建 `.github/workflows/deploy.yml`（Actions：checkout → node → build → deploy-pages）
 - [ ] 加客户端密码门（入口页 + 固定密码配置 + 混淆）
 - [ ] `robots.txt` 禁收录；发布并验证线上可打开

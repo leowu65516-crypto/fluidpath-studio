@@ -21,6 +21,7 @@ import { ConditionPanel } from "./ConditionPanel";
 import { PromptDialog } from "./PromptDialog";
 import { useT } from "../i18n";
 import { LayerPanel } from "./LayerPanel";
+import { toast } from "../toast";
 
 
 function Icon({ d }: { d: string }) {
@@ -101,7 +102,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       case "svg": exportSVG(svgRef.current, diagram); break;
       case "pdf": exportPDF(svgRef.current, diagram, undefined); break;
       case "gif": onExportGIF(); break;
-      case "json": exportJSON(diagram); markSaved(); break;
+      case "json": void saveToLocal(); break;
       case "engineering-json": exportEngineeringJSON(diagram); break;
       case "share": {
         if (location.protocol === "file:") {
@@ -225,6 +226,40 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
     }
   }
 
+  async function openAppWindow() {
+    const api = (window as unknown as { electron?: { openAppWindow?: () => Promise<unknown> } }).electron;
+    if (!api?.openAppWindow) {
+      toast(t("多窗口仅在桌面版可用"), "error");
+      return;
+    }
+    try {
+      await api.openAppWindow();
+    } catch (err) {
+      toast(`${t("新窗口打开失败")}：${(err as Error).message}`, "error");
+    }
+  }
+
+  async function saveToLocal() {
+    const api = (window as unknown as {
+      electron?: { saveJsonDialog?: (payload: { json: string; defaultName: string }) => Promise<{ saved: boolean; path?: string }> };
+    }).electron;
+    const json = JSON.stringify({ ...diagram, _version: 3, _exportedAt: new Date().toISOString() }, null, 2);
+    if (!api?.saveJsonDialog) {
+      exportJSON(diagram);
+      markSaved();
+      return;
+    }
+    try {
+      const result = await api.saveJsonDialog({ json, defaultName: diagram.name || "fluidpath-diagram" });
+      if (!result.saved) return;
+      setSourceFilePath(result.path ?? null);
+      markSaved();
+      toast(`${t("已保存到")} ${result.path ?? ""}`);
+    } catch (err) {
+      toast(`${t("保存失败")}：${(err as Error).message}`, "error");
+    }
+  }
+
   function viewSize() {
     const el = svgRef.current;
     return { w: el?.clientWidth ?? 1200, h: el?.clientHeight ?? 800 };
@@ -257,6 +292,9 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" title={t("新建")} onClick={() => { if (confirm(t("新建") + "?")) newDiagram(); }}>
         <Icon d="M12 5v14M5 12h14" />{t("新建")}
       </button>
+      <button className="tb-btn" title={t("打开独立工作台，可与当前窗口互相复制粘贴")} onClick={() => void openAppWindow()}>
+        <Icon d="M4 5h11v11H4zM9 9h11v10H9z" />{t("新窗口")}
+      </button>
       <button className="tb-btn" title={t("打开 JSON")} onClick={openJsonFromDesktop}>
         <Icon d="M3 8l3-4h5l2 3h8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />{t("打开 JSON")}
       </button>
@@ -266,10 +304,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button
         className="tb-btn"
         title={t("保存到本地")}
-        onClick={() => {
-          exportJSON(diagram);
-          markSaved();
-        }}
+        onClick={() => void saveToLocal()}
       >
         <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" />{t("保存到本地")}
       </button>

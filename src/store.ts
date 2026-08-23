@@ -82,7 +82,11 @@ let fileAutosaveEnabled = false;
 let fileAutosavePath: string | null = null;
 let fileAutosaveTicker: ReturnType<typeof setInterval> | null = null;
 
-type ElectronBridge = { writeAutosaveCopy?: (payload: { sourcePath: string; json: string }) => Promise<{ path: string }> };
+type ElectronBridge = {
+  writeAutosaveCopy?: (payload: { sourcePath: string; json: string }) => Promise<{ path: string }>;
+  writeSelectionClipboard?: (json: string) => Promise<boolean>;
+  readSelectionClipboard?: () => Promise<string | null>;
+};
 
 export function setSourceFilePath(path: string | null) {
   sourceFilePath = path;
@@ -542,27 +546,62 @@ export function setGlobalFlowScale(scale: number) {
   }, false);
 }
 
-/** 复制选中内容到剪贴板 */
+export interface SelectionClipboardPayload {
+  kind: "fluidpath-selection";
+  version: 1;
+  nodes: DiagramNode[];
+  pipes: Pipe[];
+}
+
+type DiagramClipboard = NonNullable<AppState["ui"]["clipboard"]>;
+
+function isDiagramClipboard(value: unknown): value is DiagramClipboard {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as { nodes?: unknown; pipes?: unknown };
+  return Array.isArray(candidate.nodes) && Array.isArray(candidate.pipes);
+}
+
+export function parseSelectionClipboard(json: string | null | undefined): DiagramClipboard | null {
+  if (!json) return null;
+  try {
+    const payload = JSON.parse(json) as Partial<SelectionClipboardPayload>;
+    if (payload.kind !== "fluidpath-selection" || payload.version !== 1 || !isDiagramClipboard(payload)) return null;
+    return structuredClone({ nodes: payload.nodes, pipes: payload.pipes });
+  } catch {
+    return null;
+  }
+}
+
+export function serializeSelectionClipboard(clipboard: DiagramClipboard): string {
+  const payload: SelectionClipboardPayload = { kind: "fluidpath-selection", version: 1, ...clipboard };
+  return JSON.stringify(payload);
+}
+
+/** 复制选中内容到系统剪贴板。框选节点时会自动带上两端均在框内的内部管路。 */
 export function copyToClipboard() {
   const sel = state.ui.selection;
   if (!sel.nodes.length && !sel.pipes.length) return;
   const nodes = state.diagram.nodes.filter((n) => sel.nodes.includes(n.id));
-  const pipes = state.diagram.pipes.filter((p) => sel.pipes.includes(p.id));
-  setUI({ clipboard: { nodes: structuredClone(nodes), pipes: structuredClone(pipes) } });
+  const selectedPorts = new Set(nodes.flatMap((n) => n.ports.map((p) => p.id)));
+  const pipes = state.diagram.pipes.filter((p) => sel.pipes.includes(p.id) || (
+    Boolean(p.fromPortId) && Boolean(p.toPortId) && selectedPorts.has(p.fromPortId!) && selectedPorts.has(p.toPortId!)
+  ));
+  const clipboard = { nodes: structuredClone(nodes), pipes: structuredClone(pipes) };
+  setUI({ clipboard });
+  const bridge = (typeof window !== "undefined" ? (window as Window & { electron?: ElectronBridge }).electron : undefined);
+  // 桌面版写入应用专用系统剪贴板，窗口 B 可直接 Cmd/Ctrl+V。
+  void bridge?.writeSelectionClipboard?.(serializeSelectionClipboard(clipboard)).catch(() => { /* 本窗口内复制仍可用 */ });
 }
 
-/** 从剪贴板粘贴（偏移 48px 避免重叠） */
-export function pasteFromClipboard() {
-  const clip = state.ui.clipboard;
+/** 从剪贴板载荷粘贴（偏移 48px 避免重叠） */
+function pasteClipboard(clip: DiagramClipboard | null | undefined) {
   if (!clip || (!clip.nodes.length && !clip.pipes.length)) return;
   const portMap = new Map<string, string>();
-  const oldToNewNode = new Map<string, string>();
   const newNodes = clip.nodes.map((n) => {
     const clone = structuredClone(n);
     clone.id = uid("n");
     clone.x += 48;
     clone.y += 48;
-    oldToNewNode.set(n.id, clone.id);
     clone.ports = clone.ports.map((p) => {
       const npid = uid("p");
       portMap.set(p.id, npid);
@@ -591,6 +630,22 @@ export function pasteFromClipboard() {
     d.pipes.push(...newPipes);
   });
   setSelection({ nodes: newNodes.map((n) => n.id), pipes: newPipes.map((p) => p.id) });
+}
+
+/** 从系统剪贴板粘贴；网页或系统读取失败时回退到当前窗口复制内容。 */
+export function pasteFromClipboard() {
+  const localClipboard = state.ui.clipboard;
+  const bridge = (typeof window !== "undefined" ? (window as Window & { electron?: ElectronBridge }).electron : undefined);
+  if (!bridge?.readSelectionClipboard) {
+    pasteClipboard(localClipboard);
+    return;
+  }
+  void bridge.readSelectionClipboard().then((json) => {
+    const externalClipboard = parseSelectionClipboard(json);
+    const clipboard = externalClipboard ?? localClipboard;
+    if (externalClipboard) setUI({ clipboard: externalClipboard });
+    pasteClipboard(clipboard);
+  }).catch(() => pasteClipboard(localClipboard));
 }
 
 export function setSelection(sel: Selection) {

@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.on("open-file", (_event, payload) => callback(payload));
   },
   openJsonFile: () => ipcRenderer.invoke("open-json-file"),
+  openAppWindow: () => ipcRenderer.invoke("new-app-window"),
+  writeSelectionClipboard: (json) => ipcRenderer.invoke("write-selection-clipboard", json),
+  readSelectionClipboard: () => ipcRenderer.invoke("read-selection-clipboard"),
   writeAutosaveCopy: (payload) => ipcRenderer.invoke("write-autosave-copy", payload),
   onCloseRequested: (callback) => { ipcRenderer.on("close-requested", () => callback()); },
   confirmClose: () => ipcRenderer.send("app-close-confirmed"),

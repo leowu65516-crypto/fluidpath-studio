@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, act, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { render, act, screen, waitFor, cleanup } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
 import {
@@ -13,6 +13,7 @@ import {
 import b2c from "../../MSY2.json";
 
 beforeEach(() => { try { localStorage.setItem("fluidpath.lang", "zh"); } catch { /* ignore */ } });
+afterEach(cleanup);
 
 function renderApp() {
   return render(
@@ -108,13 +109,13 @@ describe("UI 集成：批量编辑、管路标注、样式刷、流速", () => {
     const enBtn = screen.getByText("EN");
     act(() => enBtn.click());
     await waitFor(() => {
-      expect(screen.getByText("Library")).toBeTruthy();
+      expect(screen.getAllByText("Library").length).toBeGreaterThan(0);
     });
     // 切回中文
     const zhBtn = screen.getByText("中");
     act(() => zhBtn.click());
     await waitFor(() => {
-      expect(screen.getByText("元件库")).toBeTruthy();
+      expect(screen.getAllByText("元件库").length).toBeGreaterThan(0);
     });
   });
 

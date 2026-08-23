@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.14.0";
+export const APP_VERSION = "1.15.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,11 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.15.0",
+    date: "2026-08-23",
+    highlights: ["新增桌面多窗口工作台；窗口间通过系统剪贴板复制/粘贴选中元器件与内部管路", "保存 JSON 时统一弹出系统路径选择窗口，并以图纸名称作为默认文件名", "完善多窗口、保存流程的中英文界面文案与回归测试"],
+  },
   {
     version: "1.14.0",
     date: "2026-08-20",

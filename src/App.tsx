@@ -21,6 +21,7 @@ import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagr
 import type { AutosaveVersion } from "./store";
 import { decompressDiagram, parseDiagramJSON, exportJSON } from "./export";
 import { getBinding, matchKeys } from "./shortcuts";
+import { useT } from "./i18n";
 
 const ARROW_DELTA: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0],
@@ -30,6 +31,7 @@ const ARROW_DELTA: Record<string, [number, number]> = {
 };
 
 export default function App() {
+  const { t } = useT();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -181,10 +183,11 @@ export default function App() {
 
   async function handleCloseSave() {
     const d = store.get().diagram;
-    const api = (window as unknown as { electron?: { saveJsonDialog?: (json: string) => Promise<unknown>; confirmClose?: () => void } }).electron;
+    const api = (window as unknown as { electron?: { saveJsonDialog?: (payload: { json: string; defaultName: string }) => Promise<{ saved: boolean; path?: string }>; confirmClose?: () => void } }).electron;
     try {
       if (api?.saveJsonDialog) {
-        await api.saveJsonDialog(JSON.stringify({ ...d, _version: 2, _exportedAt: new Date().toISOString() }, null, 2));
+        const result = await api.saveJsonDialog({ json: JSON.stringify({ ...d, _version: 3, _exportedAt: new Date().toISOString() }, null, 2), defaultName: d.name || "fluidpath-diagram" });
+        if (!result.saved) return;
       } else {
         exportJSON(d); // 网页兜底：浏览器下载
       }
@@ -247,12 +250,12 @@ export default function App() {
       {closePrompt && (
         <div className="close-save-overlay" data-ui="1">
           <div className="close-save-card">
-            <div className="close-save-title">💾 是否另存图纸到本地？</div>
-            <div className="close-save-sub">当前图纸有未保存的内容</div>
+            <div className="close-save-title">💾 {t("是否另存图纸到本地？")}</div>
+            <div className="close-save-sub">{t("当前图纸有未保存的内容")}</div>
             <div className="close-save-actions">
-              <button className="btn" onClick={handleCloseSave}>💾 另存到本地</button>
-              <button className="btn ghost" onClick={handleCloseNoSave}>不保存，直接退出</button>
-              <button className="btn ghost" onClick={() => setClosePrompt(false)}>取消</button>
+              <button className="btn" onClick={handleCloseSave}>💾 {t("另存到本地")}</button>
+              <button className="btn ghost" onClick={handleCloseNoSave}>{t("不保存，直接退出")}</button>
+              <button className="btn ghost" onClick={() => setClosePrompt(false)}>{t("取消")}</button>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, shell, dialog, ipcMain, clipboard } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
@@ -7,6 +7,9 @@ const isMac = process.platform === "darwin";
 
 // macOS 双击 .json 打开时，open-file 事件可能在窗口创建前触发，先缓存路径
 let pendingFilePath = null;
+const approvedCloseWindows = new Set();
+const SELECTION_CLIPBOARD_FORMAT = "application/x-fluidpath-selection+json";
+const MAX_CLIPBOARD_BYTES = 8 * 1024 * 1024;
 
 function sendOpenFile(win, filePath) {
   try {
@@ -17,10 +20,7 @@ function sendOpenFile(win, filePath) {
   }
 }
 
-let allowClose = false;
-
 function createWindow() {
-  allowClose = false;
   const win = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -70,31 +70,65 @@ function createWindow() {
 
   // 关闭前询问是否另存：阻止默认关闭，通知渲染进程弹确认框
   win.on("close", (e) => {
-    if (allowClose) return;
+    if (approvedCloseWindows.has(win.id)) return;
     e.preventDefault();
     win.webContents.send("close-requested");
   });
+  win.on("closed", () => approvedCloseWindows.delete(win.id));
 
   return win;
 }
 
-// 渲染进程确认后真正关闭
-ipcMain.on("app-close-confirmed", () => {
-  allowClose = true;
-  const win = BrowserWindow.getAllWindows()[0];
+// 渲染进程确认后只关闭提出请求的窗口，避免多窗口时误关闭窗口 A。
+ipcMain.on("app-close-confirmed", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return;
+  approvedCloseWindows.add(win.id);
   if (win) win.close();
 });
 
 // 「另存到本地」：弹系统保存对话框写 JSON
-ipcMain.handle("save-json-dialog", async (_event, json) => {
+ipcMain.handle("save-json-dialog", async (_event, payload) => {
+  const json = typeof payload === "string" ? payload : payload?.json;
   if (typeof json !== "string") throw new Error("invalid json payload");
+  const suppliedName = typeof payload === "object" && typeof payload.defaultName === "string" ? payload.defaultName : "fluidpath-diagram";
+  const safeName = suppliedName.replace(/[\\/:*?\"<>|]/g, "_").trim() || "fluidpath-diagram";
+  const defaultPath = safeName.toLowerCase().endsWith(".json") ? safeName : `${safeName}.json`;
   const result = await dialog.showSaveDialog({
-    defaultPath: "fluidpath-diagram.json",
+    defaultPath,
     filters: [{ name: "JSON 图纸", extensions: ["json"] }],
   });
   if (result.canceled || !result.filePath) return { saved: false };
   fs.writeFileSync(result.filePath, json, "utf8");
   return { saved: true, path: result.filePath };
+});
+
+// 新窗口是独立工作台；选中对象通过系统剪贴板在窗口之间传递。
+ipcMain.handle("new-app-window", async () => ({ id: createWindow().id }));
+
+ipcMain.handle("write-selection-clipboard", async (_event, json) => {
+  if (typeof json !== "string" || Buffer.byteLength(json, "utf8") > MAX_CLIPBOARD_BYTES) {
+    throw new Error("invalid selection clipboard payload");
+  }
+  const payload = JSON.parse(json);
+  if (!payload || payload.kind !== "fluidpath-selection" || payload.version !== 1 || !Array.isArray(payload.nodes) || !Array.isArray(payload.pipes)) {
+    throw new Error("invalid selection clipboard payload");
+  }
+  clipboard.writeText(`FluidPath selection: ${payload.nodes.length} components, ${payload.pipes.length} pipes`);
+  clipboard.writeBuffer(SELECTION_CLIPBOARD_FORMAT, Buffer.from(json, "utf8"));
+  return true;
+});
+
+ipcMain.handle("read-selection-clipboard", async () => {
+  const buffer = clipboard.readBuffer(SELECTION_CLIPBOARD_FORMAT);
+  if (!buffer || !buffer.length || buffer.length > MAX_CLIPBOARD_BYTES) return null;
+  const json = buffer.toString("utf8");
+  try {
+    const payload = JSON.parse(json);
+    return payload?.kind === "fluidpath-selection" && payload?.version === 1 && Array.isArray(payload.nodes) && Array.isArray(payload.pipes) ? json : null;
+  } catch {
+    return null;
+  }
 });
 
 ipcMain.handle("write-autosave-copy", async (_event, { sourcePath, json }) => {

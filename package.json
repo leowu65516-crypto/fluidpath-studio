@@ -3,7 +3,7 @@
   "description": "FluidPath Studio — 液路动态示意图编辑器（Electron + React）",
   "author": "FluidPath Studio",
   "private": true,
-  "version": "1.14.0",
+  "version": "1.15.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "check": "tsc --noEmit && vitest run",
     "smoke": "npm run build && electron scripts/smoke.cjs",
+    "smoke:multiwindow": "npm run build && electron scripts/multiwindow-smoke.cjs",
     "verify:asar": "electron scripts/verify-asar.cjs",
     "start": "npm run build && electron .",
     "app": "npm run build && electron .",

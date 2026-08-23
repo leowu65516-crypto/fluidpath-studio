@@ -8,7 +8,7 @@ import {
 } from "../geometry";
 import type { Diagram } from "../types";
 
-const raw = JSON.parse(readFileSync("/Users/leo/Documents/测试/BCTM2S.json", "utf8"));
+const raw = JSON.parse(readFileSync("BCTMS.json", "utf8"));
 
 describe("BCTM2S Smart-Y diagram validation", () => {
   it("parses cleanly through parseDiagramJSON", () => {

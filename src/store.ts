@@ -88,6 +88,43 @@ type ElectronBridge = {
   readSelectionClipboard?: () => Promise<string | null>;
 };
 
+const WEB_SELECTION_CHANNEL = "fluidpath.selection.v1";
+const WEB_SELECTION_PREFIX = "FLUIDPATH_SELECTION_V1:";
+let webSelectionChannel: BroadcastChannel | null = null;
+
+function getWebSelectionChannel() {
+  if (typeof BroadcastChannel === "undefined") return null;
+  if (!webSelectionChannel) {
+    webSelectionChannel = new BroadcastChannel(WEB_SELECTION_CHANNEL);
+    webSelectionChannel.onmessage = (event: MessageEvent<unknown>) => {
+      if (typeof event.data !== "string") return;
+      const clipboard = parseSelectionClipboard(event.data);
+      if (clipboard) setUI({ clipboard });
+    };
+  }
+  return webSelectionChannel;
+}
+
+async function writeWebSelectionClipboard(serialized: string) {
+  getWebSelectionChannel()?.postMessage(serialized);
+  try {
+    await navigator.clipboard?.writeText(`${WEB_SELECTION_PREFIX}${serialized}`);
+  } catch {
+    // BroadcastChannel 已覆盖同一站点的多窗口；浏览器剪贴板权限被拒绝时不影响该路径。
+  }
+}
+
+async function readWebSelectionClipboard(): Promise<string | null> {
+  try {
+    const text = await navigator.clipboard?.readText();
+    return text?.startsWith(WEB_SELECTION_PREFIX) ? text.slice(WEB_SELECTION_PREFIX.length) : null;
+  } catch {
+    return null;
+  }
+}
+
+if (typeof window !== "undefined") getWebSelectionChannel();
+
 export function setSourceFilePath(path: string | null) {
   sourceFilePath = path;
   fileAutosaveEnabled = false;
@@ -589,8 +626,13 @@ export function copyToClipboard() {
   const clipboard = { nodes: structuredClone(nodes), pipes: structuredClone(pipes) };
   setUI({ clipboard });
   const bridge = (typeof window !== "undefined" ? (window as Window & { electron?: ElectronBridge }).electron : undefined);
-  // 桌面版写入应用专用系统剪贴板，窗口 B 可直接 Cmd/Ctrl+V。
-  void bridge?.writeSelectionClipboard?.(serializeSelectionClipboard(clipboard)).catch(() => { /* 本窗口内复制仍可用 */ });
+  const serialized = serializeSelectionClipboard(clipboard);
+  // 桌面版用应用专用剪贴板；网页版用 BroadcastChannel + 浏览器剪贴板。
+  if (bridge?.writeSelectionClipboard) {
+    void bridge.writeSelectionClipboard(serialized).catch(() => { /* 本窗口内复制仍可用 */ });
+  } else {
+    void writeWebSelectionClipboard(serialized);
+  }
 }
 
 /** 从剪贴板载荷粘贴（偏移 48px 避免重叠） */
@@ -637,7 +679,16 @@ export function pasteFromClipboard() {
   const localClipboard = state.ui.clipboard;
   const bridge = (typeof window !== "undefined" ? (window as Window & { electron?: ElectronBridge }).electron : undefined);
   if (!bridge?.readSelectionClipboard) {
-    pasteClipboard(localClipboard);
+    if (!navigator.clipboard?.readText) {
+      pasteClipboard(localClipboard);
+      return;
+    }
+    void readWebSelectionClipboard().then((serialized) => {
+      const externalClipboard = parseSelectionClipboard(serialized);
+      const clipboard = externalClipboard ?? localClipboard;
+      if (externalClipboard) setUI({ clipboard: externalClipboard });
+      pasteClipboard(clipboard);
+    }).catch(() => pasteClipboard(localClipboard));
     return;
   }
   void bridge.readSelectionClipboard().then((json) => {

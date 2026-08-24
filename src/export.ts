@@ -42,6 +42,37 @@ function download(filename: string, blob: Blob) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+export interface JsonSaveResult {
+  saved: boolean;
+  filename: string;
+  picker: boolean;
+}
+
+/** 网页端保存 JSON：优先使用系统文件保存器，浏览器不支持时回退为下载。 */
+export async function saveJSONFile(diagram: Diagram): Promise<JsonSaveResult> {
+  const rawName = (diagram.name || "fluidpath-diagram").replace(/[\\/:*?\"<>|]/g, "_").trim() || "fluidpath-diagram";
+  const filename = `${rawName.toLowerCase().endsWith(".json") ? rawName.slice(0, -5) : rawName}.json`;
+  const json = JSON.stringify({ ...diagram, _version: 3, _exportedAt: new Date().toISOString() }, null, 2);
+  const picker = (window as Window & {
+    showSaveFilePicker?: (options?: {
+      suggestedName?: string;
+      types?: Array<{ description: string; accept: Record<string, string[]> }>;
+    }) => Promise<{ name: string; createWritable: () => Promise<{ write: (data: string) => Promise<void>; close: () => Promise<void> }> }>;
+  }).showSaveFilePicker;
+  if (picker && window.isSecureContext !== false) {
+    const handle = await picker({
+      suggestedName: filename,
+      types: [{ description: "JSON 图纸", accept: { "application/json": [".json"] } }],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(json);
+    await writable.close();
+    return { saved: true, filename: handle.name || filename, picker: true };
+  }
+  download(filename, new Blob([json], { type: "application/json" }));
+  return { saved: true, filename, picker: false };
+}
+
 function contentBBox(diagram: Diagram) {
   let minX = Infinity;
   let minY = Infinity;

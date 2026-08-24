@@ -19,7 +19,7 @@ import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, re
 import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave } from "./store";
 import type { AutosaveVersion } from "./store";
-import { decompressDiagram, parseDiagramJSON, exportJSON } from "./export";
+import { decompressDiagram, parseDiagramJSON, saveJSONFile } from "./export";
 import { getBinding, matchKeys } from "./shortcuts";
 import { useT } from "./i18n";
 
@@ -189,7 +189,8 @@ export default function App() {
         const result = await api.saveJsonDialog({ json: JSON.stringify({ ...d, _version: 3, _exportedAt: new Date().toISOString() }, null, 2), defaultName: d.name || "fluidpath-diagram" });
         if (!result.saved) return;
       } else {
-        exportJSON(d); // 网页兜底：浏览器下载
+        const result = await saveJSONFile(d);
+        if (!result.saved) return;
       }
     } catch { /* ignore */ }
     setClosePrompt(false);

@@ -16,7 +16,7 @@ import {
   updateDiagram,
   useAppState
 } from "../store";
-import { exportEngineeringJSON, exportGIF, exportJSON, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram } from "../export";
+import { exportEngineeringJSON, exportGIF, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram, saveJSONFile } from "../export";
 import { ConditionPanel } from "./ConditionPanel";
 import { PromptDialog } from "./PromptDialog";
 import { useT } from "../i18n";
@@ -229,7 +229,8 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
   async function openAppWindow() {
     const api = (window as unknown as { electron?: { openAppWindow?: () => Promise<unknown> } }).electron;
     if (!api?.openAppWindow) {
-      toast(t("多窗口仅在桌面版可用"), "error");
+      const child = window.open(window.location.href, "_blank");
+      if (!child) toast(t("浏览器阻止了新窗口，请允许弹出窗口"), "error");
       return;
     }
     try {
@@ -245,8 +246,14 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
     }).electron;
     const json = JSON.stringify({ ...diagram, _version: 3, _exportedAt: new Date().toISOString() }, null, 2);
     if (!api?.saveJsonDialog) {
-      exportJSON(diagram);
-      markSaved();
+      try {
+        const result = await saveJSONFile(diagram);
+        markSaved();
+        toast(result.picker ? `${t("已保存到")} ${result.filename}` : t("浏览器已开始下载文件"));
+      } catch (err) {
+        if ((err as DOMException)?.name === "AbortError") return;
+        toast(`${t("保存失败")}：${(err as Error).message}`, "error");
+      }
       return;
     }
     try {
@@ -303,7 +310,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       </button>
       <button
         className="tb-btn"
-        title={t("保存到本地")}
+        title={t("保存到本地（选择路径）")}
         onClick={() => void saveToLocal()}
       >
         <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" />{t("保存到本地")}

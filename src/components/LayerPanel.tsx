@@ -27,7 +27,7 @@ export function LayerPanel({ onClose }: { onClose: () => void }) {
     <div className="layer-dropdown" onClick={(e) => e.stopPropagation()}>
       <div className="layer-head">
         <span>🗂 {t("图层")}</span>
-        <button className="layer-close" onClick={onClose} aria-label="关闭">✕</button>
+        <button className="layer-close" onClick={onClose} aria-label={t("关闭")}>✕</button>
       </div>
       <div className="layer-list">
         {layers.map((l) => {
@@ -37,7 +37,7 @@ export function LayerPanel({ onClose }: { onClose: () => void }) {
               key={l.id}
               className={`layer-row${l.id === current ? " active" : ""}`}
               onClick={() => setCurrentLayer(l.id)}
-              title="点击设为当前图层（新元件自动归入）"
+              title={t("点击设为当前图层（新元件自动归入）")}
             >
               <button
                 className="layer-eye"
@@ -48,11 +48,11 @@ export function LayerPanel({ onClose }: { onClose: () => void }) {
               </button>
               <span
                 className="layer-name"
-                title="双击改名"
+                title={t("双击改名")}
                 onDoubleClick={(e) => { e.stopPropagation(); setRenameTarget({ id: l.id, name: l.name }); }}
               >
-                {l.name}{l.id === current ? "（当前）" : ""}
-                {!l.visible ? " · 已隐藏" : ""}
+                {l.name}{l.id === current ? t("（当前）") : ""}
+                {!l.visible ? t(" · 已隐藏") : ""}
               </span>
               <button
                 className="layer-locate"
@@ -89,7 +89,7 @@ export function LayerPanel({ onClose }: { onClose: () => void }) {
         />
         <button onClick={() => { if (newName.trim()) { addLayer(newName.trim()); setNewName(""); } }}>＋</button>
       </div>
-      <div className="layer-tip">👁 显示/隐藏 · 点图层名=当前图层 · 点数字=选中本层 · 双击=改名 · ×=删除</div>
+      <div className="layer-tip">{t("👁 显示/隐藏 · 点图层名=当前图层 · 点数字=选中本层 · 双击=改名 · ×=删除")}</div>
       {renameTarget && (
         <PromptDialog
           title={t("图层改名")}

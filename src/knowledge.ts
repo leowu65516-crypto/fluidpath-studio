@@ -3,7 +3,10 @@
  * 作用（role）、原理（principle）与常见故障/注意点（common）。
  *
  * 选中元件时在右侧属性检查器展示，是教学工作台的核心资产。
+ * 双语（zh/en）：Inspector / Help / Advice 统一只引用本条目，避免文案多源漂移。
  */
+
+import type { Lang } from "./i18n";
 
 export interface DeviceKnowledge {
   /** 一句话作用 */
@@ -14,7 +17,7 @@ export interface DeviceKnowledge {
   common?: string;
 }
 
-export const KNOWLEDGE: Record<string, DeviceKnowledge> = {
+const ZH: Record<string, DeviceKnowledge> = {
   tank: {
     role: "储液罐/水箱：储存并缓冲介质（水、牛奶等），为系统提供稳定供给",
     principle: "依靠重力或压力把介质送入下游；罐体越大，缓冲能力越强。",
@@ -241,6 +244,243 @@ export const KNOWLEDGE: Record<string, DeviceKnowledge> = {
   },
 };
 
-export function knowledgeOf(type: string): DeviceKnowledge | undefined {
-  return KNOWLEDGE[type];
+const EN: Record<string, DeviceKnowledge> = {
+  tank: {
+    role: "Tank / reservoir: stores and buffers fluid (water, milk, etc.) for a stable supply",
+    principle: "Delivers fluid downstream by gravity or pressure; a larger tank means more buffering.",
+    common: "Teaching note: keep the tank above the pump inlet to avoid dry running (cavitation).",
+  },
+  pressureTank: {
+    role: "External pressure tank: buffers and stabilizes inlet pressure, reducing pump cycling",
+    principle: "An internal bladder stores energy; when pressure drops it releases water to keep line pressure stable.",
+    common: "Common on the inlet line, paired with a pressure switch to start/stop the pump.",
+  },
+  syrupBottle: {
+    role: "Syrup bottle: stores and doses syrup / flavoring",
+    principle: "Syrup flows by pump suction or gravity and is dosed into the drink.",
+  },
+  hotWaterBoiler: {
+    role: "Hot-water boiler: heats cold water to brewing temperature (90–95°C for coffee)",
+    principle: "Cold water enters at the bottom, hot water leaves at the top; heating is controlled by level/temperature probes.",
+    common: "Teaching note: upstream of a hot-water boiler there can only be cold water — never steam, milk or hot water.",
+  },
+  steamBoiler: {
+    role: "Steam boiler: produces high-temperature steam (for foaming / heating milk)",
+    principle: "Feed water boils and steam is drawn from the top; pressure is protected by a pressure switch / safety valve.",
+    common: "Upstream is usually cold water or hot-water boiler feed; the output is always steam.",
+  },
+  boiler: {
+    role: "Boiler (legacy alias): same as hot-water boiler",
+    principle: "Same as hot-water boiler: cold in at the bottom, hot out at the top.",
+  },
+  pump: {
+    role: "Water pump: pressurizes the water circuit and drives flow",
+    principle: "The impeller converts mechanical energy into pressure; it only pressurizes, never changes the fluid.",
+    common: "Teaching note: fluid before and after a water pump must be water; running dry damages it.",
+  },
+  milkPump: {
+    role: "Milk pump: draws and conveys milk / milk foam",
+    principle: "Same principle as a water pump but with food-grade materials, milk only.",
+    common: "The milk circuit must be cleaned daily or residue breeds bacteria.",
+  },
+  airPump: {
+    role: "Air pump: gas power source, conveys air (injection / air-assist)",
+    principle: "Same principle as a water pump but the medium is air; downstream gas lines flow while running.",
+    common: "Set the fluid type to air; gas lines stop when the pump stops.",
+  },
+  valve: {
+    role: "Manual valve: opens/closes a water line by hand",
+    principle: "Turning the handle lifts the stem to switch or throttle flow.",
+  },
+  checkValve: {
+    role: "Check valve: allows flow in one direction only",
+    principle: "Forward pressure lifts the disc; reverse pressure seats it shut, preventing backflow.",
+    common: "Often installed between the water source and pump to stop hot water flowing back into the supply.",
+  },
+  solenoid2: {
+    role: "2-way solenoid valve: electrically switches a line on/off",
+    principle: "Energizing the coil moves the plunger to open or close the orifice.",
+    common: "Typical faults: burnt coil, stuck plunger (limescale), normally-open/normally-closed mix-up.",
+  },
+  solenoid3: {
+    role: "3-way solenoid valve: electrically routes between two outlets",
+    principle: "One inlet + two outlets (A/B); de-energized it returns to rest. Used for diverting or draining.",
+    common: "Used for brew/drain switching and steam distribution; confirm NO/NC type when selecting.",
+  },
+  pulseAirValve: {
+    role: "Pulse air valve: short air bursts for cleaning / purging",
+    principle: "Rapid coil switching generates pulsed air to blow away residual drops or powder.",
+    common: "Full-auto machines use it to purge the brew unit or powder channel.",
+  },
+  safetyValve: {
+    role: "Safety valve / OPV relief: vents automatically on over-pressure to protect boiler and lines",
+    principle: "Pressure above the setpoint overcomes the spring and opens the relief; it re-closes as pressure falls.",
+    common: "Teaching note: mount on top of the steam boiler with the outlet facing a safe direction.",
+  },
+  opv: {
+    role: "OPV (over-pressure valve): limits brew pressure",
+    principle: "When pump pressure exceeds the setpoint (usually 9 bar) it bypasses flow, stabilizing group-head pressure.",
+    common: "Teaching note: the OPV is key to stable extraction pressure; 9 bar / 11 bar are typical.",
+  },
+  pressureRegulator: {
+    role: "Throttle / pressure regulator: stabilizes and reduces downstream pressure",
+    principle: "A spring-and-diaphragm balance holds upstream high pressure down to the set low pressure.",
+    common: "Teaching note: regulators step a high-pressure source down to what the machine tolerates.",
+  },
+  coupling: {
+    role: "Straight coupling: joins two pipe segments",
+    principle: "A straight-through joint; the fluid does not change.",
+  },
+  metalCoupling: {
+    role: "Metal coupling: metal joint for higher pressure / temperature",
+    principle: "Metal withstands pressure and heat; suited to steam / hot-water sections.",
+  },
+  tee: {
+    role: "Tee: splits one line into two",
+    principle: "Fluid divides or merges at the junction; the fluid itself does not change.",
+    common: "Branches must carry the same fluid; mixing different fluids needs a mixer-type element.",
+  },
+  teeY: {
+    role: "Y-tee: an angled tee that reduces split losses",
+    principle: "The angled branch lowers local resistance; good for flow-sensitive loops.",
+  },
+  teeF: {
+    role: "F-tee: one in / one out main line + bypass branch (F-shaped)",
+    principle: "Vertical main line straight through; two horizontal branches for pressure take-off or bypass.",
+  },
+  cross: {
+    role: "Cross: four-way junction (cross intersection)",
+    principle: "Fluid divides/merges by topology; all four ways may connect in or out.",
+    common: "All four branches must carry the same fluid; add/remove ports in the Inspector (max 8).",
+  },
+  elbow: {
+    role: "Elbow: turns the pipe 90°",
+    principle: "Joins two perpendicular pipe runs; the fluid does not change.",
+  },
+  brewChamber: {
+    role: "Brew chamber: sealed cavity where pistons squeeze the coffee puck for extraction (water flows upward)",
+    principle: "Hot water enters the sealed cavity from the bottom to wet the puck; upper and lower pistons press together and coffee exits at the top (upward extraction).",
+    common: "Extraction pressure is provided by the pistons; the sealed cavity is where water and coffee mix; this machine brews bottom-up.",
+  },
+  heatExchanger: {
+    role: "Heat exchanger: transfers heat between two fluids (hot and cold sides never mix)",
+    principle: "The two circuits exchange heat through a wall; each side keeps its own fluid.",
+    common: "Teaching note: different fluids on each side of a foamer/preheater are normal.",
+  },
+  filter: {
+    role: "Filter: traps impurities and protects precision downstream parts",
+    principle: "Fluid passes through a mesh/cartridge; particles are retained.",
+    common: "Replace cartridges regularly; clogging reduces flow.",
+  },
+  metalFilter: {
+    role: "Rectangular metal mesh filter: removes large particles in the water line",
+    principle: "The metal mesh traps large particles, protecting downstream valves/pumps; the metal body resists pressure and heat.",
+    common: "Usually at the water inlet; clean the mesh periodically.",
+  },
+  powderMixer: {
+    role: "Powder mixer: blends coffee powder / milk powder evenly with water",
+    principle: "Stirring blades rotate to mix powder and water into a slurry.",
+    common: "Full-auto machines pre-mix powder before brewing to avoid clumps.",
+  },
+  inlet: {
+    role: "Inlet: boundary where fluid enters the system (water / steam / air source)",
+    principle: "Represents the external supply; usually the upstream start of the system.",
+  },
+  outlet: {
+    role: "Outlet: boundary where fluid leaves the system (drain / waste / dispense)",
+    principle: "Represents discharge or final output; usually the downstream end.",
+  },
+  connector: {
+    role: "Connector: joins ports or represents a jumper",
+    principle: "A multi-port node used for routing branches.",
+  },
+  hotWaterWand: {
+    role: "Hot-water wand / outlet: dispenses hot water (americano / tea)",
+    principle: "Hot water from the boiler flows out of the wand through valve control.",
+    common: "Teaching note: upstream of the hot-water wand must be hot water.",
+  },
+  steamWand: {
+    role: "Steam wand: outputs steam for frothing milk",
+    principle: "Steam from the boiler blasts out of the nozzle through the steam valve.",
+    common: "Teaching note: upstream must be steam; after use, purge the wand to clear residual milk.",
+  },
+  coffeeOutlet: {
+    role: "Coffee outlet / spout: dispenses extracted coffee",
+    principle: "High-pressure hot water passes through the coffee puck; coffee drips from single/double spouts.",
+    common: "Teaching note: upstream of the coffee outlet must be coffee (extracted by the brew chamber / group head).",
+  },
+  groupHead: {
+    role: "Group head: holds the puck and distributes high-pressure hot water for extraction",
+    principle: "A dispersion screen wets the puck evenly; extraction at 9 bar and coffee flows out below.",
+    common: "Teaching note: OPV stabilizes brew pressure at 9 bar; pre-infusion improves evenness.",
+  },
+  milkOutlet: {
+    role: "Milk outlet: dispenses milk / milk foam",
+    principle: "The milk pump conveys milk; after steam heating/frothing it flows out here.",
+  },
+  hotWaterOutlet: {
+    role: "Americano hot-water outlet: dispenses hot water",
+    principle: "Hot water from the boiler is dispensed through a control valve.",
+  },
+  flowMeter: {
+    role: "Flow meter: measures the fluid volume passing through",
+    principle: "Fluid spins a turbine/impeller; pulses are converted into flow volume.",
+    common: "Teaching note: full-auto machines use it to dose water precisely for repeatable extraction.",
+  },
+  pressureGauge: {
+    role: "Pressure gauge: shows line / boiler pressure",
+    principle: "Pressure acts on an elastic element that drives the needle.",
+  },
+  pressureSensor: {
+    role: "Pressure sensor: converts pressure into an electrical signal for the control board",
+    principle: "A diaphragm deforms under pressure and outputs a signal used for PID control.",
+  },
+  pressureSwitch: {
+    role: "Inlet pressure switch: detects line pressure; triggers below threshold (e.g. water-shortage alarm / pump start)",
+    principle: "Contacts open/close below the set pressure, outputting a switching signal.",
+    common: "Usually on the inlet line; protects the pump when water is short or pressure is low.",
+  },
+  ntcProbe: {
+    role: "NTC temperature probe: measures fluid temperature",
+    principle: "An NTC thermistor's resistance changes with temperature; used for boiler temperature control.",
+    common: "Teaching note: PID control depends on the NTC; drift causes unstable extraction.",
+  },
+  sensor: {
+    role: "Sensor: generic sensing element",
+    principle: "Detects fluid state and outputs a signal.",
+  },
+  shape: {
+    role: "Custom shape: marks a process block or abstract unit",
+    principle: "Use rect/ellipse/diamond shapes to express abstract functional blocks.",
+  },
+  label: {
+    role: "Text label: adds a text note",
+    principle: "Not part of the flow; annotation only.",
+  },
+  arrow: {
+    role: "Flow arrow: marks the direction of flow",
+    principle: "Pure annotation; not part of the flow.",
+  },
+  annotation: {
+    role: "Annotation: a leader line pointing at a target with an explanation",
+    principle: "Used to highlight teaching points.",
+  },
+  image: {
+    role: "Image: inserts a reference photo / real-product picture",
+    principle: "Used to compare with the real machine or paste structural photos.",
+  },
+};
+
+/** 按语言取知识条目；缺失语言回退中文。 */
+export function knowledgeOf(type: string, lang: Lang = "zh"): DeviceKnowledge | undefined {
+  if (lang === "en") return EN[type] ?? ZH[type];
+  return ZH[type];
+}
+
+/** 中文知识表（兼容旧引用与测试） */
+export const KNOWLEDGE: Record<string, DeviceKnowledge> = ZH;
+
+/** @deprecated 兼容旧调用：请改用 knowledgeOf(type, lang)。 */
+export function knowledgeOfZh(type: string): DeviceKnowledge | undefined {
+  return ZH[type];
 }

@@ -18,12 +18,12 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
     if (!name.trim()) return;
     saveWorkCondition(name.trim());
     setName("");
-    toast(`已记住「${name.trim()}」这套开关 —— 点方案旁的「▶ 恢复」即可变回`);
+    toast(t("已记住「{name}」这套开关 —— 点方案旁的「▶ 恢复」即可变回").replace("{name}", name.trim()));
   }
 
   function apply(n: string) {
     applyWorkCondition(n);
-    toast(`已恢复到「${n}」的开关状态 —— 打开「回路诊断」看出口流/停`);
+    toast(t("已恢复到「{name}」的开关状态 —— 打开「回路诊断」看出口流/停").replace("{name}", n));
   }
 
   return (
@@ -34,12 +34,12 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="cond-help">
-        把图上所有<b>阀门 / 泵的「开/关」状态记下来，起个名</b>。
-        以后想回到这套状态，点「恢复」就全变回来。<b>不是文件</b>，就存在这张图里。
+        {t("把图上所有")}<b>{t("阀门 / 泵的「开/关」状态记下来，起个名")}</b>。
+        {t("以后想回到这套状态，点「恢复」就全变回来。不是文件，就存在这张图里。")}
       </div>
 
       <div className="cond-steps">
-        <b>① 在图上摆好开关</b> → <b>② 下面起名点「记住」</b> → <b>③ 点方案里的「恢复」</b>
+        <b>{t("① 在图上摆好开关")}</b> → <b>{t("② 下面起名点「记住」")}</b> → <b>{t("③ 点方案里的「恢复」")}</b>
       </div>
 
       <div className="cond-save-row">
@@ -61,14 +61,14 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
             <div key={c.name} className="cond-row">
               <span className="cond-name">{c.name}</span>
               <button className="btn" onClick={() => apply(c.name)}>▶ {t("恢复")}</button>
-              <button className="btn ghost sq" title="删除" onClick={() => { if (confirm(`删除方案「${c.name}」？`)) deleteWorkCondition(c.name); }}>✕</button>
+              <button className="btn ghost sq" title={t("删除")} onClick={() => { if (confirm(t("删除方案「{name}」？").replace("{name}", c.name))) deleteWorkCondition(c.name); }}>✕</button>
             </div>
           ))}
         </div>
       )}
 
       <div className="cond-note">
-        <b>{t("保存之后怎么做：")}</b>方案会出现在上面的列表里。之后把图上开关拨乱了，就点这个方案的「▶ 恢复」一键变回；再打开「回路诊断」能直接看各出口流/停。
+        <b>{t("保存之后怎么做：")}</b>{t("方案会出现在上面的列表里。之后把图上开关拨乱了，就点这个方案的「▶ 恢复」一键变回；再打开「回路诊断」能直接看各出口流/停。")}
       </div>
     </div>
   );

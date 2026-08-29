@@ -11,7 +11,25 @@
  */
 
 import type { Diagram, DiagramNode, FluidType, Pipe } from "./types";
+import type { Lang } from "./i18n";
 import { FLUID_PRESETS } from "./types";
+
+/** 介质英文名（fluidLabel 双语用） */
+const FLUID_LABEL_EN: Record<string, string> = {
+  coldWater: "Cold water",
+  hotWater: "Hot water",
+  steam: "Steam",
+  coffee: "Coffee",
+  milk: "Milk",
+  coldMilk: "Cold milk",
+  hotMilk: "Hot milk",
+  coldMilkFoam: "Cold milk foam",
+  hotMilkFoam: "Hot milk foam",
+  wasteLiquid: "Waste",
+  cleanWaste: "Cleaning waste",
+  air: "Air",
+  custom: "Custom",
+};
 
 /** 介质集合 */
 const WATER: FluidType[] = ["coldWater", "hotWater"];
@@ -54,9 +72,10 @@ function ruleFor(type: string): DeviceFluidRule | undefined {
   return RULES.find((r) => r.type === type);
 }
 
-/** 介质中文名 */
-export function fluidLabel(ft: FluidType | undefined | null): string {
+/** 介质名称（lang=en 时返回英文，默认中文） */
+export function fluidLabel(ft: FluidType | undefined | null, lang: Lang = "zh"): string {
   if (!ft) return "";
+  if (lang === "en") return FLUID_LABEL_EN[ft] ?? ft;
   return FLUID_PRESETS.find((f) => f.key === ft)?.label ?? ft;
 }
 
@@ -83,10 +102,14 @@ function makeIssue(
   side: "in" | "out",
   node: DiagramNode,
   allowed: FluidType[],
-  preferred: FluidType | undefined
+  preferred: FluidType | undefined,
+  lang: Lang = "zh"
 ): FluidIssue {
   const expect = preferred ?? allowed[0];
-  const verb = side === "in" ? "进入" : "流出";
+  const verb = side === "in"
+    ? (lang === "zh" ? "进入" : "entering")
+    : (lang === "zh" ? "流出" : "leaving");
+  const allowedStr = allowed.map((f) => fluidLabel(f, lang)).join(" / ");
   return {
     pipeId: pipe.id,
     side,
@@ -96,12 +119,14 @@ function makeIssue(
     actual: pipe.fluidType!,
     allowed,
     preferred: expect,
-    message: `「${node.label || node.type}」${verb}的介质不应是「${fluidLabel(pipe.fluidType)}」（应为「${allowed.map(fluidLabel).join(" / ")}」）`,
+    message: lang === "zh"
+      ? `「${node.label || node.type}」${verb}的介质不应是「${fluidLabel(pipe.fluidType)}」（应为「${allowedStr}」）`
+      : `Fluid ${verb} "${node.label || node.type}" should not be "${fluidLabel(pipe.fluidType, "en")}" (expected "${allowedStr}")`,
   };
 }
 
 /** 检查单条管路的介质冲突（两端各查一次） */
-export function checkPipeFluid(pipe: Pipe, nodes: DiagramNode[]): FluidIssue[] {
+export function checkPipeFluid(pipe: Pipe, nodes: DiagramNode[], lang: Lang = "zh"): FluidIssue[] {
   const issues: FluidIssue[] = [];
   if (!pipe.fluidType || pipe.fluidType === "custom" || pipe.fluidType === "wasteLiquid" || pipe.fluidType === "cleanWaste") return issues;
 
@@ -113,7 +138,7 @@ export function checkPipeFluid(pipe: Pipe, nodes: DiagramNode[]): FluidIssue[] {
   if (toNode) {
     const rule = ruleFor(toNode.type);
     if (rule?.in && !rule.in.includes(pipe.fluidType)) {
-      issues.push(makeIssue(pipe, "in", toNode, rule.in, rule.inPreferred));
+      issues.push(makeIssue(pipe, "in", toNode, rule.in, rule.inPreferred, lang));
     }
   }
 
@@ -122,7 +147,7 @@ export function checkPipeFluid(pipe: Pipe, nodes: DiagramNode[]): FluidIssue[] {
   if (fromNode) {
     const rule = ruleFor(fromNode.type);
     if (rule?.out && !rule.out.includes(pipe.fluidType)) {
-      issues.push(makeIssue(pipe, "out", fromNode, rule.out, rule.outPreferred));
+      issues.push(makeIssue(pipe, "out", fromNode, rule.out, rule.outPreferred, lang));
     }
   }
 
@@ -130,10 +155,10 @@ export function checkPipeFluid(pipe: Pipe, nodes: DiagramNode[]): FluidIssue[] {
 }
 
 /** 检查整张图的介质冲突，返回按管路分组后的映射 */
-export function checkDiagramFluid(diagram: Diagram): Map<string, FluidIssue[]> {
+export function checkDiagramFluid(diagram: Diagram, lang: Lang = "zh"): Map<string, FluidIssue[]> {
   const map = new Map<string, FluidIssue[]>();
   for (const p of diagram.pipes) {
-    const issues = checkPipeFluid(p, diagram.nodes);
+    const issues = checkPipeFluid(p, diagram.nodes, lang);
     if (issues.length) map.set(p.id, issues);
   }
   return map;

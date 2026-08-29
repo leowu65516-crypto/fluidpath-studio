@@ -11,3 +11,5 @@ screenshot-after.png
 *.backup-*.json
 # Claude 本地配置
 .claude/
+tee-*.svg
+02-33-38-tshirt-prompt.txt

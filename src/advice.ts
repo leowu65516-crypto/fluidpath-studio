@@ -10,11 +10,16 @@
  *    出液口停流、故障模拟），教学演示中多为有意为之，只作提示不作错误。
  *
  * diagnostics.ts 是它的只读派生视图（报告/徽章计数）。
+ * 全部用户可见文案支持 zh/en：collectAdvice / traceStopCause 接受 lang 参数（默认 zh，兼容旧调用）。
  */
 
 import type { Diagram, FluidType, Pipe } from "./types";
+import type { Lang } from "./i18n";
 import { checkDiagramFluid, fluidLabel } from "./fluidRules";
 import { pipeEngineeringDisabled, pipeTeachingOverride, setCachedPipes, pumpEffectiveOn, valve2EffectiveOpen, valve3EffectivePath, findPort } from "./geometry";
+
+/** 双语取值 */
+const L = (lang: Lang, zh: string, en: string): string => (lang === "zh" ? zh : en);
 
 /** 可执行的修复动作 */
 export type FixAction =
@@ -64,11 +69,14 @@ export interface AdviceScope {
   pipeIds?: Set<string>;
 }
 
-const FAULT_LABEL: Record<string, string> = {
-  pumpStuck: "泵卡死",
-  valveStuckOpen: "阀卡开",
-  valveStuckClosed: "阀卡关",
-};
+function faultLabel(fault: string, lang: Lang): string {
+  switch (fault) {
+    case "pumpStuck": return L(lang, "泵卡死", "pump seized");
+    case "valveStuckOpen": return L(lang, "阀卡开", "valve stuck open");
+    case "valveStuckClosed": return L(lang, "阀卡关", "valve stuck closed");
+    default: return fault;
+  }
+}
 
 // ===== 停流因果链 =====
 
@@ -92,48 +100,46 @@ function effectiveEnds(diagram: Diagram, pipe: Pipe): Ends {
  * 供液正常则判定为「下游无开放去处（死路）」。
  * @returns 根因描述 + 从根因到该管的元素 id 链
  */
-export function traceStopCause(pipe: Pipe, diagram: Diagram): { reason: string; ids: string[] } {
+export function traceStopCause(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"): { reason: string; ids: string[] } {
   setCachedPipes(diagram.pipes, diagram.nodes);
   const visited = new Set<string>();
   const walk = (p: Pipe): { reason: string; ids: string[] } | null => {
     if (visited.has(p.id)) return null;
     visited.add(p.id);
-    const label = p.label || "未命名";
-    if (p.disabled) return { reason: `管路「${label}」被禁用`, ids: [p.id] };
-    if (p.fault === "pipeBlocked") return { reason: `管路「${label}」堵塞（故障模拟）`, ids: [p.id] };
+    const label = p.label || L(lang, "未命名", "unnamed");
+    if (p.disabled) return { reason: L(lang, `管路「${label}」被禁用`, `Pipe "${label}" is disabled`), ids: [p.id] };
+    if (p.fault === "pipeBlocked") return { reason: L(lang, `管路「${label}」堵塞（故障模拟）`, `Pipe "${label}" is blocked (fault simulation)`), ids: [p.id] };
     const { u } = effectiveEnds(diagram, p);
     if (u) {
       const n = u.node;
-      if (n.disabled) return { reason: `「${n.label || n.type}」被禁用，无法向下游供液`, ids: [n.id, p.id] };
+      if (n.disabled) return { reason: L(lang, `「${n.label || n.type}」被禁用，无法向下游供液`, `"${n.label || n.type}" is dimmed and cannot feed downstream`), ids: [n.id, p.id] };
       if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") {
         if (!pumpEffectiveOn(n)) {
-          const why = n.fault === "pumpStuck" ? "卡死（故障模拟）" : "未运行";
-          return { reason: `「${n.label}」${why}，无法向下游供液`, ids: [n.id, p.id] };
+          const why = n.fault === "pumpStuck" ? L(lang, "卡死（故障模拟）", "seized (fault simulation)") : L(lang, "未运行", "not running");
+          return { reason: L(lang, `「${n.label}」${why}，无法向下游供液`, `"${n.label}" is ${why} and cannot feed downstream`), ids: [n.id, p.id] };
         }
       }
       if (n.type === "solenoid2") {
         if (!valve2EffectiveOpen(n)) {
-          const why = n.fault === "valveStuckClosed" ? "卡关（故障模拟）" : "关闭";
-          return { reason: `「${n.label}」${why}`, ids: [n.id, p.id] };
+          const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "closed");
+          return { reason: L(lang, `「${n.label}」${why}`, `"${n.label}" is ${why}`), ids: [n.id, p.id] };
         }
       }
       if (n.type === "solenoid3") {
         const path = valve3EffectivePath(n);
         if (path === "off") {
-          const why = n.fault === "valveStuckClosed" ? "卡关（故障模拟）" : "关闭";
-          return { reason: `「${n.label}」${why}`, ids: [n.id, p.id] };
+          const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "off");
+          return { reason: L(lang, `「${n.label}」${why}`, `"${n.label}" is ${why}`), ids: [n.id, p.id] };
         }
         const outPorts = n.ports.filter((pp) => pp.direction === "out");
         const outA = outPorts.find((pp) => pp.position === "right") ?? outPorts[0];
         const outB = outPorts.find((pp) => pp.position === "bottom") ?? outPorts[1];
         const activeId = path === "A" ? outA?.id : outB?.id;
         if (u.port.direction === "out" && u.port.id !== activeId) {
-          return { reason: `「${n.label}」当前导通 ${path} 路，未导通该支路`, ids: [n.id, p.id] };
+          return { reason: L(lang, `「${n.label}」当前导通 ${path} 路，未导通该支路`, `"${n.label}" currently routes path ${path}; this branch is not active`), ids: [n.id, p.id] };
         }
       }
       // 上游供液管停流 → 继续向上递归（AND 汇流：任一入侧流动即有供，故只在全部入侧停流时进来）
-      // 直通/接头类节点介质可跨端口流过：上游 = 所有「流入该节点」的管路；
-      // 阀/泵等非直通节点：上游 = 流入其「入侧端口」的管路。
       const isJunction = JUNCTION_TYPES.has(n.type);
       const inPortIds = new Set(n.ports.filter((pp) => pp.direction === "in").map((pp) => pp.id));
       let anyFlowingUpstream = false;
@@ -148,16 +154,16 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram): { reason: string; 
         const sub = walk(op);
         if (sub) return { reason: sub.reason, ids: [...sub.ids, p.id] };
       }
-      if (anyFlowingUpstream) return { reason: `「${label}」上游有供液但下游无开放去处（支路全关或死路）`, ids: [p.id] };
+      if (anyFlowingUpstream) return { reason: L(lang, `「${label}」上游有供液但下游无开放去处（支路全关或死路）`, `"${label}" has supply upstream but no open destination downstream (all branches closed or dead end)`), ids: [p.id] };
     }
-    return { reason: `「${label}」上游无供液来源（未接入有效供水链）`, ids: [p.id] };
+    return { reason: L(lang, `「${label}」上游无供液来源（未接入有效供水链）`, `"${label}" has no upstream supply (not connected to a live feed chain)`), ids: [p.id] };
   };
-  return walk(pipe) ?? { reason: "未找到明确原因", ids: [pipe.id] };
+  return walk(pipe) ?? { reason: L(lang, "未找到明确原因", "No clear cause found"), ids: [pipe.id] };
 }
 
 // ===== 建议收集 =====
 
-export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvice[] {
+export function collectAdvice(diagram: Diagram, scope?: AdviceScope, lang: Lang = "zh"): SmartAdvice[] {
   const out: SmartAdvice[] = [];
   const scoped = !!scope && ((scope.nodeIds && scope.nodeIds.size > 0) || (scope.pipeIds && scope.pipeIds.size > 0));
   const nodeIds = scope?.nodeIds;
@@ -176,15 +182,19 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
       severity: "info",
       category: "state",
       kind: "teaching-override",
-      title: "教学显示覆盖",
-      message: `「${p.label || "未命名"}」被设置为教学${override === "flow" ? "强制流动" : "强制停流"}；工程判定与画面显示已分离。`,
-      fixLabel: "在属性面板清除覆盖",
+      title: L(lang, "教学显示覆盖", "Teaching display override"),
+      message: L(
+        lang,
+        `「${p.label || "未命名"}」被设置为教学${override === "flow" ? "强制流动" : "强制停流"}；工程判定与画面显示已分离。`,
+        `"${p.label || "unnamed"}" has a teaching ${override === "flow" ? "forced-flow" : "forced-stop"} override; engineering state and on-canvas animation are separated.`
+      ),
+      fixLabel: L(lang, "在属性面板清除覆盖", "Clear override in Inspector"),
       elementIds: [p.id],
     });
   }
 
   // 1) 介质冲突（物理常识）
-  const fluidMap = checkDiagramFluid(diagram);
+  const fluidMap = checkDiagramFluid(diagram, lang);
   for (const [pipeId, issues] of fluidMap) {
     if (scoped && pipeIds && !pipeIds.has(pipeId)) continue;
     for (const issue of issues) {
@@ -193,9 +203,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
         severity: "warning",
         category: "structure",
         kind: "fluid",
-        title: "介质冲突",
+        title: L(lang, "介质冲突", "Fluid mismatch"),
         message: issue.message,
-        fixLabel: `改为「${fluidLabel(issue.preferred)}」`,
+        fixLabel: L(lang, `改为「${fluidLabel(issue.preferred, lang)}」`, `Change to "${fluidLabel(issue.preferred, lang)}"`),
         fix: { type: "setFluid", pipeId, fluidType: issue.preferred },
         elementIds: [pipeId],
       });
@@ -219,9 +229,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
         severity: "info",
         category: "structure",
         kind: "isolated",
-        title: "孤立元件",
-        message: `「${n.label || n.type}」尚未接入任何管路。`,
-        fixLabel: "删除该元件",
+        title: L(lang, "孤立元件", "Isolated component"),
+        message: L(lang, `「${n.label || n.type}」尚未接入任何管路。`, `"${n.label || n.type}" is not connected to any pipe.`),
+        fixLabel: L(lang, "删除该元件", "Delete component"),
         fix: { type: "deleteNode", nodeId: n.id },
         elementIds: [n.id],
       });
@@ -255,9 +265,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
         severity: "error",
         category: "structure",
         kind: "port-conflict",
-        title: "端口多连",
-        message: `「${node?.label ?? node?.type ?? "?"}」的某端口被多条管路占用，需通过三通分路。`,
-        fixLabel: "断开这条管路",
+        title: L(lang, "端口多连", "Port overloaded"),
+        message: L(lang, `「${node?.label ?? node?.type ?? "?"}」的某端口被多条管路占用，需通过三通分路。`, `A port of "${node?.label ?? node?.type ?? "?"}" is used by multiple pipes; split with a tee.`),
+        fixLabel: L(lang, "断开这条管路", "Detach this pipe"),
         fix: { type: "detachPipe", pipeId: p.id, end },
         elementIds: [node?.id ?? p.id],
       });
@@ -278,13 +288,47 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
           severity: "warning",
           category: "structure",
           kind: "check-reverse",
-          title: "单向阀装反",
-          message: `「${n.label || n.type}」的出水口被当作入口连接，介质流向相反。`,
-          fixLabel: "反转流向",
+          title: L(lang, "单向阀装反", "Check valve reversed"),
+          message: L(lang, `「${n.label || n.type}」的出水口被当作入口连接，介质流向相反。`, `The outlet of "${n.label || n.type}" is used as an inlet; flow direction is inverted.`),
+          fixLabel: L(lang, "反转流向", "Reverse flow"),
           fix: { type: "reversePipe", pipeId: p.id },
           elementIds: [n.id, p.id],
         });
       }
+    }
+  }
+
+  // 4b) 泵入口/出口未接管（Linter：动力源悬空）
+  for (const n of diagram.nodes) {
+    if (scoped && nodeIds && !nodeIds.has(n.id)) continue;
+    if (n.type !== "pump" && n.type !== "milkPump" && n.type !== "airPump") continue;
+    const inPorts = n.ports.filter((p) => p.direction === "in");
+    const outPorts = n.ports.filter((p) => p.direction === "out");
+    const inConnected = inPorts.some((p) => connectedPorts.has(p.id));
+    const outConnected = outPorts.some((p) => connectedPorts.has(p.id));
+    if (inPorts.length > 0 && !inConnected) {
+      out.push({
+        id: `pumpin_${n.id}`,
+        severity: "warning",
+        category: "structure",
+        kind: "pump-no-inlet",
+        title: L(lang, "泵入口未接管", "Pump inlet unconnected"),
+        message: L(lang, `「${n.label || n.type}」的入口端口没有接入任何管路，泵无法吸取介质。`, `No pipe is connected to the inlet of "${n.label || n.type}"; the pump cannot draw fluid.`),
+        fixLabel: L(lang, "定位元件", "Locate"),
+        elementIds: [n.id],
+      });
+    }
+    if (outPorts.length > 0 && !outConnected) {
+      out.push({
+        id: `pumpout_${n.id}`,
+        severity: "warning",
+        category: "structure",
+        kind: "pump-no-outlet",
+        title: L(lang, "泵出口未接管", "Pump outlet unconnected"),
+        message: L(lang, `「${n.label || n.type}」的出口端口没有接入任何管路，泵送的介质无处可去。`, `No pipe is connected to the outlet of "${n.label || n.type}"; pumped fluid has nowhere to go.`),
+        fixLabel: L(lang, "定位元件", "Locate"),
+        elementIds: [n.id],
+      });
     }
   }
 
@@ -297,9 +341,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
         severity: "warning",
         category: "structure",
         kind: "loose-pipe",
-        title: "游离管路",
-        message: `管路「${p.label || "未命名"}」两端都未连接任何端口。`,
-        fixLabel: "删除管路",
+        title: L(lang, "游离管路", "Loose pipe"),
+        message: L(lang, `管路「${p.label || "未命名"}」两端都未连接任何端口。`, `Both ends of pipe "${p.label || "unnamed"}" are unconnected.`),
+        fixLabel: L(lang, "删除管路", "Delete pipe"),
         fix: { type: "deletePipe", pipeId: p.id },
         elementIds: [p.id],
       });
@@ -308,7 +352,7 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
 
   // ===== 工况提示（由当前阀位/泵态/故障标记导致，多为有意为之） =====
 
-  // 6) 泵未运行 / 阀关闭（带故障标记的归入「故障模拟」，且不给修复动作——卡死元件无法被"启动"修复）
+  // 6) 泵未运行 / 阀关闭（带故障标记的归入「故障模拟」，且不给修复动作）
   for (const n of diagram.nodes) {
     if (scoped && nodeIds && !nodeIds.has(n.id)) continue;
     if ((n.type === "pump" || n.type === "milkPump" || n.type === "airPump") && !pumpEffectiveOn(n)) {
@@ -318,9 +362,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
           severity: "warning",
           category: "state",
           kind: "fault",
-          title: "故障模拟",
-          message: `「${n.label || n.type}」处于故障状态：${FAULT_LABEL[n.fault] ?? n.fault}，其前后管路会停流。`,
-          fixLabel: "移除故障",
+          title: L(lang, "故障模拟", "Fault simulation"),
+          message: L(lang, `「${n.label || n.type}」处于故障状态：${faultLabel(n.fault, lang)}，其前后管路会停流。`, `"${n.label || n.type}" is in fault state: ${faultLabel(n.fault, lang)}; adjacent pipes will stop.`),
+          fixLabel: L(lang, "移除故障", "Remove fault"),
           elementIds: [n.id],
         });
       } else {
@@ -329,9 +373,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
           severity: "info",
           category: "state",
           kind: "pump-off",
-          title: "泵未运行",
-          message: `「${n.label || n.type}」当前停止，其前后相连管路会停流。`,
-          fixLabel: "启动泵",
+          title: L(lang, "泵未运行", "Pump off"),
+          message: L(lang, `「${n.label || n.type}」当前停止，其前后相连管路会停流。`, `"${n.label || n.type}" is stopped; adjacent pipes will stop flowing.`),
+          fixLabel: L(lang, "启动泵", "Start pump"),
           fix: { type: "startPump", nodeId: n.id },
           elementIds: [n.id],
         });
@@ -344,9 +388,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
           severity: "warning",
           category: "state",
           kind: "fault",
-          title: "故障模拟",
-          message: `「${n.label || n.type}」处于故障状态：${FAULT_LABEL[n.fault] ?? n.fault}，下游管路会停流。`,
-          fixLabel: "移除故障",
+          title: L(lang, "故障模拟", "Fault simulation"),
+          message: L(lang, `「${n.label || n.type}」处于故障状态：${faultLabel(n.fault, lang)}，下游管路会停流。`, `"${n.label || n.type}" is in fault state: ${faultLabel(n.fault, lang)}; downstream pipes will stop.`),
+          fixLabel: L(lang, "移除故障", "Remove fault"),
           elementIds: [n.id],
         });
       } else {
@@ -355,9 +399,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
           severity: "info",
           category: "state",
           kind: "valve-closed",
-          title: "电磁阀关闭",
-          message: `「${n.label || n.type}」当前关闭，下游管路会停流。`,
-          fixLabel: "打开阀门",
+          title: L(lang, "电磁阀关闭", "Solenoid closed"),
+          message: L(lang, `「${n.label || n.type}」当前关闭，下游管路会停流。`, `"${n.label || n.type}" is closed; downstream pipes will stop flowing.`),
+          fixLabel: L(lang, "打开阀门", "Open valve"),
           fix: { type: "openValve", nodeId: n.id },
           elementIds: [n.id],
         });
@@ -375,9 +419,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
       severity: "warning",
       category: "state",
       kind: "fault",
-      title: "故障模拟",
-      message: `「${n.label || n.type}」处于故障状态：${FAULT_LABEL[n.fault] ?? n.fault}。`,
-      fixLabel: "移除故障",
+      title: L(lang, "故障模拟", "Fault simulation"),
+      message: L(lang, `「${n.label || n.type}」处于故障状态：${faultLabel(n.fault, lang)}。`, `"${n.label || n.type}" is in fault state: ${faultLabel(n.fault, lang)}.`),
+      fixLabel: L(lang, "移除故障", "Remove fault"),
       elementIds: [n.id],
     });
   }
@@ -389,9 +433,9 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
       severity: "warning",
       category: "state",
       kind: "fault",
-      title: "故障模拟",
-      message: `「${p.label || "管路"}」处于故障状态：管路堵塞。`,
-      fixLabel: "移除故障",
+      title: L(lang, "故障模拟", "Fault simulation"),
+      message: L(lang, `「${p.label || "管路"}」处于故障状态：管路堵塞。`, `"${p.label || "pipe"}" is in fault state: blocked.`),
+      fixLabel: L(lang, "移除故障", "Remove fault"),
       elementIds: [p.id],
     });
   }
@@ -404,19 +448,18 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
     for (const p of diagram.pipes) {
       if (!p.toPortId || !n.ports.some((pt) => pt.id === p.toPortId)) continue;
       if (!pipeEngineeringDisabled(p, diagram.nodes)) continue;
-      const cause = traceStopCause(p, diagram);
-      // 根因是可修元件时给出对应修复动作（开阀/启泵），否则只做定位
+      const cause = traceStopCause(p, diagram, lang);
       let fix: FixAction | undefined;
-      let fixLabel = "定位原因";
+      let fixLabel = L(lang, "定位原因", "Locate cause");
       const root = cause.ids[0];
       const rootNode = root ? diagram.nodes.find((x) => x.id === root) : undefined;
       if (rootNode && !rootNode.fault) {
         if ((rootNode.type === "pump" || rootNode.type === "milkPump") && !pumpEffectiveOn(rootNode)) {
           fix = { type: "startPump", nodeId: rootNode.id };
-          fixLabel = "启动泵";
+          fixLabel = L(lang, "启动泵", "Start pump");
         } else if (rootNode.type === "solenoid2" && !valve2EffectiveOpen(rootNode)) {
           fix = { type: "openValve", nodeId: rootNode.id };
-          fixLabel = "打开阀门";
+          fixLabel = L(lang, "打开阀门", "Open valve");
         }
       }
       out.push({
@@ -424,8 +467,8 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
         severity: "warning",
         category: "state",
         kind: "outlet-stalled",
-        title: "出液口停流",
-        message: `「${n.label || n.type}」的上游管路「${p.label || "未命名"}」当前停止流动：${cause.reason}。`,
+        title: L(lang, "出液口停流", "Outlet stalled"),
+        message: L(lang, `「${n.label || n.type}」的上游管路「${p.label || "未命名"}」当前停止流动：${cause.reason}。`, `Upstream pipe "${p.label || "unnamed"}" of "${n.label || n.type}" is stopped: ${cause.reason}.`),
         fixLabel,
         fix,
         elementIds: [...cause.ids, n.id],
@@ -435,19 +478,57 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope): SmartAdvic
   }
 
   // 教学解释层：按诊断类别统一补充「为什么」
-  const WHY: Record<string, string> = {
-    fluid: "介质类型决定液体的物理属性与教学演示的正确性——接错介质会让学生看到错误的液路（如奶路里显示蒸汽）。",
-    isolated: "没有接入任何管路的元件不参与液路工作，通常是删除残留；若是有意预留请忽略本条。",
-    "port-conflict": "一个端口只能承载一条管路——多连会让两路介质在同一端口互相干扰甚至回流，必须用三通接头分路。",
-    "check-reverse": "单向阀只允许介质沿一个方向流动——出水口被当入口接会让介质倒流，整条液路逻辑错误。",
-    "loose-pipe": "两端都没接端口的管路不参与任何液路，通常是删除残留。",
-    "pump-off": "泵是液路动力源：泵停止时前后管路没有介质流动。教学演示中关闭泵多为有意为之。",
-    "valve-closed": "电磁阀关闭会切断该支路，下游管路随之停流。教学演示中关闭阀门多为有意为之。",
-    fault: "故障标记是教学演练用的：注入故障后观察停流如何向下游传播，再配合因果链定位根因。确认是故意注入的可忽略。",
-    "outlet-stalled": "出口没有介质到达：要么被上游的关阀/停泵切断（点开因果链可见根因），要么下游本身就是死路。",
-    "teaching-override": "教学覆盖只改变画面动画，工程判定仍以泵、阀、故障与拓扑为准，避免讲解效果掩盖真实断流。",
+  const WHY: Record<string, { zh: string; en: string }> = {
+    fluid: {
+      zh: "介质类型决定液体的物理属性与教学演示的正确性——接错介质会让学生看到错误的液路（如奶路里显示蒸汽）。",
+      en: "Fluid type determines both physics and teaching correctness — a wrong fluid shows students a wrong circuit (e.g. steam inside a milk line).",
+    },
+    isolated: {
+      zh: "没有接入任何管路的元件不参与液路工作，通常是删除残留；若是有意预留请忽略本条。",
+      en: "A component with no pipes takes no part in the circuit; usually a leftover. Ignore if intentionally reserved.",
+    },
+    "port-conflict": {
+      zh: "一个端口只能承载一条管路——多连会让两路介质在同一端口互相干扰甚至回流，必须用三通接头分路。",
+      en: "One port carries one pipe only — multiple pipes on one port let two fluids interfere or backflow; split with a tee.",
+    },
+    "check-reverse": {
+      zh: "单向阀只允许介质沿一个方向流动——出水口被当入口接会让介质倒流，整条液路逻辑错误。",
+      en: "A check valve allows flow one way only — wiring its outlet as an inlet reverses flow and breaks the circuit logic.",
+    },
+    "pump-no-inlet": {
+      zh: "泵是动力源：入口没有管路就无法吸取介质，整条泵送链都是死路。",
+      en: "A pump is the power source: with no inlet pipe it cannot draw fluid and the whole pumping chain is a dead end.",
+    },
+    "pump-no-outlet": {
+      zh: "泵出口没有管路时，介质无处可去；运行泵也只会是空转（教学上表现为无下游流动）。",
+      en: "With no outlet pipe the pumped fluid has nowhere to go; a running pump idles (no downstream flow).",
+    },
+    "loose-pipe": {
+      zh: "两端都没接端口的管路不参与任何液路，通常是删除残留。",
+      en: "A pipe with both ends free takes no part in any circuit; usually a leftover.",
+    },
+    "pump-off": {
+      zh: "泵是液路动力源：泵停止时前后管路没有介质流动。教学演示中关闭泵多为有意为之。",
+      en: "The pump is the power source: when it stops, adjacent pipes carry no flow. In teaching demos pumps are often stopped on purpose.",
+    },
+    "valve-closed": {
+      zh: "电磁阀关闭会切断该支路，下游管路随之停流。教学演示中关闭阀门多为有意为之。",
+      en: "A closed solenoid cuts the branch and downstream pipes stop. In teaching demos valves are often closed on purpose.",
+    },
+    fault: {
+      zh: "故障标记是教学演练用的：注入故障后观察停流如何向下游传播，再配合因果链定位根因。确认是故意注入的可忽略。",
+      en: "Fault marks are for training: inject a fault, watch the stop propagate downstream, then locate the root cause via the causal chain. Ignore intentional ones.",
+    },
+    "outlet-stalled": {
+      zh: "出口没有介质到达：要么被上游的关阀/停泵切断（点开因果链可见根因），要么下游本身就是死路。",
+      en: "No fluid reaches the outlet: either an upstream closed valve / stopped pump cuts it (see the causal chain), or the downstream is a dead end.",
+    },
+    "teaching-override": {
+      zh: "教学覆盖只改变画面动画，工程判定仍以泵、阀、故障与拓扑为准，避免讲解效果掩盖真实断流。",
+      en: "Teaching overrides only change the on-canvas animation; engineering state still follows pumps, valves, faults and topology.",
+    },
   };
-  for (const a of out) a.why = WHY[a.kind] ?? undefined;
+  for (const a of out) a.why = WHY[a.kind] ? WHY[a.kind][lang] : undefined;
   // 按严重度排序：error > warning > info；同级别结构问题在前
   const rank: Record<string, number> = { error: 0, warning: 1, info: 2 };
   const catRank: Record<AdviceCategory, number> = { structure: 0, state: 1 };

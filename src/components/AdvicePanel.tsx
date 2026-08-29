@@ -3,6 +3,9 @@ import { collectAdvice } from "../advice";
 import type { SmartAdvice } from "../advice";
 import { applyFix, useAppState, setSelection, focusElement, store, restoreDiagram, blinkElements, showChainPath } from "../store";
 import { pipeEffectiveDisabled } from "../geometry";
+import { exportDiagnosisReport } from "../report";
+import { useT } from "../i18n";
+import { toast } from "../toast";
 import type { Diagram } from "../types";
 
 /**
@@ -11,9 +14,11 @@ import type { Diagram } from "../types";
  * - 问题列表：分层（结构问题/工况提示）、严重度筛选、序号列表
  * - 悬停/点击建议 → 画布闪烁定位；停流类显示因果链（根因 + 沿链点亮）
  * - 「一键修改 / 确认 / 撤回修改」三步操作；每条建议附「为什么」教学解释
+ * - 一键导出 Markdown 诊断报告（含验收结果）
  */
 export function AdvicePanel({ onClose }: { onClose: () => void }) {
   const { diagram, ui } = useAppState();
+  const { t, lang } = useT();
   const [view, setView] = useState<"overview" | "list">("overview");
   const [handled, setHandled] = useState<Set<string>>(new Set());
   const [appliedOrder, setAppliedOrder] = useState<string[]>([]);
@@ -46,7 +51,7 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
     return { nodeIds, pipeIds };
   }, [ui.selection.nodes, ui.selection.pipes, diagram, portToNode]);
 
-  const all = useMemo(() => collectAdvice(diagram, scoped ? scope : undefined), [diagram, scoped, scope]);
+  const all = useMemo(() => collectAdvice(diagram, scoped ? scope : undefined, lang), [diagram, scoped, scope, lang]);
   const appliedSet = useMemo(() => new Set(appliedOrder), [appliedOrder]);
   const pending = all.filter((a) => !handled.has(a.id) && !appliedSet.has(a.id));
   const byFilter = (a: SmartAdvice) => filter === "all" || a.severity === filter;
@@ -107,6 +112,11 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
     }
   }
 
+  function exportReport() {
+    const filename = exportDiagnosisReport(store.get().diagram, lang, true);
+    toast(t("诊断报告已导出") + `: ${filename}`);
+  }
+
   // 点建议 → 闪烁定位 + 停流类沿因果链点亮画布路径
   function focus(a: SmartAdvice) {
     setHighlightId(a.id);
@@ -132,7 +142,7 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
   }, [activeId]);
 
   const filters: Array<{ key: "all" | "error" | "warning" | "info"; label: string }> = [
-    { key: "all", label: "全部" },
+    { key: "all", label: t("全部") },
     { key: "error", label: "⛔" },
     { key: "warning", label: "⚠️" },
     { key: "info", label: "💡" },
@@ -149,18 +159,18 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
       <div className="advice-item-title">
         {typeof seq === "number" && <span className="advice-seq">{seq}</span>}
         {a.severity === "error" ? "⛔" : a.severity === "warning" ? "⚠️" : "💡"} {a.title}
-        {isApplied && <span className="advice-applied-tag">✓ 已修改</span>}
-        {!isApplied && a.category === "state" && <span className="advice-state-tag">工况</span>}
+        {isApplied && <span className="advice-applied-tag">✓ {t("已修改")}</span>}
+        {!isApplied && a.category === "state" && <span className="advice-state-tag">{t("工况")}</span>}
       </div>
       <div className="advice-item-msg">{a.message}</div>
       {a.why && <div className="advice-item-why">❓ {a.why}</div>}
       <div className="advice-item-actions" onClick={(e) => e.stopPropagation()}>
         {isApplied ? (
-          <button className="btn" onClick={() => revert(a)}>↩ 撤回修改</button>
+          <button className="btn" onClick={() => revert(a)}>↩ {t("撤回修改")}</button>
         ) : (
           <>
-            {a.fix && <button className="btn" onClick={() => confirm(a)}>✓ 一键修改</button>}
-            <button className="btn ghost" onClick={() => mark(a.id)}>✓ 确认</button>
+            {a.fix && <button className="btn" onClick={() => confirm(a)}>✓ {t("一键修改")}</button>}
+            <button className="btn ghost" onClick={() => mark(a.id)}>✓ {t("确认")}</button>
           </>
         )}
       </div>
@@ -169,16 +179,17 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
 
   const head = (
     <div className="advice-head">
-      <h2>🔍 回路诊断{scoped ? " · 选中范围" : ""}</h2>
+      <h2>🔍 {t("回路诊断")}{scoped ? ` · ${t("选中范围")}` : ""}</h2>
       <div className="advice-view-toggle">
-        <button className={`advice-view-btn${view === "overview" ? " active" : ""}`} onClick={() => setView("overview")} title="返回总览">📊 总览</button>
-        <button className={`advice-view-btn${view === "list" ? " active" : ""}`} onClick={() => setView("list")} title="问题列表">{structureItems.length + stateItems.length > 0 ? `🔍 问题 ${structureItems.length + stateItems.length}` : "🔍 问题"}</button>
+        <button className={`advice-view-btn${view === "overview" ? " active" : ""}`} onClick={() => setView("overview")} title={t("返回总览")}>📊 {t("总览")}</button>
+        <button className={`advice-view-btn${view === "list" ? " active" : ""}`} onClick={() => setView("list")} title={t("问题列表")}>{structureItems.length + stateItems.length > 0 ? `🔍 ${t("问题")} ${structureItems.length + stateItems.length}` : `🔍 ${t("问题")}`}</button>
       </div>
       <div className="advice-count">
         {structErr > 0 && <span className="diag-badge-error">{structErr}</span>}
         {structWarn > 0 && <span className="diag-badge-warning">{structWarn}</span>}
       </div>
-      <button className="advice-close" onClick={onClose} title="返回属性面板">✕</button>
+      <button className="advice-export" onClick={exportReport} title={t("导出 Markdown 诊断报告（含验收结果）")}>⬇ MD</button>
+      <button className="advice-close" onClick={onClose} title={t("返回属性面板")}>✕</button>
     </div>
   );
 
@@ -191,24 +202,24 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
           <div className="advice-health">
             <div className={`health-card${structErr + structWarn > 0 ? " bad" : " ok"}`}>
               <div className="health-num">{structErr + structWarn}</div>
-              <div className="health-label">结构问题</div>
+              <div className="health-label">{t("结构问题")}</div>
             </div>
             <div className={`health-card${stateCount > 0 ? " warn" : " ok"}`}>
               <div className="health-num">{stateCount}</div>
-              <div className="health-label">工况提示</div>
+              <div className="health-label">{t("工况提示")}</div>
             </div>
             <div className="health-card">
               <div className="health-num">{appliedList.length}</div>
-              <div className="health-label">已修改</div>
+              <div className="health-label">{t("已修改")}</div>
             </div>
           </div>
           {structErr + structWarn + stateCount === 0 && appliedList.length === 0 && (
-            <div className="advice-empty">✓ 无待处理建议</div>
+            <div className="advice-empty">✓ {t("无待处理建议")}</div>
           )}
 
           {/* 出口状态 */}
           {outletStatus.length > 0 && (
-            <div className="advice-group-title">出口状态（该流却不流）</div>
+            <div className="advice-group-title">{t("出口状态（该流却不流）")}</div>
           )}
           <div className="advice-outlets">
             {outletStatus.map((o) => (
@@ -219,25 +230,25 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* 泵/锅炉状态 */}
-          {powerStatus.pumps.length + powerStatus.boilers.length > 0 && <div className="advice-group-title">泵与锅炉</div>}
+          {powerStatus.pumps.length + powerStatus.boilers.length > 0 && <div className="advice-group-title">{t("泵与锅炉")}</div>}
           <div className="advice-power">
             {powerStatus.pumps.map((p) => (
               <div key={p.id} className="power-row" onClick={() => { focusElement(p.id); blinkElements([p.id]); }} style={{ cursor: "pointer" }}>
                 <span className={`power-dot ${p.on ? "on" : "off"}${p.fault ? " fault" : ""}`} />
                 <span className="power-label">{p.label}</span>
-                <span className="power-state">{p.fault ? "故障" : p.on ? "运行" : "停止"}</span>
+                <span className="power-state">{p.fault ? t("故障") : p.on ? t("运行") : t("停止")}</span>
               </div>
             ))}
             {powerStatus.boilers.map((b) => (
               <div key={b.id} className="power-row" onClick={() => { focusElement(b.id); blinkElements([b.id]); }} style={{ cursor: "pointer" }}>
                 <span className="power-dot on" />
                 <span className="power-label">{b.label}</span>
-                <span className="power-state">{b.type === "steamBoiler" ? "蒸汽" : "热水"}</span>
+                <span className="power-state">{b.type === "steamBoiler" ? t("蒸汽") : t("热水")}</span>
               </div>
             ))}
           </div>
 
-          <div className="advice-note">👉 点「问题」查看具体建议：悬停画布闪烁定位、停流类可沿链点亮根因路径、一键修改后可撤回。</div>
+          <div className="advice-note">👉 {t("点「问题」查看具体建议：悬停画布闪烁定位、停流类可沿链点亮根因路径、一键修改后可撤回。")}</div>
         </div>
       ) : (
         <div className="advice-list-wrap">
@@ -248,27 +259,27 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
           </div>
           <div className="advice-scroll" ref={listRef}>
             {structureItems.length === 0 && stateItems.length === 0 && appliedList.length === 0 ? (
-              <div className="advice-empty">✓ 无待处理建议</div>
+              <div className="advice-empty">✓ {t("无待处理建议")}</div>
             ) : (
               <>
                 {structureItems.length > 0 && (
-                  <div className="advice-group-title">结构问题（接线 / 介质）· {structureItems.length}</div>
+                  <div className="advice-group-title">{t("结构问题（接线 / 介质）")} · {structureItems.length}</div>
                 )}
                 {structureItems.map((a, i) => renderItem(a, false, i + 1))}
                 {stateItems.length > 0 && (
                   <>
                     <button className="advice-group-title advice-group-toggle" onClick={() => setStateOpen(!stateOpen)}>
-                      {stateOpen ? "▾" : "▸"} 工况提示（泵停 / 阀关 / 停流）· {stateItems.length}
+                      {stateOpen ? "▾" : "▸"} {t("工况提示（泵停 / 阀关 / 停流）")} · {stateItems.length}
                     </button>
                     {stateOpen && stateItems.map((a, i) => renderItem(a, false, i + 1))}
                   </>
                 )}
                 {inScenario && (
-                  <div className="advice-note">🎬 演示进行中：工况提示与演示步骤无关，已折叠。</div>
+                  <div className="advice-note">🎬 {t("演示进行中：工况提示与演示步骤无关，已折叠。")}</div>
                 )}
                 {appliedList.length > 0 && (
                   <>
-                    <div className="advice-group-title">已修改（可撤回）</div>
+                    <div className="advice-group-title">{t("已修改（可撤回）")}</div>
                     {appliedList.map((a) => renderItem(a, true))}
                   </>
                 )}

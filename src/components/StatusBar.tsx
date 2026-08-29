@@ -23,8 +23,10 @@ export function StatusBar() {
   } else if (sel.nodes.length + sel.pipes.length > 1) {
     selText = `${t("已选中")} ${sel.nodes.length} ${t("个节点")} / ${sel.pipes.length} ${t("条管路")}`;
   }
+  const modeLabel = ui.mode === "present" ? t("演示") : ui.mode === "verify" ? t("验收") : t("编辑");
   return (
     <div className="statusbar">
+      <span className="sb-item sb-mode" title={t("工作模式")}>{modeLabel === t("演示") ? "🎬" : modeLabel === t("验收") ? "✓" : "✏️"} {modeLabel}</span>
       <span className="sb-item">{selText}</span>
       <span className="sb-item">X: {Math.round(ui.mouseWorld.x)} , Y: {Math.round(ui.mouseWorld.y)}</span>
       <span className="sb-item">{t("缩放")} {Math.round(ui.zoom * 100)}%</span>

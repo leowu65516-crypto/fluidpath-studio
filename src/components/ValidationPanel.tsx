@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
-import { deleteValidationCase, focusElement, listValidationCases, saveValidationCase, useAppState } from "../store";
+import { deleteValidationCase, focusElement, listValidationCases, saveValidationCase, useAppState, store } from "../store";
 import { runValidationCases, type ValidationResult } from "../validation";
+import { exportDiagnosisReport } from "../report";
 import { toast } from "../toast";
 import { useT } from "../i18n";
 
 /** 图纸工况验收：用当前泵阀状态，定义并验证管路应流/应停。 */
 export function ValidationPanel({ onClose }: { onClose: () => void }) {
   const { diagram, ui } = useAppState();
-  const { t } = useT();
+  const { t, lang } = useT();
   const [name, setName] = useState("");
   const [mustFlow, setMustFlow] = useState<string[]>([]);
   const [mustStop, setMustStop] = useState<string[]>([]);
@@ -33,7 +34,7 @@ export function ValidationPanel({ onClose }: { onClose: () => void }) {
     if (!name.trim()) return toast(t("请填写验收工况名称"), "error");
     if (!mustFlow.length && !mustStop.length) return toast(t("至少指定一条必须流动或停止的管路"), "error");
     saveValidationCase(name.trim(), mustFlow, mustStop);
-    toast(`已保存验收工况「${name.trim()}」：${mustFlow.length + mustStop.length} 条断言`);
+    toast(t("已保存验收工况「{name}」：{n} 条断言").replace("{name}", name.trim()).replace("{n}", String(mustFlow.length + mustStop.length)));
     setName(""); setMustFlow([]); setMustStop([]); setResults(null);
   };
 
@@ -41,7 +42,12 @@ export function ValidationPanel({ onClose }: { onClose: () => void }) {
     const next = runValidationCases(diagram);
     setResults(next);
     const failed = next.filter((r) => !r.passed).length;
-    toast(failed ? `${failed} 个验收工况失败，请检查红色管路` : `全部 ${next.length} 个验收工况通过`);
+    toast(failed ? t("{n} 个验收工况失败，请检查红色管路").replace("{n}", String(failed)) : t("全部 {n} 个验收工况通过").replace("{n}", String(next.length)));
+  };
+
+  const exportReport = () => {
+    const filename = exportDiagnosisReport(store.get().diagram, lang, true);
+    toast(t("验收报告已导出") + `: ${filename}`);
   };
 
   const chips = (expected: "flow" | "stop", ids: string[]) => (
@@ -52,7 +58,7 @@ export function ValidationPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <aside className="validation-panel" data-ui="1">
-      <div className="validation-head"><h2>✓ {t("工况验收")}</h2><button className="advice-close" onClick={onClose}>✕</button></div>
+      <div className="validation-head"><h2>✓ {t("工况验收")}</h2><button className="advice-export" onClick={exportReport} title={t("导出 Markdown 诊断报告（含验收结果）")}>⬇ MD</button><button className="advice-close" onClick={onClose}>✕</button></div>
       <div className="validation-help">
         <b>{t("验收是做什么的")}</b>
         <p>{t("把关键工况写成可重复检查的工程规则。以后换 JSON、改连线或升级程序时，一键运行就能发现本应停流却仍在流动的问题。")}</p>
@@ -77,9 +83,9 @@ export function ValidationPanel({ onClose }: { onClose: () => void }) {
         {cases.map((c) => {
           const result = results?.find((r) => r.caseId === c.id);
           return <div className={`validation-case${result ? result.passed ? " pass" : " fail" : ""}`} key={c.id}>
-            <div><b>{result ? result.passed ? "✓" : "✕" : "○"} {c.name}</b><small>{c.mustFlowPipeIds.length} 应流 · {c.mustStopPipeIds.length} 应停</small></div>
+            <div><b>{result ? result.passed ? "✓" : "✕" : "○"} {c.name}</b><small>{t("{n} 应流 · {m} 应停").replace("{n}", String(c.mustFlowPipeIds.length)).replace("{m}", String(c.mustStopPipeIds.length))}</small></div>
             <button className="btn ghost sq" title={t("删除")} onClick={() => deleteValidationCase(c.id)}>×</button>
-            {result?.failures.map((f) => <button key={`${f.pipeId}-${f.expected}`} className="validation-failure" onClick={() => focusElement(f.pipeId)}>{f.label}：应{f.expected === "flow" ? "流" : "停"}，实际{f.actual === "flow" ? "流" : "停"}</button>)}
+            {result?.failures.map((f) => <button key={`${f.pipeId}-${f.expected}`} className="validation-failure" onClick={() => focusElement(f.pipeId)}>{f.label}：{t("应流")}，{t("实际")}{f.actual === "flow" ? t("流") : t("停")}</button>)}
           </div>;
         })}
       </div>

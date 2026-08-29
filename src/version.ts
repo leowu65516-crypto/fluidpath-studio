@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.16.0";
+export const APP_VERSION = "1.17.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,21 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.17.0",
+    date: "2026-08-29",
+    highlights: [
+      "i18n 全面扫尾：右键菜单/密码门/端口编辑器/诊断与知识库等全部文案双语化，新增「英文模式无中文残留」防回归测试",
+      "诊断/验收一键导出 Markdown 报告（结构问题、工况提示、停流因果链、出口状态、验收 pass/fail 与失败管段）",
+      "新增 4 个教学场景：美式咖啡、热水杆、牛奶清洗、排废（角色自适应 + BCMTS 引擎断言）",
+      "新增三态工作模式：编辑 / 演示 / 验收，面板联动一键切换",
+      "新增机型包 MachinePack（图纸+场景+验收一次打包导入导出）与图纸 Schema 校验/迁移注册表",
+      "新增连接前校验（方向/介质冲突即时提示）、泵出入口 Linter、引擎缓存失效回归与性能埋点",
+      "演示步骤新增讲师旁白、画布标注与小测验；store 领域拆分（autosave 独立模块，API 兼容）",
+      "新增大图性能基准与分享长度阈值测试；新增无头验收 CLI（scripts/check-diagram.mjs，npm run check:diag）",
+      "新增 CI workflow：push/PR 自动执行 tsc + 全量测试（npm run check）",
+    ],
+  },
   {
     version: "1.16.0",
     date: "2026-08-24",

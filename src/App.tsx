@@ -15,7 +15,7 @@ import { AdvicePanel } from "./components/AdvicePanel";
 import { ValidationPanel } from "./components/ValidationPanel";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
-import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard } from "./store";
+import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario } from "./store";
 import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave } from "./store";
 import type { AutosaveVersion } from "./store";
@@ -91,6 +91,32 @@ export default function App() {
     } catch { /* ignore */ }
     return { library: false, inspector: false, toolbar: false };
   });
+  // ===== 三态工作模式联动（edit / present / verify）=====
+  const mode = store.get().ui.mode ?? "edit";
+  const modeRef = useRef(mode);
+  useEffect(() => {
+    const m = store.get().ui.mode ?? "edit";
+    if (modeRef.current === m) return;
+    modeRef.current = m;
+    if (m === "present") {
+      setCollapsed((c) => ({ ...c, library: true, inspector: true, toolbar: false }));
+      setShowAdvice(false);
+      setShowValidation(false);
+      setShowScenario(true);
+    } else if (m === "verify") {
+      setCollapsed((c) => ({ ...c, library: true, inspector: false, toolbar: false }));
+      setShowAdvice(false);
+      setShowValidation(true);
+      setShowScenario(false);
+      if (hasActiveScenario()) exitScenario();
+    } else {
+      setCollapsed((c) => ({ ...c, library: false, inspector: false, toolbar: false }));
+      setShowAdvice(false);
+      setShowValidation(false);
+      setShowScenario(false);
+      if (hasActiveScenario()) exitScenario();
+    }
+  }, [store.get().ui.mode]);
   const togglePanel = (key: keyof typeof collapsed) => () =>
     setCollapsed((c) => {
       const next = { ...c, [key]: !c[key] };

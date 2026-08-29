@@ -6,9 +6,10 @@ import { useT } from "../i18n";
 
 export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   const { ui, diagram } = useAppState();
-  const { t } = useT();
+  const { t, lang } = useT();
   const [picking, setPicking] = useState(!ui.scenario);
   const [condDialog, setCondDialog] = useState(false);
+  const [quizPick, setQuizPick] = useState<number | null>(null);
 
   const scenario = ui.scenario ? getScenario(ui.scenario.scenarioId) : undefined;
   const stepIndex = ui.scenario?.stepIndex ?? 0;
@@ -80,6 +81,40 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
       <div style={{ padding: "14px 16px" }}>
         <div style={{ fontSize: 14, fontWeight: 650, color: "var(--accent)", marginBottom: 8 }}>{step?.title}</div>
         <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7, minHeight: 60 }}>{step?.desc}</div>
+        {step?.narrator && (
+          <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "var(--surface-2)", fontSize: 12.5, color: "var(--text-dim)", lineHeight: 1.7 }}>
+            🎤 {step.narrator[lang]}
+          </div>
+        )}
+        {step?.callouts && step.callouts.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+            {step.callouts.map((c, i) => (
+              <span key={i} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 10, background: "var(--accent-soft)", color: "var(--accent)" }}>📍 {c.text[lang]}</span>
+            ))}
+          </div>
+        )}
+        {step?.quiz && (
+          <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, border: "1px dashed var(--border)", fontSize: 12.5 }}>
+            <div style={{ fontWeight: 650, marginBottom: 6 }}>❓ {step.quiz.q[lang]}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {step.quiz.options.map((o, i) => (
+                <button
+                  key={i}
+                  onClick={() => setQuizPick(i)}
+                  style={{
+                    textAlign: "left", fontSize: 12, padding: "5px 8px", borderRadius: 6,
+                    border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", cursor: "pointer",
+                  }}
+                >{String.fromCharCode(65 + i)}. {o[lang]}</button>
+              ))}
+            </div>
+            {quizPick !== null && (
+              <div style={{ marginTop: 6, fontWeight: 650, color: quizPick === step.quiz.answer ? "#3fae6a" : "#d64545" }}>
+                {quizPick === step.quiz.answer ? `✓ ${t("正确")}` : `✕ ${t("再想想")}`}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 步骤进度条 */}
@@ -116,7 +151,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
       )}
       <div style={{ display: "flex", gap: 8, padding: "14px 16px", borderTop: "1px solid var(--border)", marginTop: 12 }}>
         <button
-          onClick={() => { if (stepIndex > 0) setScenarioStep(stepIndex - 1); }}
+          onClick={() => { setQuizPick(null); if (stepIndex > 0) setScenarioStep(stepIndex - 1); }}
           disabled={stepIndex === 0}
           style={{
             flex: 1, padding: "8px 0", borderRadius: 6, border: "1px solid var(--border)",

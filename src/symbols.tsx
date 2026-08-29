@@ -23,7 +23,7 @@ export interface NodeDef {
 const NODE_LABEL_EN: Partial<Record<NodeType, string>> = {
   tank: "Tank", pressureTank: "Pressure tank", syrupBottle: "Syrup bottle", boiler: "Boiler (legacy)",
   hotWaterBoiler: "Hot-water boiler", steamBoiler: "Steam boiler", pump: "Water pump", milkPump: "Milk pump",
-  valve: "Shut-off valve", checkValve: "Check valve", solenoid2: "2-way solenoid", solenoid3: "3-way solenoid",
+  valve: "Shut-off valve", checkValve: "Check valve", solenoid2: "2-way solenoid", solenoid3: "3-way solenoid", airPump: "Air pump",
   pulseAirValve: "Pulse air valve", safetyValve: "Safety valve", opv: "OPV relief valve", pressureRegulator: "Pressure regulator",
   tee: "Tee fitting", teeY: "Y tee", teeF: "F tee", cross: "Cross fitting", elbow: "Elbow", coupling: "Coupling", metalCoupling: "Metal coupling",
   heatExchanger: "Heat exchanger", filter: "Filter", metalFilter: "Metal mesh filter", brewChamber: "Brew chamber", powderMixer: "Powder mixer",
@@ -38,6 +38,11 @@ export function nodeDisplayLabel(def: NodeDef, lang = typeof document === "undef
   if (def.type === "coffeeOutlet") return def.variant === "double" ? "Coffee outlet (double)" : "Coffee outlet (single)";
   if (def.type === "milkOutlet") return def.variant === "double" ? "Milk outlet (double)" : "Milk outlet (single)";
   return NODE_LABEL_EN[def.type] ?? def.label;
+}
+
+/** 符号内嵌文字的当前语言（跟随 html lang；SSR/测试安全） */
+function symLang(): "zh" | "en" {
+  try { return typeof document !== "undefined" && document.documentElement.lang === "en" ? "en" : "zh"; } catch { return "zh"; }
 }
 
 export function nodeCanvasLabel(node: DiagramNode, lang: "zh" | "en") {
@@ -423,7 +428,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <Coil x={w / 2 - 15} y={2} w={30} h={h * 0.3 - 2} stroke={stroke} />
           {/* 开/关状态指示 */}
           <circle cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />
-          <text x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600}>{open ? "开" : "关"}</text>
+          <text x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>
         </g>
       );
     }
@@ -726,14 +731,14 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
       return (
         <g>
           <path d={`M 2 2 L ${w * 0.62} 2 L ${w - 2} ${h / 2} L ${w * 0.62} ${h - 2} L 2 ${h - 2} Z`} {...common} strokeLinejoin="round" />
-          <text x={w * 0.32} y={h / 2 + 4} textAnchor="middle" fontSize={12} fill={stroke} fontFamily="system-ui, sans-serif">入</text>
+          <text x={w * 0.32} y={h / 2 + 4} textAnchor="middle" fontSize={12} fill={stroke} fontFamily="system-ui, sans-serif">{symLang() === "en" ? "IN" : "入"}</text>
         </g>
       );
     case "outlet":
       return (
         <g>
           <path d={`M ${w - 2} 2 L ${w * 0.38} 2 L 2 ${h / 2} L ${w * 0.38} ${h - 2} L ${w - 2} ${h - 2} Z`} {...common} strokeLinejoin="round" />
-          <text x={w * 0.62} y={h / 2 + 4} textAnchor="middle" fontSize={12} fill={stroke} fontFamily="system-ui, sans-serif">出</text>
+          <text x={w * 0.62} y={h / 2 + 4} textAnchor="middle" fontSize={12} fill={stroke} fontFamily="system-ui, sans-serif">{symLang() === "en" ? "OUT" : "出"}</text>
         </g>
       );
     case "connector": {
@@ -1071,8 +1076,8 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
             <>
               {/* 无图片占位 */}
               <rect x={2} y={2} width={w - 4} height={h - 4} rx={4} fill="#eef2f7" stroke="#b9c6d4" strokeWidth={1.8} strokeDasharray="6 4" />
-              <text x={w / 2} y={h / 2 - 6} textAnchor="middle" fontSize={13} fill="#7a8794" fontFamily="system-ui, sans-serif">点击上传图片</text>
-              <text x={w / 2} y={h / 2 + 14} textAnchor="middle" fontSize={11} fill="#9aa7b5" fontFamily="system-ui, sans-serif">或拖拽图片到此处</text>
+              <text x={w / 2} y={h / 2 - 6} textAnchor="middle" fontSize={13} fill="#7a8794" fontFamily="system-ui, sans-serif">{symLang() === "en" ? "Upload image" : "点击上传图片"}</text>
+              <text x={w / 2} y={h / 2 + 14} textAnchor="middle" fontSize={11} fill="#9aa7b5" fontFamily="system-ui, sans-serif">{symLang() === "en" ? "or drag one here" : "或拖拽图片到此处"}</text>
             </>
           )}
         </g>

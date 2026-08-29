@@ -21,6 +21,15 @@ import { snapshotStates, applyStates, diffStateIds, type PresetState } from "./p
 import { toast } from "./toast";
 import type { FixAction } from "./advice";
 
+/** 当前 UI 语言（由 LangProvider 同步到 html lang；供数据层 toast 双语） */
+function sysLang(): "zh" | "en" {
+  try { return typeof document !== "undefined" && document.documentElement.lang === "en" ? "en" : "zh"; } catch { return "zh"; }
+}
+/** 双语取值 */
+function L(lang: "zh" | "en", zh: string, en: string): string {
+  return lang === "zh" ? zh : en;
+}
+
 const MAX_HISTORY = 100;
 
 let state: AppState = {
@@ -59,35 +68,40 @@ export function useAppState(): AppState {
 function setState(next: AppState) {
   state = next;
   emit();
-  if (next.ui.dirty) scheduleAutosave(next.diagram);
+  if (next.ui.dirty) _scheduleAutosave(next.diagram);
 }
 
 /** 定位闪烁：脉冲高亮指定元件（诊断/演示定位用），2.4s 后自动清除 */
 let blinkTimer: ReturnType<typeof setTimeout> | null = null;
-// ===== 自动保存 / 崩溃恢复（含图纸版本历史，预留结构） =====
+// ===== 自动保存 / 崩溃恢复（领域模块 store-autosave.ts，此处 API 全兼容 re-export） =====
+export { AUTOSAVE_MAX_VERSIONS } from "./store-autosave";
+export type { AutosaveVersion } from "./store-autosave";
+export {
+  setSourceFilePath,
+  fileAutosaveStatus,
+  setFileAutosave,
+  scheduleAutosave,
+  flushAutosave,
+  getAutosaveVersions,
+  pendingAutosave,
+  restoreAutosaveVersion,
+  recordSavedAt,
+  clearAutosave,
+  lastEditedDiagramId
+} from "./store-autosave";
+import { initAutosave, type ElectronBridge } from "./store-autosave";
 
-export const AUTOSAVE_MAX_VERSIONS = 5;
-const AUTOSAVE_KEY = (id: string) => `fluidpath.autosave.v1.${id}`;
-const SAVED_KEY = (id: string) => `fluidpath.saved.ts.${id}`;
-const LAST_DIAGRAM_KEY = "fluidpath.lastDiagramId";
+initAutosave({
+  getDiagram: () => state.diagram,
+  notifyUI: (patch) => setUI(patch),
+  reloadDiagram: (d) => loadDiagram(d),
+});
 
-export interface AutosaveVersion {
-  ts: number;
-  diagram: Diagram;
-}
+// 本地引用（内部逻辑继续使用；对外仍走上方 re-export）
+import { scheduleAutosave as _scheduleAutosave, recordSavedAt as _recordSavedAt } from "./store-autosave";
+void _scheduleAutosave; void _recordSavedAt;
 
-let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
-let sourceFilePath: string | null = null;
-let fileAutosaveEnabled = false;
-let fileAutosavePath: string | null = null;
-let fileAutosaveTicker: ReturnType<typeof setInterval> | null = null;
-
-type ElectronBridge = {
-  writeAutosaveCopy?: (payload: { sourcePath: string; json: string }) => Promise<{ path: string }>;
-  writeSelectionClipboard?: (json: string) => Promise<boolean>;
-  readSelectionClipboard?: () => Promise<string | null>;
-};
-
+// ===== 多窗口剪贴板通道（网页版 BroadcastChannel + 系统剪贴板） =====
 const WEB_SELECTION_CHANNEL = "fluidpath.selection.v1";
 const WEB_SELECTION_PREFIX = "FLUIDPATH_SELECTION_V1:";
 let webSelectionChannel: BroadcastChannel | null = null;
@@ -125,110 +139,6 @@ async function readWebSelectionClipboard(): Promise<string | null> {
 
 if (typeof window !== "undefined") getWebSelectionChannel();
 
-export function setSourceFilePath(path: string | null) {
-  sourceFilePath = path;
-  fileAutosaveEnabled = false;
-  fileAutosavePath = null;
-  if (fileAutosaveTicker) { clearInterval(fileAutosaveTicker); fileAutosaveTicker = null; }
-  setUI({});
-}
-
-export function fileAutosaveStatus() {
-  return { enabled: fileAutosaveEnabled, sourcePath: sourceFilePath, copyPath: fileAutosavePath };
-}
-
-/** 开启后每分钟将当前图纸原子写入原 JSON 同目录的 .autosave.json 副本。 */
-export async function setFileAutosave(enabled: boolean): Promise<{ enabled: boolean; path?: string }> {
-  if (!enabled) {
-    fileAutosaveEnabled = false;
-    fileAutosavePath = null;
-    if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
-    if (fileAutosaveTicker) { clearInterval(fileAutosaveTicker); fileAutosaveTicker = null; }
-    setUI({});
-    return { enabled: false };
-  }
-  const bridge = (window as Window & { electron?: ElectronBridge }).electron;
-  if (!sourceFilePath || !bridge?.writeAutosaveCopy) throw new Error("请先通过桌面版打开 JSON 图纸，再开启同路径自动保存");
-  fileAutosaveEnabled = true;
-  const result = await writeFileAutosave(state.diagram);
-  if (fileAutosaveTicker) clearInterval(fileAutosaveTicker);
-  fileAutosaveTicker = setInterval(() => { void writeFileAutosave(state.diagram); }, 60_000);
-  setUI({});
-  return { enabled: true, path: result };
-}
-
-async function writeFileAutosave(diagram: Diagram): Promise<string | undefined> {
-  const bridge = (window as Window & { electron?: ElectronBridge }).electron;
-  if (!fileAutosaveEnabled || !sourceFilePath || !bridge?.writeAutosaveCopy) return undefined;
-  const result = await bridge.writeAutosaveCopy({ sourcePath: sourceFilePath, json: JSON.stringify({ ...diagram, _version: 3, _autosavedAt: new Date().toISOString() }, null, 2) });
-  fileAutosavePath = result.path;
-  return result.path;
-}
-
-/** 编辑后防抖调度自动保存（800ms 无变化才落盘） */
-export function scheduleAutosave(diagram: Diagram) {
-  if (!diagram.id || diagram.nodes.length === 0) return;
-  try { localStorage.setItem(LAST_DIAGRAM_KEY, diagram.id); } catch { /* ignore */ }
-  if (autosaveTimer) clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(() => {
-    persistAutosave(diagram);
-    void writeFileAutosave(diagram);
-  }, fileAutosaveEnabled ? 60_000 : 800);
-}
-
-function persistAutosave(diagram: Diagram) {
-  autosaveTimer = null;
-  try {
-    const key = AUTOSAVE_KEY(diagram.id);
-    let versions: AutosaveVersion[] = [];
-    const raw = localStorage.getItem(key);
-    if (raw) { try { versions = JSON.parse(raw) as AutosaveVersion[]; } catch { versions = []; } }
-    // 与最新版本内容一致则不重复写（防抖 + 去重）
-    if (versions[0] && JSON.stringify(versions[0].diagram) === JSON.stringify(diagram)) return;
-    versions.unshift({ ts: Date.now(), diagram: structuredClone(diagram) });
-    versions = versions.slice(0, AUTOSAVE_MAX_VERSIONS);
-    localStorage.setItem(key, JSON.stringify(versions));
-  } catch { /* 存储满/不可用：忽略，不影响主流程 */ }
-}
-
-/** 立即落盘（beforeunload 时调用，防止退出丢最新改动） */
-export function flushAutosave(diagram: Diagram) {
-  if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
-  persistAutosave(diagram);
-  void writeFileAutosave(diagram);
-}
-
-export function getAutosaveVersions(diagramId: string): AutosaveVersion[] {
-  try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY(diagramId));
-    return raw ? (JSON.parse(raw) as AutosaveVersion[]) : [];
-  } catch { return []; }
-}
-
-/** 崩溃恢复：有比最近保存更新的自动备份 */
-export function pendingAutosave(diagramId: string): AutosaveVersion[] {
-  const savedTs = Number(localStorage.getItem(SAVED_KEY(diagramId)) ?? 0);
-  return getAutosaveVersions(diagramId).filter((v) => v.ts > savedTs);
-}
-
-export function restoreAutosaveVersion(diagramId: string, index: number) {
-  const v = getAutosaveVersions(diagramId)[index];
-  if (v) loadDiagram(v.diagram);
-}
-
-/** 恢复后/显式保存后记录基准时间，清除待恢复状态 */
-export function recordSavedAt(diagramId: string) {
-  if (!diagramId) return;
-  try { localStorage.setItem(SAVED_KEY(diagramId), String(Date.now())); } catch { /* ignore */ }
-}
-
-export function clearAutosave(diagramId: string) {
-  try { localStorage.removeItem(AUTOSAVE_KEY(diagramId)); recordSavedAt(diagramId); } catch { /* ignore */ }
-}
-
-export function lastEditedDiagramId(): string | null {
-  try { return localStorage.getItem(LAST_DIAGRAM_KEY); } catch { return null; }
-}
 
 export function blinkElements(ids: string[]) {
   if (blinkTimer) clearTimeout(blinkTimer);
@@ -328,9 +238,10 @@ export function loadDiagram(diagram: Diagram) {
   scenarioSnapshot = null;
   // 克隆入参，避免直接改动调用方持有的对象
   const d = structuredClone(diagram);
-  // 确保旧文件有图层
+  // 确保旧文件有图层（默认层名按当前语言）
   if (!d.settings.layers || !d.settings.layers.length) {
-    d.settings.layers = [{ id: "layer_default", name: "默认层", visible: true }];
+    const en = (() => { try { return typeof document !== "undefined" && document.documentElement.lang === "en"; } catch { return false; } })();
+    d.settings.layers = [{ id: "layer_default", name: en ? "Default" : "默认层", visible: true }];
   }
   setState({
     ...state,
@@ -371,7 +282,7 @@ export function newDiagram() {
 
 export function markSaved() {
   setUI({ dirty: false });
-  recordSavedAt(state.diagram.id);
+  _recordSavedAt(state.diagram.id);
 }
 
 // ===== 演示/讲述模式 =====
@@ -523,13 +434,15 @@ export function applyWorkCondition(name: string) {
   // 差异对比：只高亮本次切换发生变化的元件，并给出变化摘要
   const changed = diffStateIds(prev, cond.state);
   if (changed.length === 0) {
-    toast(`「${name}」与当前开关状态一致，没有变化`);
+    const lang = sysLang();
+    toast(L(lang, `「${name}」与当前开关状态一致，没有变化`, `"${name}" matches the current switches — no change`));
     return;
   }
   blinkElements(changed);
   const byId = new Map(state.diagram.nodes.map((n) => [n.id, n.label || n.type]));
   const sample = changed.slice(0, 3).map((id) => byId.get(id)).filter(Boolean).join("、");
-  toast(`已切换到「${name}」：${changed.length} 个开关变化（${sample}${changed.length > 3 ? "…" : ""}），橙色高亮即改动处`);
+  const lang = sysLang();
+  toast(L(lang, `已切换到「${name}」：${changed.length} 个开关变化（${sample}${changed.length > 3 ? "…" : ""}），橙色高亮即改动处`, `Switched to "${name}": ${changed.length} switch change(s) (${sample}${changed.length > 3 ? "…" : ""}); orange highlights mark the changes`));
 }
 
 /** 删除工况 */
@@ -581,6 +494,11 @@ export function setGlobalFlowScale(scale: number) {
   updateDiagram((d) => {
     d.settings.flowScale = Math.min(2.5, Math.max(0.5, scale));
   }, false);
+}
+
+/** 三态工作模式：编辑 edit / 演示 present / 验收 verify（面板联动在 App 层） */
+export function setWorkMode(mode: "edit" | "present" | "verify") {
+  setUI({ mode });
 }
 
 export interface SelectionClipboardPayload {
@@ -839,7 +757,8 @@ export function addPort(nodeId: string, direction: PortDirection, position?: Por
     const node = d.nodes.find((n) => n.id === nodeId);
     if (!node) return;
     if (node.ports.length >= MAX_PORTS_PER_NODE) {
-      toast(`端口已达上限 ${MAX_PORTS_PER_NODE} 个，无法继续添加`);
+      const lang = sysLang();
+      toast(L(lang, `端口已达上限 ${MAX_PORTS_PER_NODE} 个，无法继续添加`, `Port limit reached (${MAX_PORTS_PER_NODE}); cannot add more`));
       return;
     }
     const boiler = BOILER_TYPES.has(node.type);
@@ -1313,11 +1232,11 @@ export function createPipe(fromPortId: string, toPortId: string) {
   // 校验：不允许一个端口连接多条管路（必须通过三通接头分路）
   for (const existing of state.diagram.pipes) {
     if (existing.fromPortId === fromPortId || existing.toPortId === fromPortId) {
-      toast("此端口已被占用，请使用三通接头（T型/Y型）进行分路。", "error");
+      toast(L(sysLang(), "此端口已被占用，请使用三通接头（T型/Y型）进行分路。", "This port is already used — split with a tee (T/Y) fitting."), "error");
       return;
     }
     if (existing.fromPortId === toPortId || existing.toPortId === toPortId) {
-      toast("此端口已被占用，请使用三通接头（T型/Y型）进行分路。", "error");
+      toast(L(sysLang(), "此端口已被占用，请使用三通接头（T型/Y型）进行分路。", "This port is already used — split with a tee (T/Y) fitting."), "error");
       return;
     }
   }
@@ -1347,6 +1266,7 @@ export function createPipe(fromPortId: string, toPortId: string) {
     d.pipes.push(pipe);
   });
   setSelection({ nodes: [], pipes: [pipe.id] });
+  return pipe;
 }
 
 export function zoomAt(clientX: number, clientY: number, factor: number, svgRect: DOMRect) {

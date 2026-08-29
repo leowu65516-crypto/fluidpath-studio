@@ -352,8 +352,10 @@ function migratePipe(p: any): void {
 
 export function parseDiagramJSON(text: string): Diagram {
   const data = JSON.parse(text);
-  if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.pipes)) {
-    throw new Error("不是有效的 FluidPath 工程文件");
+  // 轻量 schema 校验：给出可理解的错误信息，而不是让字段缺失静默传播
+  const errors = validateDiagramShape(data);
+  if (errors.length > 0) {
+    throw new Error(`不是有效的 FluidPath 工程文件：${errors.slice(0, 3).join("；")}${errors.length > 3 ? `（等 ${errors.length} 处）` : ""}`);
   }
   // 检测并迁移旧格式
   const hasOldNodes = data.nodes.some(isOldFormatNode);
@@ -374,6 +376,95 @@ export function parseDiagramJSON(text: string): Diagram {
     data.settings.layers = [{ id: "layer_default", name: "默认层", visible: true }];
   }
   return data as Diagram;
+}
+
+// ===== 轻量 Schema 校验与显式迁移注册表（P1 v1.17） =====
+
+/**
+ * 轻量 diagram schema 校验：返回可读的错误列表（空数组 = 通过）。
+ * 只校验「缺了就无法工作」的核心字段，不做严格类型检查。
+ */
+export function validateDiagramShape(raw: unknown): string[] {
+  const errors: string[] = [];
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return ["顶层必须是工程对象"];
+  }
+  const d = raw as Record<string, unknown>;
+  if (!Array.isArray(d.nodes)) errors.push("缺少 nodes 数组");
+  if (!Array.isArray(d.pipes)) errors.push("缺少 pipes 数组");
+  if (Array.isArray(d.nodes)) {
+    d.nodes.forEach((n: unknown, i: number) => {
+      if (!n || typeof n !== "object" || Array.isArray(n)) {
+        errors.push(`nodes[${i}] 必须是对象`);
+        return;
+      }
+      const node = n as Record<string, unknown>;
+      if (typeof node.id !== "string" || !node.id) errors.push(`nodes[${i}].id 缺失`);
+      if (typeof node.type !== "string" || !node.type) errors.push(`nodes[${i}].type 缺失`);
+      if (typeof node.x !== "number" || typeof node.y !== "number") errors.push(`nodes[${i}].x/y 坐标缺失`);
+    });
+  }
+  if (Array.isArray(d.pipes)) {
+    d.pipes.forEach((p: unknown, i: number) => {
+      if (!p || typeof p !== "object" || Array.isArray(p)) {
+        errors.push(`pipes[${i}] 必须是对象`);
+        return;
+      }
+      const pipe = p as Record<string, unknown>;
+      if (typeof pipe.id !== "string" || !pipe.id) errors.push(`pipes[${i}].id 缺失`);
+    });
+  }
+  return errors;
+}
+
+export interface DiagramMigration {
+  from: number;
+  to: number;
+  /** 迁移内容说明（可展示给用户） */
+  note: string;
+  migrate: (d: Record<string, unknown>) => void;
+}
+
+/**
+ * 显式版本迁移注册表：_version 1→2→3。
+ * 未知更高版本由调用方提示升级 App。
+ */
+export const DIAGRAM_MIGRATIONS: DiagramMigration[] = [
+  {
+    from: 1,
+    to: 2,
+    note: "旧版节点格式（kind 字段、缺省端口方向）→ 统一 type/ports 结构",
+    migrate: (d) => {
+      if (Array.isArray(d.nodes)) d.nodes.forEach((n: unknown) => migrateNode(n as never));
+    },
+  },
+  {
+    from: 2,
+    to: 3,
+    note: "强制流/停字段（forceFlow/forceStop）→ 教学显示覆盖 teachingOverride",
+    migrate: (d) => {
+      if (Array.isArray(d.pipes)) d.pipes.forEach((p: unknown) => migratePipe(p as never));
+    },
+  },
+];
+
+/**
+ * 按注册表把旧版本 diagram 逐级迁移到当前版本。
+ * @returns 迁移说明列表（未发生迁移则为空）
+ */
+export function migrateDiagramToCurrent(d: Record<string, unknown>): string[] {
+  const applied: string[] = [];
+  let v = typeof d._version === "number" ? d._version : 1;
+  const CURRENT = 3;
+  while (v < CURRENT) {
+    const step = DIAGRAM_MIGRATIONS.find((m) => m.from === v);
+    if (!step) break;
+    step.migrate(d);
+    applied.push(`v${step.from}→v${step.to}: ${step.note}`);
+    v = step.to;
+  }
+  d._version = CURRENT;
+  return applied;
 }
 
 /** 导出选中区域 SVG */

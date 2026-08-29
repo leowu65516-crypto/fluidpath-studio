@@ -11,12 +11,14 @@ import {
   setSourceFilePath,
   setSelectionDisabled,
   setStyleBrush,
+  setWorkMode,
   setZoomCenter,
   undo,
   updateDiagram,
   useAppState
 } from "../store";
 import { exportEngineeringJSON, exportGIF, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram, saveJSONFile } from "../export";
+import { exportMachinePack, parseMachinePack } from "../machinePack";
 import { ConditionPanel } from "./ConditionPanel";
 import { PromptDialog } from "./PromptDialog";
 import { useT } from "../i18n";
@@ -35,7 +37,9 @@ function Icon({ d }: { d: string }) {
 export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenValidation }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenValidation?: () => void }) {
   const { diagram, ui } = useAppState();
   const { t, lang, setLang } = useT();
+  const mode = ui.mode ?? "edit";
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const packRef = useRef<HTMLInputElement | null>(null);
   const playing = diagram.settings.globalAnimationPlaying;
   const hasSel = ui.selection.nodes.length + ui.selection.pipes.length > 0;
   const [gifProgress, setGifProgress] = useState<number | null>(null);
@@ -109,7 +113,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
           // Electron file:// 下 location.origin 为 "null"，改用「分享码」方案
           const code = compressDiagram(diagram);
           navigator.clipboard.writeText(code).then(() => {
-            alert("✅ 已复制分享码！接收方在 FluidPath 中点击「导入分享码」粘贴即可打开图纸。");
+            alert(t("✅ 已复制分享码！接收方在 FluidPath 中点击「导入分享码」粘贴即可打开图纸。"));
           }).catch(() => { setShareFallback(code); });
         } else {
           const link = buildShareLink(diagram);
@@ -164,7 +168,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
     try {
       await exportGIF(svgRef.current, diagram, (r) => setGifProgress(r));
     } catch (err) {
-      alert(`GIF 导出失败：${(err as Error).message}`);
+      alert(`${t("GIF 导出失败")}：${(err as Error).message}`);
     } finally {
       setGifProgress(null);
     }
@@ -305,6 +309,12 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" title={t("打开 JSON")} onClick={openJsonFromDesktop}>
         <Icon d="M3 8l3-4h5l2 3h8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />{t("打开 JSON")}
       </button>
+      <button className="tb-btn sq" title={t("导入机型包")} aria-label={t("导入机型包")} onClick={() => packRef.current?.click()}>
+        <Icon d="M21 8l-9-5-9 5v8l9 5 9-5zM12 3v18M3 8l9 5 9-5" />
+      </button>
+      <button className="tb-btn sq" title={t("导出机型包（图纸+场景+验收一次打包）")} aria-label={t("导出机型包")} onClick={() => { const fn = exportMachinePack(diagram); toast(t("机型包已导出") + ": " + fn); }}>
+        <Icon d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+      </button>
       <button className="tb-btn sq" title={t("导入分享码")} aria-label={t("导入分享码")} onClick={() => setImportOpen(true)}>
         <Icon d="M9 12h6M9 16h6M7 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" />
       </button>
@@ -402,7 +412,15 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         <Icon d={theme === "dark" ? "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" : "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 5a7 7 0 0 1 0 14z"} />
         {theme === "dark" ? t("亮色") : t("暗色")}
       </button>
-      <button className="tb-btn" onClick={() => setLang(lang === "zh" ? "en" : "zh")} title="中 / EN">
+      <div className="tb-sep" />
+      {/* 三态工作模式：编辑 / 演示 / 验收 */}
+      <div className="tb-mode seg" role="group" aria-label={t("工作模式")}>
+        <button className={mode === "edit" ? "on" : ""} title={t("编辑模式：画图、接线、属性编辑")} onClick={() => setWorkMode("edit")}>✏️ {t("编辑")}</button>
+        <button className={mode === "present" ? "on" : ""} title={t("演示模式：收起面板，按场景步骤讲解")} onClick={() => setWorkMode("present")}>🎬 {t("演示")}</button>
+        <button className={mode === "verify" ? "on" : ""} title={t("验收模式：工况快照与验收矩阵")} onClick={() => setWorkMode("verify")}>✓ {t("验收")}</button>
+      </div>
+      <div className="tb-sep" />
+      <button className="tb-btn" data-testid="lang-toggle" onClick={() => setLang(lang === "zh" ? "en" : "zh")} title="中 / EN">
         {lang === "zh" ? "EN" : "中"}
       </button>
       <button className="tb-btn" onClick={toggleFullscreen} title={fullscreen ? t("退出全屏") : t("全屏")}>
@@ -427,7 +445,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
             </div>
             <hr />
             <button className="export-item" onClick={() => doExport("pdf")}><span className="export-badge">📄</span> PDF 文档<small>矢量 · 适合打印</small></button>
-            <button className="export-item" onClick={() => doExport("gif")} disabled={gifProgress !== null}><span className="export-badge">🎞️</span> GIF 动图<small>{gifProgress !== null ? `生成中 ${Math.round(gifProgress * 100)}%…` : "含流动动画"}</small></button>
+            <button className="export-item" onClick={() => doExport("gif")} disabled={gifProgress !== null}><span className="export-badge">🎞️</span> GIF {t("动图")}<small>{gifProgress !== null ? `${t("生成中")} ${Math.round(gifProgress * 100)}%…` : t("含流动动画")}</small></button>
             <button className="export-item" onClick={() => doExport("jpg")}><span className="export-badge">🖼️</span> JPG 图片<small>高压缩 · 用于文档</small></button>
             <hr />
             <button className="export-item" onClick={() => doExport("png")}><span className="export-badge">🖼️</span> PNG 图片<small>2x 高清</small></button>
@@ -477,6 +495,29 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) openFile(f);
+          e.target.value = "";
+        }}
+      />
+      {/* 机型包导入 */}
+      <input
+        ref={packRef}
+        type="file"
+        accept=".json,application/json,.fluidpack.json"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) {
+            f.text().then((text) => {
+              try {
+                const pack = parseMachinePack(text);
+                loadDiagram(pack.diagram);
+                markSaved();
+                toast(`${t("机型包已导入")}: ${pack.meta.title}`);
+              } catch (err) {
+                toast((err as Error).message, "error");
+              }
+            });
+          }
           e.target.value = "";
         }}
       />

@@ -41,10 +41,14 @@ const ID = {
 };
 
 describe("演示/讲述模式（角色自适应）", () => {
-  it("只保留两个场景：冲泡咖啡、热牛奶", () => {
-    expect(SCENARIOS.map((s) => s.id)).toEqual(["coffee", "milk"]);
+  it("场景清单：冲泡咖啡/热牛奶 + 美式/热水杆/清洗/排废四新场景", () => {
+    expect(SCENARIOS.map((s) => s.id)).toEqual(["coffee", "milk", "americano", "hotWand", "milkClean", "drain"]);
     expect(getScenario("coffee")!.steps.length).toBe(3);
     expect(getScenario("milk")!.steps.length).toBe(2);
+    expect(getScenario("americano")!.steps.length).toBe(3);
+    expect(getScenario("hotWand")!.steps.length).toBe(2);
+    expect(getScenario("milkClean")!.steps.length).toBe(2);
+    expect(getScenario("drain")!.steps.length).toBe(2);
     expect(getScenario("semi-auto")).toBeUndefined();
     expect(getScenario("full-auto")).toBeUndefined();
   });
@@ -64,10 +68,10 @@ describe("演示/讲述模式（角色自适应）", () => {
     expect(nodes.heatV3).toBe(ID.heatV3);
   });
 
-  it("缺少奶泵的图纸只显示冲泡咖啡，不显示热牛奶", () => {
+  it("缺少奶泵的图纸不显示热牛奶，仍显示其余场景", () => {
     const d = toDiagram(bcmtsRaw);
     d.nodes = d.nodes.filter((n) => n.id !== ID.milkPump);
-    expect(availableScenariosForDiagram(d).map((s) => s.id)).toEqual(["coffee"]);
+    expect(availableScenariosForDiagram(d).map((s) => s.id)).toEqual(["coffee", "americano", "hotWand", "milkClean", "drain"]);
   });
 
   it("collectScenarioState 按角色累积激活节点与阀状态", () => {

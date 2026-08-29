@@ -6,6 +6,7 @@
  */
 
 import type { Diagram } from "./types";
+import type { Lang } from "./i18n";
 import { collectAdvice } from "./advice";
 
 export type DiagnosticSeverity = "error" | "warning" | "info";
@@ -18,8 +19,8 @@ export interface Diagnostic {
   ids: string[];
 }
 
-export function diagnoseDiagram(diagram: Diagram): Diagnostic[] {
-  return collectAdvice(diagram).map((a) => ({
+export function diagnoseDiagram(diagram: Diagram, lang: Lang = "zh"): Diagnostic[] {
+  return collectAdvice(diagram, undefined, lang).map((a) => ({
     severity: a.severity,
     kind: a.kind,
     title: a.title,

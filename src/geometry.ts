@@ -203,8 +203,22 @@ let _demand = new Set<string>();
 export function setCachedPipes(pipes: Pipe[], nodes?: DiagramNode[]) {
   _cachedPipes = pipes;
   if (nodes) {
+    // 性能埋点：重算耗时监控（>16ms 警告；可通过 fluidpath.enginePerf 开关收集 mark/measure）
+    const t0 = typeof performance !== "undefined" ? performance.now() : 0;
     _cachedDisabled = computeDisabledPipes(pipes, nodes);
     _demand = computeDemandPipes(pipes, nodes);
+    if (typeof performance !== "undefined") {
+      const dt = performance.now() - t0;
+      try {
+        if ((window as unknown as { fluidpathEnginePerf?: boolean }).fluidpathEnginePerf) {
+          performance.mark("fluidpath:setCachedPipes");
+          performance.measure("fluidpath:setCachedPipes", { start: t0 });
+        }
+      } catch { /* 非 DOM 环境忽略 */ }
+      if (dt > 16 && typeof console !== "undefined") {
+        console.warn(`[fluidpath] engine recompute took ${dt.toFixed(1)}ms (${pipes.length} pipes, ${nodes.length} nodes)`);
+      }
+    }
   }
 }
 

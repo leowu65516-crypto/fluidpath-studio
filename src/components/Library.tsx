@@ -8,6 +8,8 @@ function LibraryItem({ def, lang }: { def: NodeDef; lang: "zh" | "en" }) {
   // 避免每次渲染都重新生成随机 ID 的预览节点
   const preview = useMemo(() => createNode(def.type, 0, 0, undefined, def.variant), [def.type, def.variant]);
   const scale = Math.min(34 / def.width, 34 / def.height);
+  // 预览符号的内置 label 双语：用渲染时 lang 覆盖 createNode 的默认值
+  const previewLabel = def.type === "label" || def.type === "shape" ? (lang === "en" ? "Text" : "文本") : nodeDisplayLabel(def, lang);
   return (
     <div
       className="lib-item"
@@ -22,7 +24,7 @@ function LibraryItem({ def, lang }: { def: NodeDef; lang: "zh" | "en" }) {
     >
       <svg width={40} height={40} viewBox="0 0 40 40">
         <g transform={`translate(${20 - (def.width * scale) / 2} ${20 - (def.height * scale) / 2}) scale(${scale})`}>
-          <NodeSymbol node={{ ...preview, label: def.type === "label" ? "文本" : def.type === "shape" ? "文字" : preview.label, fontSize: def.type === "shape" ? 26 : preview.fontSize }} />
+          <NodeSymbol node={{ ...preview, label: previewLabel, fontSize: def.type === "shape" ? 26 : preview.fontSize }} />
         </g>
       </svg>
       <span>{nodeDisplayLabel(def, lang)}</span>

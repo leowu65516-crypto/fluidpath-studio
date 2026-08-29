@@ -69,9 +69,10 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
+  const { t } = useT();
   return (
     <div className="insp-section">
-      <div className="insp-section-title" onClick={() => setOpen((o) => !o)} title={open ? "折叠分组" : "展开分组"}>
+      <div className="insp-section-title" onClick={() => setOpen((o) => !o)} title={open ? t("折叠分组") : t("展开分组")}>
         <span className={`insp-caret${open ? "" : " closed"}`}>▾</span>
         {title}
       </div>
@@ -99,12 +100,12 @@ function BatchReplace({ nodeIds, pipeIds }: { nodeIds: string[]; pipeIds: string
       </Row>
       {mode !== "clear" && (
         <Row label={mode === "replace" ? t("替换为") : t("文本")}>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={mode === "replace" ? "新文本" : "输入文本"} />
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={mode === "replace" ? t("新文本") : t("输入文本")} />
         </Row>
       )}
       {mode === "replace" && (
         <Row label={t("查找")}>
-          <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="被替换文本" />
+          <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder={t("被替换文本")} />
         </Row>
       )}
       <button
@@ -118,17 +119,17 @@ function BatchReplace({ nodeIds, pipeIds }: { nodeIds: string[]; pipeIds: string
 
 export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle?: () => void }) {
   const { diagram, ui } = useAppState();
-  const { t } = useT();
+  const { t, lang } = useT();
   const [savedTemplates, setSavedTemplates] = useState(() => listSavedTemplates());
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const node = ui.selection.nodes.length === 1 ? diagram.nodes.find((n) => n.id === ui.selection.nodes[0]) : undefined;
   const pipe = !node && ui.selection.pipes.length === 1 ? diagram.pipes.find((p) => p.id === ui.selection.pipes[0]) : undefined;
   const multi = ui.selection.nodes.length + ui.selection.pipes.length > 1;
-  const pipeIssues = pipe ? checkPipeFluid(pipe, diagram.nodes) : [];
+  const pipeIssues = pipe ? checkPipeFluid(pipe, diagram.nodes, lang) : [];
   const pipeStallCause = useMemo(() => {
     if (!pipe || !pipeEngineeringDisabled(pipe, diagram.nodes)) return null;
-    return traceStopCause(pipe, diagram);
-  }, [pipe, diagram]);
+    return traceStopCause(pipe, diagram, lang);
+  }, [pipe, diagram, lang]);
   // 元件→整机功能链（单选时展示所在链）
   const funcChain = useMemo(() => {
     if (multi) return null;
@@ -140,7 +141,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
   return (
     <div className={`inspector${collapsed ? " collapsed" : ""}`}>
       <div className={`panel-title${collapsed ? " vertical" : ""}`}>
-        <button className="panel-toggle" onClick={onToggle} title={collapsed ? "展开属性检查器" : "折叠属性检查器"} aria-label={collapsed ? "展开属性检查器" : "折叠属性检查器"}>
+        <button className="panel-toggle" onClick={onToggle} title={collapsed ? t("展开属性检查器") : t("折叠属性检查器")} aria-label={collapsed ? t("展开属性检查器") : t("折叠属性检查器")}>
           {collapsed ? "◀" : "▶"}
         </button>
         {!collapsed && <span>{t("属性检查器")}</span>}
@@ -149,7 +150,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
       {!collapsed && (
       <div className="insp-scroll">
         {multi && (
-          <Section title={`已选中 ${ui.selection.nodes.length} 个节点、${ui.selection.pipes.length} 条管路`}>
+          <Section title={`${t("已选中")} ${ui.selection.nodes.length} ${t("个节点")}、${ui.selection.pipes.length} ${t("条管路")}`}>
             {ui.selection.nodes.length > 1 && (
               <button className="btn wide" onClick={groupSelection}>{t("成组")}</button>
             )}
@@ -193,18 +194,18 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 </Section>
                 <Section title={t("镜像翻转")}>
                   <div className="btn-row">
-                    <button className="btn wide" title="水平镜像（左右翻转）" onClick={() => mirrorSelection(true)}>↔ 水平镜像</button>
-                    <button className="btn wide" title="垂直镜像（上下翻转）" onClick={() => mirrorSelection(false)}>↕ 垂直镜像</button>
+                    <button className="btn wide" title={t("水平镜像（左右翻转）")} onClick={() => mirrorSelection(true)}>↔ {t("水平镜像")}</button>
+                    <button className="btn wide" title={t("垂直镜像（上下翻转）")} onClick={() => mirrorSelection(false)}>↕ {t("垂直镜像")}</button>
                   </div>
                 </Section>
                 <Section title={t("自动排版")}>
                   <div className="btn-row">
-                    <button className="btn wide" onClick={() => autoLayout("leftright")}>➡ 水平排列</button>
-                    <button className="btn wide" onClick={() => autoLayout("topdown")}>⬇ 垂直排列</button>
+                    <button className="btn wide" onClick={() => autoLayout("leftright")}>➡ {t("水平排列")}</button>
+                    <button className="btn wide" onClick={() => autoLayout("topdown")}>⬇ {t("垂直排列")}</button>
                   </div>
                   <div className="btn-row">
-                    <button className="btn wide" onClick={() => autoLayout("grid")}>▦ 网格排列</button>
-                    <button className="btn wide" onClick={() => autoLayout("tree")}>🌳 按连接分层</button>
+                    <button className="btn wide" onClick={() => autoLayout("grid")}>▦ {t("网格排列")}</button>
+                    <button className="btn wide" onClick={() => autoLayout("tree")}>🌳 {t("按连接分层")}</button>
                   </div>
                 </Section>
                 <Section title={t("批量替换标签")}>
@@ -220,7 +221,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               if (!first) return null;
               const ids = ui.selection.pipes;
               return (
-                <Section title={`批量编辑 ${ids.length} 条管路`}>
+                <Section title={`${t("批量编辑")} ${ids.length} ${t("条管路")}`}>
                   <Row label={t("介质类型")}>
                     <select value={first.fluidType ?? "custom"} onChange={(e) => {
                       const preset = FLUID_PRESETS.find((f) => f.key === e.target.value);
@@ -252,7 +253,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   <Row label={t("液体颜色")}>
                     <ColorSwatch value={first.fluidColor} presets={FLUID_COLOR_PRESETS} onChange={(c) => patchPipes(ids, { fluidColor: c, fluidType: "custom" })} />
                   </Row>
-                  <Row label={`流速 ${first.flowSpeed.toFixed(1)} m/s`}>
+                  <Row label={`${t("流速")} ${first.flowSpeed.toFixed(1)} m/s`}>
                     <input type="range" min={1} max={30} value={Math.round(first.flowSpeed * 10)}
                       onChange={(e) => patchPipes(ids, { flowSpeed: Number(e.target.value) / 10 }, false)}
                       onMouseUp={() => patchPipes(ids, {}, true)} />
@@ -274,12 +275,12 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                     <button className="btn wide" title={t("将平行同向的选中管路在垂直方向等距排列")} onClick={() => distributePipes(ids)}>📐 {t("等距排列")}</button>
                   </div>
                   <div className="btn-row" style={{ marginTop: 6 }}>
-                    <button className="btn wide" title="临时强制这些管路流动（忽略停流判定）" onClick={() => setPipesForceFlow(ids, true)}>▶ 强制流动</button>
-                    <button className="btn wide" title="取消强制流动" onClick={() => setPipesForceFlow(ids, false)}>↺ 取消流动</button>
+                    <button className="btn wide" title={t("临时强制这些管路流动（忽略停流判定）")} onClick={() => setPipesForceFlow(ids, true)}>▶ {t("强制流动")}</button>
+                    <button className="btn wide" title={t("取消强制流动")} onClick={() => setPipesForceFlow(ids, false)}>↺ {t("取消流动")}</button>
                   </div>
                   <div className="btn-row" style={{ marginTop: 6 }}>
-                    <button className="btn wide" title="临时强制这些管路停止流动" onClick={() => setPipesForceStop(ids, true)}>⏸ 强制停止</button>
-                    <button className="btn wide" title="取消强制停止" onClick={() => setPipesForceStop(ids, false)}>↺ 取消停止</button>
+                    <button className="btn wide" title={t("临时强制这些管路停止流动")} onClick={() => setPipesForceStop(ids, true)}>⏸ {t("强制停止")}</button>
+                    <button className="btn wide" title={t("取消强制停止")} onClick={() => setPipesForceStop(ids, false)}>↺ {t("取消停止")}</button>
                   </div>
                   <div className="insp-tip">{t("此处修改将一次性应用到所有选中的管路。")}</div>
                 </Section>
@@ -295,14 +296,14 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
         )}
 
         {!multi && node && (() => {
-          const kn = knowledgeOf(node.type);
+          const kn = knowledgeOf(node.type, lang);
           return (
           <>
             {/* 元件→整机角色联动：所在功能链 */}
             {funcChain && funcChain.nodeIds.length > 0 && (
-              <Section title="🔗 所在功能链">
+              <Section title={`🔗 ${t("所在功能链")}`}>
                 <div className="chain-summary">{chainPathSummary(diagram, funcChain)}</div>
-                <div className="insp-tip">按当前阀位/泵态追踪，与实际流动一致；画布上已用蓝色光环标出该链。关闭阀门会在此处截断。</div>
+                <div className="insp-tip">{t("按当前阀位/泵态追踪，与实际流动一致；画布上已用蓝色光环标出该链。关闭阀门会在此处截断。")}</div>
               </Section>
             )}
             {/* 设备信息卡：图标 + 类型徽章 + 作用 */}
@@ -316,12 +317,12 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               </div>
             </div>
             <Section title={t("节点")}>
-              <Row label={node.type === "shape" ? "文字内容" : "名称"}>
+              <Row label={node.type === "shape" ? t("文字内容") : t("名称")}>
                 {node.type === "shape" ? (
                   <textarea
                     rows={3}
                     value={node.label}
-                    placeholder="支持多行文字"
+                    placeholder={t("支持多行文字")}
                     onChange={(e) => patchNode(node.id, { label: e.target.value })}
                   />
                 ) : (
@@ -337,7 +338,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                     <textarea
                       rows={3}
                       value={node.label}
-                      placeholder="标注文字"
+                      placeholder={t("标注文字")}
                       onChange={(e) => patchNode(node.id, { label: e.target.value })}
                     />
                   </Row>
@@ -526,27 +527,27 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <button className="btn danger wide" onClick={deleteSelection}>{t("删除节点")}</button>
             </Section>
             {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump" || node.type === "solenoid2" || node.type === "solenoid3") && (
-              <Section title="🔧 故障模拟（教学）">
-                <Row label="故障状态">
+              <Section title={`🔧 ${t("故障模拟（教学）")}`}>
+                <Row label={t("故障状态")}>
                   <select
                     value={node.fault ?? "none"}
                     onChange={(e) => patchNode(node.id, { fault: e.target.value === "none" ? undefined : e.target.value as NodeFault })}
                   >
-                    <option value="none">无故障</option>
-                    {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && <option value="pumpStuck">泵卡死（不运转）</option>}
+                    <option value="none">{t("无故障")}</option>
+                    {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && <option value="pumpStuck">{t("泵卡死（不运转）")}</option>}
                     {(node.type === "solenoid2" || node.type === "solenoid3") && (
                       <>
-                        <option value="valveStuckOpen">阀卡开（无法关闭）</option>
-                        <option value="valveStuckClosed">阀卡关（无法打开）</option>
+                        <option value="valveStuckOpen">{t("阀卡开（无法关闭）")}</option>
+                        <option value="valveStuckClosed">{t("阀卡关（无法打开）")}</option>
                       </>
                     )}
                   </select>
                 </Row>
-                <div className="insp-tip">注入故障后，观察下游哪些管路停流，再配合「回路诊断」定位故障点。</div>
+                <div className="insp-tip">{t("注入故障后，观察下游哪些管路停流，再配合「回路诊断」定位故障点。")}</div>
               </Section>
             )}
             {kn && (
-              <Section title="📖 原理讲解">
+              <Section title={`📖 ${t("原理讲解")}`}>
                 <div className="knowledge">
                   <div className="knowledge-item"><b>{t("作用")}</b>{kn.role}</div>
                   <div className="knowledge-item"><b>{t("原理")}</b>{kn.principle}</div>
@@ -561,21 +562,21 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
         {!multi && pipe && (
           <>
             {funcChain && funcChain.nodeIds.length > 0 && (
-              <Section title="🔗 所在功能链">
+              <Section title={`🔗 ${t("所在功能链")}`}>
                 <div className="chain-summary">{chainPathSummary(diagram, funcChain)}</div>
-                <div className="insp-tip">按当前阀位/泵态追踪，与实际流动一致；画布上已用蓝色光环标出该链。</div>
+                <div className="insp-tip">{t("按当前阀位/泵态追踪，与实际流动一致；画布上已用蓝色光环标出该链。")}</div>
               </Section>
             )}
             {pipeIssues.length > 0 && (
               <div className="fluid-warning">
-                <div className="fluid-warning-title">⚠️ {t("介质异常")}（{pipeIssues.length} 处）</div>
+                <div className="fluid-warning-title">⚠️ {t("介质异常")}（{pipeIssues.length} {t("处")}）</div>
                 {pipeIssues.map((issue, i) => (
                   <div key={i} className="fluid-warning-row">
                     <div className="fluid-warning-msg">{issue.message}</div>
                     <div className="btn-row">
                       {issue.allowed.map((ft) => (
                         <button key={ft} className="btn" onClick={() => patchPipe(pipe.id, { fluidType: ft, fluidColor: fluidColor(ft) })}>
-                          {t("改为")}「{fluidLabel(ft)}」
+                          {t("改为")}「{fluidLabel(ft, lang)}」
                         </button>
                       ))}
                     </div>
@@ -595,7 +596,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                       const label = nd?.label ?? pp?.label ?? id.slice(0, 8);
                       return (
                         <span key={i} className="cause-chip">
-                          {i === 0 ? "根因：" : "→ "}{label}
+                          {i === 0 ? t("根因：") : "→ "}{label}
                         </span>
                       );
                     })}
@@ -608,16 +609,16 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <input value={pipe.label} onChange={(e) => patchPipe(pipe.id, { label: e.target.value })} />
               </Row>
               <Row label={t("标注文字")}>
-                <input value={pipe.annotation ?? ""} placeholder="如 DN25 / 热水管路" onChange={(e) => patchPipe(pipe.id, { annotation: e.target.value })} />
+                <input value={pipe.annotation ?? ""} placeholder={t("如 DN25 / 热水管路")} onChange={(e) => patchPipe(pipe.id, { annotation: e.target.value })} />
               </Row>
               <div className="insp-tip">{t("标注文字显示在管路中段下方（黄色小标签），适合标注管径、介质或编号。")}</div>
               <Row label={t("两端连接")}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
                   <span>
-                    起点：{pipe.fromPortId ? (() => {
+                    {t("起点")}：{pipe.fromPortId ? (() => {
                       const ref = findPort(diagram.nodes, pipe.fromPortId!);
-                      return ref ? <b style={{ color: "#2f7fd6" }}>{ref.node.label || ref.node.type}</b> : "已连端口";
-                    })() : "游离端点"}
+                      return ref ? <b style={{ color: "#2f7fd6" }}>{ref.node.label || ref.node.type}</b> : t("已连端口");
+                    })() : t("游离端点")}
                     {pipe.fromPortId && (() => {
                       const ref = findPort(diagram.nodes, pipe.fromPortId!);
                       const pt = ref ? portWorldPos(ref.node, ref.port) : { x: 0, y: 0 };
@@ -625,10 +626,10 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                     })()}
                   </span>
                   <span>
-                    终点：{pipe.toPortId ? (() => {
+                    {t("终点")}：{pipe.toPortId ? (() => {
                       const ref = findPort(diagram.nodes, pipe.toPortId!);
-                      return ref ? <b style={{ color: "#e8890c" }}>{ref.node.label || ref.node.type}</b> : "已连端口";
-                    })() : "游离端点"}
+                      return ref ? <b style={{ color: "#e8890c" }}>{ref.node.label || ref.node.type}</b> : t("已连端口");
+                    })() : t("游离端点")}
                     {pipe.toPortId && (() => {
                       const ref = findPort(diagram.nodes, pipe.toPortId!);
                       const pt = ref ? portWorldPos(ref.node, ref.port) : { x: 0, y: 0 };
@@ -649,7 +650,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   </select>
                 </Row>
                 {pipe.routing !== "curved" && (
-                  <Row label={`拐角圆角 ${Math.round(pipe.cornerRadius ?? 0)}px`}>
+                  <Row label={`${t("拐角圆角")} ${Math.round(pipe.cornerRadius ?? 0)}px`}>
                     <input
                       type="range"
                       min={0}
@@ -706,7 +707,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   ))}
                 </select>
               </Row>
-              <Row label={`显示线宽 ${pipe.visualDiameter}px`}>
+              <Row label={`${t("显示线宽")} ${pipe.visualDiameter}px`}>
                 <input
                   type="range"
                   min={3}
@@ -719,7 +720,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <Row label={t("管壁颜色")}>
                 <ColorSwatch value={pipe.wallColor} presets={WALL_COLOR_PRESETS} onChange={(c) => patchPipe(pipe.id, { wallColor: c, material: "custom" })} />
               </Row>
-              <Row label={`管壁透明度 ${Math.round((pipe.wallOpacity ?? 1) * 100)}%`}>
+              <Row label={`${t("管壁透明度")} ${Math.round((pipe.wallOpacity ?? 1) * 100)}%`}>
                 <input
                   type="range"
                   min={20}
@@ -732,7 +733,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <Row label={t("液体颜色")}>
                 <ColorSwatch value={pipe.fluidColor} presets={FLUID_COLOR_PRESETS} onChange={(c) => patchPipe(pipe.id, { fluidColor: c, fluidType: "custom" })} />
               </Row>
-              <Row label={`液体透明度 ${Math.round(pipe.fluidOpacity * 100)}%`}>
+              <Row label={`${t("液体透明度")} ${Math.round(pipe.fluidOpacity * 100)}%`}>
                 <input
                   type="range"
                   min={20}
@@ -757,7 +758,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   <button className={pipe.direction === "reverse" ? "on" : ""} onClick={() => patchPipe(pipe.id, { direction: "reverse" })}>{t("反向")}</button>
                 </div>
               </Row>
-              <Row label={`流速 ${pipe.flowSpeed.toFixed(1)} m/s`}>
+              <Row label={`${t("流速")} ${pipe.flowSpeed.toFixed(1)} m/s`}>
                 <input
                   type="range"
                   min={1}
@@ -783,18 +784,18 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <Row label={t("讲解置灰")}>
                 <input type="checkbox" checked={!!pipe.disabled} onChange={(e) => patchPipe(pipe.id, { disabled: e.target.checked })} />
               </Row>
-              <Row label="🔧 故障模拟">
+              <Row label={t("🔧 故障模拟")}>
                 <input type="checkbox" checked={pipe.fault === "pipeBlocked"} onChange={(e) => patchPipe(pipe.id, { fault: e.target.checked ? "pipeBlocked" : undefined })} />
-                <span style={{ fontSize: 12, color: "var(--text-dim)" }}>管路堵塞（停止流动）</span>
+                <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("管路堵塞（停止流动）")}</span>
               </Row>
-              <Row label="教学显示覆盖">
+              <Row label={t("教学显示覆盖")}>
                 <div className="seg">
-                  <button className={!pipeTeachingOverride(pipe) ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: undefined })}>工程判定</button>
-                  <button className={pipeTeachingOverride(pipe) === "flow" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "flow" })}>讲解流动</button>
-                  <button className={pipeTeachingOverride(pipe) === "stop" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "stop" })}>讲解停流</button>
+                  <button className={!pipeTeachingOverride(pipe) ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: undefined })}>{t("工程判定")}</button>
+                  <button className={pipeTeachingOverride(pipe) === "flow" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "flow" })}>{t("讲解流动")}</button>
+                  <button className={pipeTeachingOverride(pipe) === "stop" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "stop" })}>{t("讲解停流")}</button>
                 </div>
               </Row>
-              {pipeTeachingOverride(pipe) && <div className="insp-tip">教学覆盖只影响动画显示；诊断和工程导出仍采用工程有效状态。</div>}
+              {pipeTeachingOverride(pipe) && <div className="insp-tip">{t("教学覆盖只影响动画显示；诊断和工程导出仍采用工程有效状态。")}</div>}
               <Row label={t("路径")}>
                 <button className="btn" title={t("清除手动调整的路径点，恢复自动走线")} onClick={() => patchPipe(pipe.id, { points: [] })}>{t("重置走线")}</button>
               </Row>
@@ -900,7 +901,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             </Section>
             <Section title={t("撤销历史")}>
               <div className="insp-row">
-                <span style={{ color: "var(--text-dim)", fontSize: 12 }}>可撤销 {getUndoCount()} 步 · 可重做 {getRedoCount()} 步</span>
+                <span style={{ color: "var(--text-dim)", fontSize: 12 }}>{t("可撤销 {a} 步 · 可重做 {b} 步").replace("{a}", String(getUndoCount())).replace("{b}", String(getRedoCount()))}</span>
               </div>
             </Section>
             <div className="insp-tip">{t("提示：")}<br />{t("· 悬停节点显示端口，从端口拖拽到另一端口生成管路")}<br />{t("· 拖动节点时自动对齐其他节点，出现洋红参考线；按住 Alt 可临时关闭吸附")}<br />{t("· 方向键微调 1px，Shift + 方向键 10px")}<br />{t("· Ctrl+G 成组、Ctrl+Shift+G 解散组")}<br />{t("· Alt + 拖动端口可改变端口位置")}<br />{t("· 选中节点拖四角手柄可调整大小")}<br />{t("· 空格/中键/右键拖拽平移画布，滚轮缩放")}<br />{t("· Delete 删除，Ctrl+Z 撤销，Ctrl+D 复制")}<br />{t("· Ctrl+C/V 复制粘贴")}<br />{t("· ? 键查看全部快捷键")}<br />{t("· 液路问题请用工具栏「回路诊断」一键检查并修复")}</div>
@@ -922,7 +923,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
         <Section title={t("图层管理")}>
           {(diagram.settings.layers ?? []).map((layer) => (
             <div key={layer.id} className="insp-row" style={{ marginBottom: 6, alignItems: "center" }}>
-              <span style={{ display: "inline-block", width: 14, height: 14, borderRadius: 3, background: layer.visible ? "#2f7fd6" : "#d7dee7", cursor: "pointer", marginRight: 6, flexShrink: 0 }} onClick={() => toggleLayerVisibility(layer.id)} title={layer.visible ? "隐藏" : "显示"} />
+              <span style={{ display: "inline-block", width: 14, height: 14, borderRadius: 3, background: layer.visible ? "#2f7fd6" : "#d7dee7", cursor: "pointer", marginRight: 6, flexShrink: 0 }} onClick={() => toggleLayerVisibility(layer.id)} title={layer.visible ? t("隐藏") : t("显示本层")} />
               <span style={{ flex: 1, fontSize: 12, color: layer.visible ? "var(--text)" : "var(--text-dim)" }}>{layer.name}</span>
               {(diagram.settings.layers?.length ?? 0) > 1 && (
                 <button className="btn sq danger" title={t("删除图层")} onClick={() => removeLayer(layer.id)} style={{ width: 20, height: 20, fontSize: 11, padding: 0, lineHeight: "18px" }}>×</button>
@@ -937,7 +938,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               </select>
             </Row>
           )}
-          <button className="btn wide" onClick={() => addLayer(`图层 ${(diagram.settings.layers?.length ?? 0) + 1}`)}>{t("＋ 新建图层")}</button>
+          <button className="btn wide" onClick={() => addLayer(lang === "en" ? `Layer ${(diagram.settings.layers?.length ?? 0) + 1}` : `图层 ${(diagram.settings.layers?.length ?? 0) + 1}`)}>{t("＋ 新建图层")}</button>
         </Section>
       </div>
       )}

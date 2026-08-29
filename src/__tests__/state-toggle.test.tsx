@@ -64,7 +64,7 @@ describe("阀/泵默认显示画布开关", () => {
     act(() => { loadDiagram(d); });
     const svg = document.querySelector(".main-canvas");
     const texts = svg ? Array.from(svg.querySelectorAll("text")).map((t) => t.textContent ?? "") : [];
-    // 阀开关显示"开"（valveState=open）
-    expect(texts.some((x) => x === "开" || x === "关")).toBe(true);
+    // 阀开关显示"开"（valveState=open）；英文模式下为 ON/OFF
+    expect(texts.some((x) => x === "开" || x === "关" || x === "ON" || x === "OFF")).toBe(true);
   });
 });

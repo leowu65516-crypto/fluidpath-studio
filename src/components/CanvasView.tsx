@@ -63,7 +63,8 @@ import {
 } from "../store";
 import { patchNode, patchPipe } from "../store";
 import { parseDiagramJSON } from "../export";
-import { checkDiagramFluid, fluidLabel, fluidColor } from "../fluidRules";
+import { toast } from "../toast";
+import { checkDiagramFluid, checkPipeFluid, fluidLabel, fluidColor } from "../fluidRules";
 
 type DragState =
   | { type: "pan"; startClientX: number; startClientY: number; startPanX: number; startPanY: number }
@@ -103,12 +104,12 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   }, [diagram, ui.selection]);
   const chainPathSet = new Set(ui.chainPath?.pipeIds ?? []);
   // 介质物理常识校验：实时计算冲突，供画布感叹号与修复菜单使用
-  const fluidIssues = useMemo(() => checkDiagramFluid(diagram), [diagram]);
+  const fluidIssues = useMemo(() => checkDiagramFluid(diagram, lang), [diagram, lang]);
   // 结构问题即时 lint：接线/介质错误实时红点（不依赖打开诊断面板）
   const structLint = useMemo(() => {
     const nodeMsg = new Map<string, string>();
     const pipeMsg = new Map<string, string>();
-    for (const a of collectAdvice(diagram)) {
+    for (const a of collectAdvice(diagram, undefined, lang)) {
       if (a.category !== "structure") continue;
       for (const id of a.elementIds) {
         if (diagram.nodes.some((n) => n.id === id)) nodeMsg.set(id, `${a.title}：${a.message}`);
@@ -116,7 +117,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
       }
     }
     return { nodeMsg, pipeMsg };
-  }, [diagram]);
+  }, [diagram, lang]);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const flowRefs = useRef(new Map<string, SVGPathElement>());
   const offsets = useRef(new Map<string, number>());
@@ -519,7 +520,29 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
         const target = (ev.target as Element)?.closest?.("[data-port-id]");
         const toPortId = target?.getAttribute("data-port-id");
         if (toPortId && toPortId !== d.fromPortId) {
-          createPipe(d.fromPortId, toPortId);
+          // 连接前校验：端口方向冲突拦截（两进/两出），介质规则提示
+          const diag = store.get().diagram;
+          const allPorts = diag.nodes.flatMap((n) => n.ports);
+          const from = allPorts.find((p) => p.id === d.fromPortId);
+          const to = allPorts.find((p) => p.id === toPortId);
+          const fd = from?.direction ?? "bidirectional";
+          const td = to?.direction ?? "bidirectional";
+          if (fd === "in" && td === "in") {
+            toast(t("两个入口不能直连：至少一端应为出口（out）"), "error");
+            return;
+          }
+          if (fd === "out" && td === "out") {
+            toast(t("两个出口不能直连：下游应为入口（in）"), "error");
+            return;
+          }
+          const pipe = createPipe(d.fromPortId, toPortId);
+          // 介质冲突即时提示（不阻断，由用户决定）
+          if (pipe) {
+            const issues = checkPipeFluid(pipe, diag.nodes, lang);
+            if (issues.length > 0) {
+              toast(`${t("介质异常")}: ${issues[0].message}`, "error");
+            }
+          }
         }
       }
     );
@@ -746,7 +769,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
     const d = store.get().diagram;
     const p = d.pipes.find((pp) => pp.id === pipeId);
     if (!p) return;
-    const cause = traceStopCause(p, d);
+    const cause = traceStopCause(p, d, lang);
     setStopCause({ x, y, pipeId, reason: cause.reason, ids: cause.ids });
   }
 
@@ -760,44 +783,44 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
 
     if (kind === "node" && id) {
       if (!sel.nodes.includes(id)) selectNode(id);
-      items.push({ label: "📋 复制节点 (Ctrl+D)", onClick: () => duplicateSelection() });
-      items.push({ label: "🎨 复制节点样式", onClick: () => copyNodeStyle(id) });
-      items.push({ label: "📌 粘贴节点样式", onClick: () => pasteNodeStyle(id), disabled: !hasNodeStyle() });
+      items.push({ label: `📋 ${t("复制节点 (Ctrl+D)")}`, onClick: () => duplicateSelection() });
+      items.push({ label: `🎨 ${t("复制节点样式")}`, onClick: () => copyNodeStyle(id) });
+      items.push({ label: `📌 ${t("粘贴节点样式")}`, onClick: () => pasteNodeStyle(id), disabled: !hasNodeStyle() });
       items.push({ label: "---", divider: true });
-      items.push({ label: "🔗 成组 (Ctrl+G)", onClick: () => groupSelection(), disabled: sel.nodes.length < 2 });
-      items.push({ label: "🔓 解散组", onClick: () => ungroupSelection(), disabled: !sel.nodes.some((nid) => store.get().diagram.nodes.find((n) => n.id === nid)?.groupId) });
+      items.push({ label: `🔗 ${t("成组 (Ctrl+G)")}`, onClick: () => groupSelection(), disabled: sel.nodes.length < 2 });
+      items.push({ label: `🔓 ${t("解散组")}`, onClick: () => ungroupSelection(), disabled: !sel.nodes.some((nid) => store.get().diagram.nodes.find((n) => n.id === nid)?.groupId) });
       items.push({ label: "---", divider: true });
-      items.push({ label: "🌫️ 置灰选中", onClick: () => setSelectionDisabled(true) });
-      items.push({ label: "✨ 取消置灰", onClick: () => setSelectionDisabled(false) });
+      items.push({ label: `🌫️ ${t("置灰选中")}`, onClick: () => setSelectionDisabled(true) });
+      items.push({ label: `✨ ${t("取消置灰")}`, onClick: () => setSelectionDisabled(false) });
       items.push({ label: "---", divider: true });
-      items.push({ label: "🗑️ 删除节点", onClick: () => deleteSelection(), danger: true });
+      items.push({ label: `🗑️ ${t("删除节点")}`, onClick: () => deleteSelection(), danger: true });
     } else if (kind === "pipe" && id) {
       if (!sel.pipes.includes(id)) selectPipe(id);
       const p = store.get().diagram.pipes.find((x) => x.id === id);
       const pipeStopped = !!p && pipeTeachingOverride(p) !== "flow" && pipeEffectiveDisabled(p, store.get().diagram.nodes);
       if (pipeStopped) {
-        items.push({ label: "🔍 为什么停流？", onClick: () => showStopCause(p!.id, e.clientX, e.clientY) });
+        items.push({ label: `🔍 ${t("为什么停流？")}`, onClick: () => showStopCause(p!.id, e.clientX, e.clientY) });
         items.push({ label: "---", divider: true });
       }
-      items.push({ label: "🔄 重置走线", onClick: () => { const pp = store.get().diagram.pipes.find((x) => x.id === id); if (pp) patchPipe(id, { points: [] }); } });
-      items.push({ label: "↔️ 反向流向", onClick: () => { const p = store.get().diagram.pipes.find((x) => x.id === id); if (p) patchPipe(id, { direction: p.direction === "forward" ? "reverse" : "forward" }); } });
-      items.push({ label: "🔗 沿直通链同步介质", onClick: () => syncFluidThroughChain(id) });
-      items.push({ label: "🎨 复制管路样式", onClick: () => copyPipeStyle(id) });
-      items.push({ label: "📌 粘贴管路样式", onClick: () => pastePipeStyle(id), disabled: !hasPipeStyle() });
+      items.push({ label: `🔄 ${t("重置走线")}`, onClick: () => { const pp = store.get().diagram.pipes.find((x) => x.id === id); if (pp) patchPipe(id, { points: [] }); } });
+      items.push({ label: `↔️ ${t("反向流向")}`, onClick: () => { const p = store.get().diagram.pipes.find((x) => x.id === id); if (p) patchPipe(id, { direction: p.direction === "forward" ? "reverse" : "forward" }); } });
+      items.push({ label: `🔗 ${t("沿直通链同步介质")}`, onClick: () => syncFluidThroughChain(id) });
+      items.push({ label: `🎨 ${t("复制管路样式")}`, onClick: () => copyPipeStyle(id) });
+      items.push({ label: `📌 ${t("粘贴管路样式")}`, onClick: () => pastePipeStyle(id), disabled: !hasPipeStyle() });
       items.push({ label: "---", divider: true });
-      items.push({ label: "🗑️ 删除管路", onClick: () => deleteSelection(), danger: true });
+      items.push({ label: `🗑️ ${t("删除管路")}`, onClick: () => deleteSelection(), danger: true });
     } else {
       // 画布空白
-      items.push({ label: "📋 粘贴 (Ctrl+V)", onClick: () => pasteFromClipboard(), disabled: !store.get().ui.clipboard });
+      items.push({ label: `📋 ${t("粘贴 (Ctrl+V)")}`, onClick: () => pasteFromClipboard(), disabled: !store.get().ui.clipboard });
       items.push({ label: "---", divider: true });
-      items.push({ label: "⊡ 适应画布", onClick: () => { const el = document.querySelector(".main-canvas"); fitToScreen((el as HTMLElement)?.clientWidth ?? 1200, (el as HTMLElement)?.clientHeight ?? 800); } });
-      items.push({ label: "📊 生成图例", onClick: () => { const svg = document.querySelector(".main-canvas") as SVGSVGElement | null; if (!svg) return; const bb = svg.getBoundingClientRect(); const wx = (-store.get().ui.panX) / store.get().ui.zoom + bb.width / 2 / store.get().ui.zoom - 180; const wy = (-store.get().ui.panY) / store.get().ui.zoom + bb.height / 2 / store.get().ui.zoom; generateLegend(wx, wy); } });
+      items.push({ label: `⊡ ${t("适应画布")}`, onClick: () => { const el = document.querySelector(".main-canvas"); fitToScreen((el as HTMLElement)?.clientWidth ?? 1200, (el as HTMLElement)?.clientHeight ?? 800); } });
+      items.push({ label: `📊 ${t("生成图例")}`, onClick: () => { const svg = document.querySelector(".main-canvas") as SVGSVGElement | null; if (!svg) return; const bb = svg.getBoundingClientRect(); const wx = (-store.get().ui.panX) / store.get().ui.zoom + bb.width / 2 / store.get().ui.zoom - 180; const wy = (-store.get().ui.panY) / store.get().ui.zoom + bb.height / 2 / store.get().ui.zoom; generateLegend(wx, wy); } });
       items.push({ label: "---", divider: true });
-      items.push({ label: "🗑️ 全部清除", onClick: () => { if (confirm("确定清空整个画布？")) newDiagram(); }, danger: true });
+      items.push({ label: `🗑️ ${t("全部清除")}`, onClick: () => { if (confirm(t("确定清空整个画布？"))) newDiagram(); }, danger: true });
     }
 
     if (!hasSel && kind === "canvas") {
-      items[0] = { label: "📋 粘贴 (Ctrl+V)", onClick: () => pasteFromClipboard(), disabled: !store.get().ui.clipboard };
+      items[0] = { label: `📋 ${t("粘贴 (Ctrl+V)")}`, onClick: () => pasteFromClipboard(), disabled: !store.get().ui.clipboard };
     }
     setCtxMenu({ x: e.clientX, y: e.clientY, items });
   }
@@ -806,16 +829,16 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   function handleFluidIssueClick(pipe: Pipe, e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    const issues = checkDiagramFluid(store.get().diagram).get(pipe.id);
+    const issues = checkDiagramFluid(store.get().diagram, lang).get(pipe.id);
     if (!issues || !issues.length) return;
     const items: Array<{ label: string; onClick?: () => void; danger?: boolean; disabled?: boolean; divider?: boolean }> = [];
-    items.push({ label: `⚠️ 介质异常（${issues.length} 处）`, disabled: true });
+    items.push({ label: `⚠️ ${t("介质异常")}（${issues.length}）`, disabled: true });
     items.push({ label: "---", divider: true });
     for (const issue of issues) {
-      items.push({ label: `${issue.nodeLabel}：应为 ${issue.allowed.map(fluidLabel).join(" / ")}`, disabled: true });
+      items.push({ label: `${issue.nodeLabel}：${t("应为")} ${issue.allowed.map((ft) => fluidLabel(ft, lang)).join(" / ")}`, disabled: true });
       for (const ft of issue.allowed) {
         items.push({
-          label: `   ↳ 改为「${fluidLabel(ft)}」`,
+          label: `   ↳ ${t("改为")}「${fluidLabel(ft, lang)}」`,
           onClick: () => patchPipe(pipe.id, { fluidType: ft, fluidColor: fluidColor(ft) }),
         });
       }
@@ -836,7 +859,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             try {
               loadDiagram(parseDiagramJSON(text));
             } catch (err) {
-              alert(`打开失败：${(err as Error).message}`);
+              alert(`${t("打开失败")}：${(err as Error).message}`);
             }
           });
           return;
@@ -884,14 +907,14 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
     const nodeDim = scenario ? !nodeActive : false;
     // 悬停浮动提示：元件名 + 类型 + 当前状态（解决元件多、文字小找不到）
     const stateHint = (() => {
-      if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") return node.pumpOn !== false ? "运行" : "停止";
-      if (node.type === "solenoid2") return node.valveState === "open" ? "开" : "关";
-      if (node.type === "solenoid3") return node.valvePath === "A" ? "A 路" : node.valvePath === "B" ? "B 路" : "关";
+      if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") return node.pumpOn !== false ? t("运行") : t("停止");
+      if (node.type === "solenoid2") return node.valveState === "open" ? t("开") : t("关");
+      if (node.type === "solenoid3") return node.valvePath === "A" ? t("A 路") : node.valvePath === "B" ? t("B 路") : t("关");
       return "";
     })();
     return (
       <g key={node.id}>
-        <title>{nodeCanvasLabel(node, lang) || defOf(node.type, node.variant).label}{stateHint ? `（${stateHint}）` : ""}{node.fault ? " · 故障" : ""}</title>
+        <title>{nodeCanvasLabel(node, lang) || defOf(node.type, node.variant).label}{stateHint ? `（${stateHint}）` : ""}{node.fault ? ` · ${t("故障")}` : ""}</title>
         {/* 故障模拟红色标记（教学用） */}
         {node.fault && (
           <g pointerEvents="none" transform={`translate(${node.x + node.width} ${node.y})`}>
@@ -1357,12 +1380,12 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                 const nd = diagram.nodes.find((n) => n.id === id);
                 const pp = diagram.pipes.find((x) => x.id === id);
                 const label = nd?.label ?? pp?.label ?? id.slice(0, 8);
-                return <span key={i} className="cause-chip">{i === 0 ? "根因：" : "→ "}{label}</span>;
+                return <span key={i} className="cause-chip">{i === 0 ? t("根因：") : "→ "}{label}</span>;
               })}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn" onClick={() => { focusElement(stopCause.ids[0] ?? stopCause.pipeId); blinkElements(stopCause.ids); showChainPath(stopCause.ids.filter((id) => diagram.pipes.some((pp) => pp.id === id))); setStopCause(null); }}>📍 定位根因</button>
-              <button className="btn ghost" onClick={() => setStopCause(null)}>关闭</button>
+              <button className="btn" onClick={() => { focusElement(stopCause.ids[0] ?? stopCause.pipeId); blinkElements(stopCause.ids); showChainPath(stopCause.ids.filter((id) => diagram.pipes.some((pp) => pp.id === id))); setStopCause(null); }}>📍 {t("定位根因")}</button>
+              <button className="btn ghost" onClick={() => setStopCause(null)}>{t("关闭")}</button>
             </div>
           </div>
         </>

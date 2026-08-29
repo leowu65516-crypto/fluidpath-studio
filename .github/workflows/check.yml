@@ -25,4 +25,16 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Type check + full test suite
-        run: npm run check
+        run: |
+          set -o pipefail
+          npx tsc --noEmit
+          npx vitest run 2>&1 | tee /tmp/vitest.log
+          exit_code=$?
+          # 把测试结果尾部写入公开可读的 Step Summary，便于无凭据诊断
+          {
+            echo "## Vitest 结果"
+            echo '```'
+            tail -50 /tmp/vitest.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY" || true
+          exit $exit_code

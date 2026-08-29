@@ -517,7 +517,7 @@ const EN: Record<string, string> = {
   "动图": "animation",
   "生成中": "Generating",
   "含流动动画": "with flow animation",
-  "GIF 导出失败": "GIF export failed",
+  "GIF 导出失败": "GIF saving failed",
 
   // Inspector 提示与撤销历史（防回归补齐）
   "提示：": "Tips:",
@@ -539,7 +539,7 @@ const EN: Record<string, string> = {
   "强制流动（仅讲解）": "Force flow (demo only)",
   "强制停流（仅讲解）": "Force stop (demo only)",
   "清除覆盖": "Clear override",
-  "教学覆盖只影响动画显示；诊断和工程导出仍采用工程有效状态。": "Teaching override affects animation only; diagnostics and engineering export keep the engineering state.",
+  "教学覆盖只影响动画显示；诊断和工程导出仍采用工程有效状态。": "Teaching override affects animation only; diagnostics and the engineering JSON keep the true engineering state.",
   "工程判定": "Engineering",
   "讲解流动": "Demo flow",
   "讲解停流": "Demo stop",

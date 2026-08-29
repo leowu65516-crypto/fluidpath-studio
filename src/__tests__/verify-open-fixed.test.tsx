@@ -25,7 +25,7 @@ describe("修复后文件验证", () => {
     expect(store.get().diagram.pipes.length).toBe(71);
   });
 
-  it("所有管路字段完整可计算折线", () => {
+  d("所有管路字段完整可计算折线", () => {
     render(<LangProvider><App /></LangProvider>);
     act(() => { loadDiagram(json as Diagram); });
     const d = store.get().diagram;
@@ -37,7 +37,7 @@ describe("修复后文件验证", () => {
     }
   });
 
-  it("无端口冲突", () => {
+  d("无端口冲突", () => {
     render(<LangProvider><App /></LangProvider>);
     act(() => { loadDiagram(json as Diagram); });
     const d = store.get().diagram;

@@ -4,16 +4,22 @@ import { LangProvider } from "../i18n";
 import App from "../App";
 import { loadDiagram, store } from "../store";
 import { pipePolyline } from "../geometry";
+import type { Diagram } from "../types";
 import fs from "fs";
 
-describe("修复后文件验证", () => {
-  const P = "/Users/leo/Downloads/最新水路图(可打开)_副本.json";
-  const json = JSON.parse(fs.readFileSync(P, "utf8"));
+// 本机调试用测试：依赖个人 Downloads 文件，缺失时自动跳过
+const LOCAL_JSON = "/Users/leo/Downloads/最新水路图(可打开)_副本.json";
+const hasLocal = fs.existsSync(LOCAL_JSON);
+const d = it.skipIf(!hasLocal);
 
-  it("加载不抛错且节点数正确", () => {
+describe("修复后文件验证", () => {
+  const P = LOCAL_JSON;
+  const json: unknown = hasLocal ? JSON.parse(fs.readFileSync(P, "utf8")) : null;
+
+  d("加载不抛错且节点数正确", () => {
     render(<LangProvider><App /></LangProvider>);
     expect(() => {
-      act(() => { loadDiagram(json); });
+      act(() => { loadDiagram(json as Diagram); });
     }).not.toThrow();
     expect(store.get().diagram.nodes.length).toBe(62);
     expect(store.get().diagram.pipes.length).toBe(71);
@@ -21,7 +27,7 @@ describe("修复后文件验证", () => {
 
   it("所有管路字段完整可计算折线", () => {
     render(<LangProvider><App /></LangProvider>);
-    act(() => { loadDiagram(json); });
+    act(() => { loadDiagram(json as Diagram); });
     const d = store.get().diagram;
     for (const p of d.pipes) {
       expect(typeof p.visualDiameter, `管路 ${p.id} visualDiameter`).toBe("number");
@@ -33,7 +39,7 @@ describe("修复后文件验证", () => {
 
   it("无端口冲突", () => {
     render(<LangProvider><App /></LangProvider>);
-    act(() => { loadDiagram(json); });
+    act(() => { loadDiagram(json as Diagram); });
     const d = store.get().diagram;
     const used = new Map<string, number>();
     for (const p of d.pipes) {

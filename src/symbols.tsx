@@ -320,7 +320,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
             <circle cx={cx} cy={cy} r={r * 0.16} fill={stroke} stroke="none" />
           </g>
           {/* 状态指示：泵体正上方 */}
-          <circle cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
+          <circle className="fp-state-badge" cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
         </g>
       );
     }
@@ -356,7 +356,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <circle cx={cx} cy={cy} r={r * 0.2} fill={stroke} stroke="none" />
           <circle cx={cx} cy={cy} r={r * 0.07} fill="#ffffff" stroke="none" />
           {/* 状态指示：泵体正上方 */}
-          <circle cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
+          <circle className="fp-state-badge" cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
         </g>
       );
     }
@@ -391,7 +391,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
             d={`M ${cx} ${(cy - r * 0.16).toFixed(1)} C ${(cx + r * 0.11).toFixed(1)} ${(cy - r * 0.02).toFixed(1)} ${(cx + r * 0.11).toFixed(1)} ${(cy + r * 0.1).toFixed(1)} ${cx} ${(cy + r * 0.1).toFixed(1)} C ${(cx - r * 0.11).toFixed(1)} ${(cy + r * 0.1).toFixed(1)} ${(cx - r * 0.11).toFixed(1)} ${(cy - r * 0.02).toFixed(1)} ${cx} ${(cy - r * 0.16).toFixed(1)} Z`}
             fill="#e8b84b" stroke={stroke} strokeWidth={1}
           />
-          <circle cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
+          <circle className="fp-state-badge" cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
         </g>
       );
     }
@@ -428,7 +428,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <Coil x={w / 2 - 15} y={2} w={30} h={h * 0.3 - 2} stroke={stroke} />
           {/* 开/关状态指示 */}
           <circle cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />
-          <text x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>
+          <text className="fp-state-badge" x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600} style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={2.5}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>
         </g>
       );
     }

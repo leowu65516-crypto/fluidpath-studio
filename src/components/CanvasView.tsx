@@ -814,7 +814,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
       items.push({ label: `📋 ${t("粘贴 (Ctrl+V)")}`, onClick: () => pasteFromClipboard(), disabled: !store.get().ui.clipboard });
       items.push({ label: "---", divider: true });
       items.push({ label: `⊡ ${t("适应画布")}`, onClick: () => { const el = document.querySelector(".main-canvas"); fitToScreen((el as HTMLElement)?.clientWidth ?? 1200, (el as HTMLElement)?.clientHeight ?? 800); } });
-      items.push({ label: `📊 ${t("生成图例")}`, onClick: () => { const svg = document.querySelector(".main-canvas") as SVGSVGElement | null; if (!svg) return; const bb = svg.getBoundingClientRect(); const wx = (-store.get().ui.panX) / store.get().ui.zoom + bb.width / 2 / store.get().ui.zoom - 180; const wy = (-store.get().ui.panY) / store.get().ui.zoom + bb.height / 2 / store.get().ui.zoom; generateLegend(wx, wy); } });
+      items.push({ label: `📊 ${t("生成图例")}`, onClick: () => { const svg = document.querySelector(".main-canvas") as SVGSVGElement | null; if (!svg) return; const bb = svg.getBoundingClientRect(); const wx = (-store.get().ui.panX) / store.get().ui.zoom + bb.width / 2 / store.get().ui.zoom - 180; const wy = (-store.get().ui.panY) / store.get().ui.zoom + bb.height / 2 / store.get().ui.zoom; generateLegend(wx, wy, lang); } });
       items.push({ label: "---", divider: true });
       items.push({ label: `🗑️ ${t("全部清除")}`, onClick: () => { if (confirm(t("确定清空整个画布？"))) newDiagram(); }, danger: true });
     }
@@ -1063,12 +1063,13 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           {/* 电磁阀画布开关（默认显示，属性可关） */}
           {(node.type === "solenoid2" || node.type === "solenoid3") && node.showStateOnDiagram !== false && (
             node.type === "solenoid2" ? (
-              <g>
+              <g className="fp-state-badge">
                 <rect x={8} y={node.height + 24} width={node.width - 16} height={20} rx={10} fill="#f0f4f9" stroke="#b9c6d4" strokeWidth={1} />
                 <rect x={node.valveState === "closed" ? 10 : node.width - 28} y={node.height + 26} width={18} height={16} rx={8} fill={node.valveState === "closed" ? "#d9534f" : "#3fae6a"} stroke="#fff" strokeWidth={1.2} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id); }} />
+                <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={11} fill={node.valveState === "closed" ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none" style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={3}>{node.valveState === "closed" ? t("关") : t("开")}</text>
               </g>
             ) : (
-              <g>
+              <g className="fp-state-badge">
                 {(["A", "off", "B"] as const).map((val, i) => {
                   const bx = 6 + (node.width - 12) * (i / 2);
                   const active = (node.valvePath ?? "A") === val;
@@ -1085,10 +1086,10 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           )}
           {/* 泵画布开关（开/停，默认显示，属性可关） */}
           {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && node.showStateOnDiagram !== false && (
-            <g>
+            <g className="fp-state-badge">
               <rect x={8} y={node.height + 24} width={node.width - 16} height={20} rx={10} fill="#f0f4f9" stroke="#b9c6d4" strokeWidth={1} />
               <rect x={node.pumpOn === false ? 10 : node.width - 28} y={node.height + 26} width={18} height={16} rx={8} fill={node.pumpOn === false ? "#d9534f" : "#3fae6a"} stroke="#fff" strokeWidth={1.2} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id); }} />
-              <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={9} fill={node.pumpOn === false ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none">{node.pumpOn === false ? "停止" : "运行"}</text>
+              <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={10} fill={node.pumpOn === false ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none" style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={3}>{node.pumpOn === false ? t("停止") : t("运行")}</text>
             </g>
           )}
         </g>
@@ -1096,7 +1097,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
         {diagram.settings.showNodeLabels !== false && node.type !== "label" && node.type !== "shape" && (
           <text
             x={node.x + node.width / 2} y={node.y + node.height + 18}
-            textAnchor="middle" fontSize={node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13} fill="var(--node-label)"
+            textAnchor="middle" className="fp-node-label" fontSize={node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13} fill="var(--node-label)"
             fontFamily="system-ui, -apple-system, sans-serif"
             data-ui="1"
             style={{ cursor: "text" }}

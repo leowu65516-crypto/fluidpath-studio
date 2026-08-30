@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.17.0";
+export const APP_VERSION = "1.18.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,19 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.18.0",
+    date: "2026-08-30",
+    highlights: [
+      "新增导出预览对话框（对标 Excalidraw）：实时预览 + 背景/透明、1-3x 缩放、边界留白、文件名、仅导出选中；PNG/JPG/SVG/PDF/GIF 全部接入",
+      "导出专用覆盖层：文字增强倍率（解决导出字小）、状态徽标样式（同款/强化描边/隐藏）、图例开关——全部只作用于导出物，画布零污染",
+      "图例新增「状态颜色说明」段（绿=开/运行/A 路、红=关/停止、蓝=B 路），解决导出图红绿无人能懂的问题；图例构建拆分为独立模块 legend.ts",
+      "自定义文字层：标题/副标题/底部说明/水印/日期戳，可选写回图纸",
+      "GIF 参数化（帧间隔/尺寸）与暗色主题导出（var() 主题色解析，修复导出文字回退黑色）",
+      "机型包按钮加文字标签 + 首次导出引导 + 使用指南 quickstart 讲解",
+      "状态徽标视觉增强：二通阀胶囊内加开/关文字、泵文字加大加白描边",
+    ],
+  },
   {
     version: "1.17.0",
     date: "2026-08-29",

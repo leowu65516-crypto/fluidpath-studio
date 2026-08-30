@@ -1715,49 +1715,13 @@ export function jumpToHistory(targetPastLength: number) {
 }
 
 // ===== 自动图例 =====
-export function generateLegend(x: number, y: number) {
-  const { pipes } = state.diagram;
-  const fluidSet = new Map<string, { color: string; label: string }>();
-  const diamSet = new Set<string>();
-  for (const p of pipes) {
-    const ft = p.fluidType && p.fluidType !== "custom" ? p.fluidType : null;
-    if (ft) fluidSet.set(ft, { color: p.fluidColor, label: FLUID_PRESETS.find((f) => f.key === ft)?.label ?? ft });
-    diamSet.add(p.nominalDiameter);
-  }
-  const legendNodes: DiagramNode[] = [];
-  let ly = y;
-  // 标题
-  const title = createNode("label", x, ly, "图例");
-  title.fontSize = 16;
-  legendNodes.push(title);
-  ly += 28;
-  // 介质
-  if (fluidSet.size > 0) {
-    const lbl = createNode("label", x, ly, "【介质】");
-    lbl.fontSize = 13;
-    legendNodes.push(lbl);
-    ly += 22;
-    fluidSet.forEach((v) => {
-      const box = createNode("shape", x, ly, v.label, "rect");
-      box.width = 120; box.height = 28; box.fill = v.color; box.fontSize = 13; box.stroke = "#3d4c5e";
-      legendNodes.push(box);
-      ly += 34;
-    });
-  }
-  ly += 6;
-  // 管径
-  if (diamSet.size > 0) {
-    const lbl = createNode("label", x, ly, "【管径】");
-    lbl.fontSize = 13;
-    legendNodes.push(lbl);
-    ly += 22;
-    diamSet.forEach((d) => {
-      const t = createNode("label", x, ly, d);
-      t.fontSize = 13;
-      legendNodes.push(t);
-      ly += 22;
-    });
-  }
+import { buildLegendNodes } from "./legend";
+export { buildLegendNodes } from "./legend";
+export type { LegendOpts } from "./legend";
+
+/** 画布右键菜单「生成图例」：默认全段开启，插入当前画布。 */
+export function generateLegend(x: number, y: number, lang: "zh" | "en" = "zh") {
+  const legendNodes = buildLegendNodes(state.diagram, x, y, { fluid: true, diameter: true, status: true }, lang);
   updateDiagram((d) => d.nodes.push(...legendNodes));
   setSelection({ nodes: legendNodes.map((n) => n.id), pipes: [] });
 }

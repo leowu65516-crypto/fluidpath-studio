@@ -31,7 +31,7 @@ describe("阀/泵默认显示画布开关", () => {
     const svg = document.querySelector(".main-canvas");
     // 泵/阀下方开关矩形（含"运行/停止"或"开/关"文字）
     const texts = svg ? Array.from(svg.querySelectorAll("text")).map((t) => t.textContent ?? "") : [];
-    expect(texts.some((x) => x === "运行" || x === "停止")).toBe(true);
+    expect(texts.some((x) => x === "运行" || x === "停止" || x === "Run" || x === "Stop" || x === "Running" || x === "Stopped")).toBe(true);
     expect(texts.some((x) => x === "开" || x === "关" || x === "A" || x === "B")).toBe(true);
   });
 

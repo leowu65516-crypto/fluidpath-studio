@@ -1,5 +1,7 @@
 import { GIFEncoder, applyPalette, quantize } from "gifenc";
-import type { Diagram } from "./types";
+import type { Diagram, DiagramNode } from "./types";
+import { createNode } from "./symbols";
+import { buildLegendNodes } from "./legend";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { toast } from "./toast";
 
@@ -98,6 +100,228 @@ function contentBBox(diagram: Diagram) {
 }
 
 /** 从画布 SVG 克隆出干净的导出用 DOM（剔除 UI 辅助元素）。transparent 时去除背景色 */
+// ===== 导出预览/覆盖管线（v1.18）：所见即所得的导出前编辑 =====
+
+/** 导出选项：全部只作用于导出物，画布零污染（延续「验收在副本运行」的哲学） */
+export interface ExportOptions {
+  format: "png" | "jpg" | "svg" | "pdf" | "gif";
+  /** 背景：white=纯白 / canvas=画布背景色 / transparent=透明（jpg 不支持） */
+  background: "white" | "canvas" | "transparent";
+  /** 像素倍率 1/2/3 */
+  scale: number;
+  /** 四周留白（世界 px） */
+  padding: number;
+  filename: string;
+  /** 仅导出选中（有选中时可用；由调用方裁剪） */
+  selectionOnly: boolean;
+  /** 当前画布选中（selectionOnly 用） */
+  selection?: { nodes: string[]; pipes: string[] };
+  /** 文字增强倍率 1–2（节点标签/管路标注/介质文字/图例） */
+  textScale: number;
+  /** 状态徽标样式：default=画布同款 / pill=强化描边放大 / hidden=隐藏 */
+  badgeStyle: "default" | "pill" | "hidden";
+  /** 图例段开关 */
+  legend: { fluid: boolean; diameter: boolean; status: boolean };
+  /** 自定义文字层（可选） */
+  title?: string;
+  subtitle?: string;
+  footnote?: string;
+  watermark?: string;
+  dateStamp: boolean;
+  /** 自定义文字是否同时写入画布（默认否） */
+  saveTextToDiagram: boolean;
+  /** 暗色导出（元素色映射暗色板，背景自动深色） */
+  darkMode: boolean;
+  /** GIF：帧间隔 ms（默认约 66 = 15fps） */
+  gifFrameDelay: number;
+  lang: "zh" | "en";
+}
+
+export const EXPORT_DEFAULTS: Omit<ExportOptions, "format" | "lang"> = {
+  background: "white",
+  scale: 2,
+  padding: 24,
+  filename: "",
+  selectionOnly: false,
+  textScale: 1,
+  badgeStyle: "default",
+  legend: { fluid: false, diameter: false, status: false },
+  dateStamp: false,
+  saveTextToDiagram: false,
+  darkMode: false,
+  gifFrameDelay: 66,
+};
+
+/** 导出主题色板（与 styles.css 的 :root / body[data-theme="dark"] 保持一致） */
+const THEME_VARS: Record<"light" | "dark", Record<string, string>> = {
+  light: {
+    "--bg-work": "#e8edf3", "--panel": "#ffffff", "--border": "#d7dee7", "--text": "#2b3644",
+    "--text-dim": "#6b7787", "--accent": "#2f7fd6", "--accent-soft": "#e7f0fb", "--danger": "#d64545",
+    "--surface": "#fbfcfe", "--surface-2": "#f0f4f9", "--tip-bg": "#f4f7fb", "--input-bg": "#ffffff",
+    "--brand": "#1f2c3d", "--static": "#7a8794", "--section-title": "#34435a", "--node-label": "#41505f",
+    "--card": "#ffffff",
+  },
+  dark: {
+    "--bg-work": "#141b24", "--panel": "#1d2632", "--border": "#334052", "--text": "#dde5ee",
+    "--text-dim": "#8b99a9", "--accent": "#4d9ef0", "--accent-soft": "#223550", "--danger": "#e27070",
+    "--surface": "#242f3d", "--surface-2": "#2a3646", "--tip-bg": "#242f3d", "--input-bg": "#242f3d",
+    "--brand": "#e6edf5", "--static": "#93a1b1", "--section-title": "#c6d2e0", "--node-label": "#aebccb",
+    "--card": "#24303d",
+  },
+};
+
+/** 把 clone 内 fill/stroke 等属性中的 var(--x) 解析为具体色值（SVG as image 不解析 CSS 变量） */
+function resolveSvgTheme(clone: SVGSVGElement, theme: "light" | "dark") {
+  const vars = THEME_VARS[theme];
+  const repl = (v: string): string => {
+    if (!v || !v.startsWith("var(")) return v;
+    const m = v.match(/var\(--([a-zA-Z-]+)\)/);
+    if (!m) return v;
+    return vars["--" + m[1]] ?? v;
+  };
+  const attrs = ["fill", "stroke", "stop-color", "flood-color"];
+  clone.querySelectorAll("*").forEach((el) => {
+    for (const a of attrs) {
+      const v = el.getAttribute(a);
+      if (v && v.includes("var(")) el.setAttribute(a, repl(v.trim()));
+    }
+  });
+}
+
+/** 文字/徽标 SVG DOM 后处理 */
+function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
+  // 文字增强
+  if (opts.textScale !== 1) {
+    clone.querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label").forEach((el) => {
+      const fs = Number(el.getAttribute("font-size") || 0);
+      if (fs > 0) el.setAttribute("font-size", String(Math.round(fs * opts.textScale * 10) / 10));
+    });
+  }
+  // 状态徽标
+  if (opts.badgeStyle === "hidden") {
+    clone.querySelectorAll(".fp-state-badge").forEach((el) => el.remove());
+  } else if (opts.badgeStyle === "pill") {
+    clone.querySelectorAll(".fp-state-badge").forEach((el) => {
+      if (el.tagName.toLowerCase() === "text") {
+        const fs = Number(el.getAttribute("font-size") || 0);
+        if (fs > 0) el.setAttribute("font-size", String(Math.round(fs * 1.35 * 10) / 10));
+        el.setAttribute("stroke", "#ffffff");
+        el.setAttribute("stroke-width", "3");
+        el.setAttribute("style", "paint-order: stroke");
+      }
+    });
+  }
+}
+
+/** 计算内容包围盒（含附加节点） */
+function bboxWith(nodes: DiagramNode[], diagram: Diagram): { x: number; y: number; w: number; h: number } {
+  return contentBBox({ ...diagram, nodes: [...diagram.nodes, ...nodes] } as Diagram);
+}
+
+/**
+ * 导出数据副本准备：
+ * - 按 opts 生成图例节点（右上外侧）与自定义文字层（标题/副标题顶部居中，底部说明/日期/水印）；
+ * - 返回图纸副本 + 附加节点列表（不修改画布）。
+ */
+export function prepareExportDiagram(diagram: Diagram, opts: ExportOptions): { diagram: Diagram; extra: DiagramNode[] } {
+  const d = structuredClone(diagram);
+  // 仅导出选中：保留选中节点/管路 + 两端都保留的连通管路
+  if (opts.selectionOnly && opts.selection && (opts.selection.nodes.length + opts.selection.pipes.length > 0)) {
+    const nodeSet = new Set(opts.selection.nodes);
+    const pipeSet = new Set(opts.selection.pipes);
+    d.nodes = d.nodes.filter((n) => nodeSet.has(n.id));
+    const keptIds = new Set(d.nodes.map((n) => n.id));
+    const portNode = new Map<string, string>();
+    for (const n of d.nodes) for (const p of n.ports) portNode.set(p.id, n.id);
+    d.pipes = d.pipes.filter((p) => {
+      if (pipeSet.has(p.id)) return true;
+      const fn = p.fromPortId ? portNode.get(p.fromPortId) : undefined;
+      const tn = p.toPortId ? portNode.get(p.toPortId) : undefined;
+      return !!(fn && tn && keptIds.has(fn) && keptIds.has(tn));
+    });
+  }
+  const extra: DiagramNode[] = [];
+  const base = contentBBox(d);
+  const cx = base.x + base.w / 2;
+  let top = base.y;
+  const mkLabel = (text: string, y: number, fontSize: number, fill: string): DiagramNode => {
+    const n = createNode("label", 0, 0, text);
+    n.fontSize = fontSize;
+    n.fill = fill;
+    n.width = Math.max(240, text.length * fontSize * 1.05);
+    n.height = fontSize + 14;
+    n.x = cx - n.width / 2;
+    n.y = y;
+    return n;
+  };
+  if (opts.title?.trim()) {
+    extra.push(mkLabel(opts.title.trim(), top - 64, 26, opts.darkMode ? "#dde5ee" : "#1f2c3d"));
+    top -= 68;
+  }
+  if (opts.subtitle?.trim()) {
+    extra.push(mkLabel(opts.subtitle.trim(), top - 34, 15, opts.darkMode ? "#8b99a9" : "#6b7787"));
+  }
+  const bottom = base.y + base.h + 18;
+  if (opts.footnote?.trim()) extra.push(mkLabel(opts.footnote.trim(), bottom, 13, opts.darkMode ? "#8b99a9" : "#6b7787"));
+  if (opts.dateStamp) {
+    const stamp = new Date().toLocaleString(opts.lang === "zh" ? "zh-CN" : "en-US");
+    const n = mkLabel(stamp, bottom, 12, opts.darkMode ? "#8b99a9" : "#9aa7b5");
+    n.x = base.x + base.w - n.width;
+    extra.push(n);
+  }
+  if (opts.watermark?.trim()) {
+    const n = mkLabel(opts.watermark.trim(), bottom, 13, opts.darkMode ? "#6b7787" : "#9aa7b5");
+    n.x = base.x;
+    extra.push(n);
+  }
+  if (opts.legend.fluid || opts.legend.diameter || opts.legend.status) {
+    const nodes = buildLegendNodes(d, base.x + base.w + 28, base.y, opts.legend, opts.lang);
+    extra.push(...nodes);
+  }
+  return { diagram: d, extra };
+}
+function appendExportNodes(clone: SVGSVGElement, extra: DiagramNode[]) {
+  const world = clone.querySelector("[data-world='1']");
+  if (!world) return;
+  const NS = "http://www.w3.org/2000/svg";
+  for (const n of extra) {
+    const g = document.createElementNS(NS, "g");
+    if (n.type === "shape" && n.variant === "rect") {
+      const r = document.createElementNS(NS, "rect");
+      r.setAttribute("x", String(n.x)); r.setAttribute("y", String(n.y));
+      r.setAttribute("width", String(n.width)); r.setAttribute("height", String(n.height));
+      r.setAttribute("rx", "6");
+      r.setAttribute("fill", n.fill); r.setAttribute("stroke", n.stroke); r.setAttribute("stroke-width", "1");
+      g.appendChild(r);
+      const t = document.createElementNS(NS, "text");
+      t.setAttribute("x", String(n.x + n.width / 2));
+      t.setAttribute("y", String(n.y + n.height / 2 + 5));
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("font-size", String(n.fontSize ?? 13));
+      t.setAttribute("fill", n.stroke);
+      t.setAttribute("font-family", "system-ui, -apple-system, sans-serif");
+      t.setAttribute("font-weight", "600");
+      t.textContent = n.label;
+      g.appendChild(t);
+    } else {
+      // label 文本
+      const t = document.createElementNS(NS, "text");
+      const w = n.width || 400;
+      t.setAttribute("x", String(n.x + w / 2));
+      t.setAttribute("y", String(n.y + (n.height ?? 24) / 2 + (n.fontSize ?? 14) / 3));
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("font-size", String(n.fontSize ?? 14));
+      t.setAttribute("fill", n.fill && n.fill !== "#fff" ? n.fill : "#2b3644");
+      t.setAttribute("font-family", "system-ui, -apple-system, sans-serif");
+      if (n.fontSize && n.fontSize >= 22) t.setAttribute("font-weight", "700");
+      t.textContent = n.label;
+      g.appendChild(t);
+    }
+    world.appendChild(g);
+  }
+}
+
+
 function buildExportClone(svgEl: SVGSVGElement, diagram: Diagram, transparent = false): { clone: SVGSVGElement; w: number; h: number } {
   const bbox = contentBBox(diagram);
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
@@ -148,7 +372,7 @@ export function exportJPG(svgEl: SVGSVGElement, diagram: Diagram, scale = 2, qua
 function rasterizeAndDownload(
   svgText: string, w: number, h: number,
   diagram: Diagram, scale: number, transparent: boolean,
-  mimeType: string, ext: string, quality?: number
+  mimeType: string, ext: string, quality?: number, bgColor?: string, filename?: string
 ) {
   const url = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }));
   const img = new Image();
@@ -158,7 +382,7 @@ function rasterizeAndDownload(
     canvas.height = h * scale;
     const ctx = canvas.getContext("2d")!;
     if (!transparent) {
-      ctx.fillStyle = diagram.settings.background || "#ffffff";
+      ctx.fillStyle = bgColor || diagram.settings.background || "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -166,7 +390,7 @@ function rasterizeAndDownload(
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     URL.revokeObjectURL(url);
     canvas.toBlob((blob) => {
-      if (blob) download(`${diagram.name || "fluidpath"}.${ext}`, blob);
+      if (blob) download(`${filename || diagram.name || "fluidpath"}.${ext}`, blob);
     }, mimeType, quality);
   };
   img.onerror = () => URL.revokeObjectURL(url);
@@ -268,6 +492,190 @@ export async function exportGIF(
   gif.finish();
   const bytes = gif.bytes();
   download(`${diagram.name || "fluidpath"}.gif`, new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/gif" }));
+}
+
+// ===== 导出对话框函数族（v1.18）：ExportDialog 专用 =====
+
+function backgroundColorOf(diagram: Diagram, opts: ExportOptions): string {
+  if (opts.darkMode) return "#141b24";
+  if (opts.background === "white") return "#ffffff";
+  return diagram.settings.background || "#ffffff";
+}
+
+/** 组装导出 SVG：预览与落盘共用同一管线（数据副本 + 附加节点 + DOM 后处理 + 主题色） */
+export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opts: ExportOptions): { svg: string; w: number; h: number } {
+  const { diagram: exDiagram, extra } = prepareExportDiagram(diagram, opts);
+  const bbox = bboxWith(extra, exDiagram);
+  const pad = Math.max(0, opts.padding || 0);
+  const x = bbox.x - pad;
+  const y = bbox.y - pad;
+  const w = bbox.w + pad * 2;
+  const h = bbox.h + pad * 2;
+  const clone = svgEl.cloneNode(true) as SVGSVGElement;
+  clone.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
+  const world = clone.querySelector("[data-world='1']");
+  if (world) world.removeAttribute("transform");
+  clone.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
+  clone.setAttribute("width", String(Math.round(w)));
+  clone.setAttribute("height", String(Math.round(h)));
+  clone.removeAttribute("style");
+  clone.removeAttribute("class");
+  appendExportNodes(clone, extra);
+  if (opts.background !== "transparent") {
+    const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bg.setAttribute("x", String(x));
+    bg.setAttribute("y", String(y));
+    bg.setAttribute("width", String(Math.round(w)));
+    bg.setAttribute("height", String(Math.round(h)));
+    bg.setAttribute("fill", backgroundColorOf(diagram, opts));
+    clone.insertBefore(bg, clone.firstChild);
+  }
+  applySvgOverrides(clone, opts);
+  resolveSvgTheme(clone, opts.darkMode ? "dark" : "light");
+  const xml = new XMLSerializer().serializeToString(clone);
+  return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n` + xml, w: Math.round(w), h: Math.round(h) };
+}
+
+/** PNG/JPG 选项化导出 */
+export function exportImageWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opts: ExportOptions) {
+  const transparent = opts.background === "transparent" && opts.format !== "jpg";
+  const { svg, w, h } = buildExportSVGWithOptions(svgEl, diagram, { ...opts, background: transparent ? "transparent" : opts.background });
+  rasterizeAndDownload(
+    svg, w, h, diagram, opts.scale, transparent,
+    opts.format === "jpg" ? "image/jpeg" : "image/png", opts.format, 0.92,
+    backgroundColorOf(diagram, { ...opts, background: transparent ? "transparent" : opts.background }),
+    opts.filename || diagram.name
+  );
+}
+
+/** SVG 选项化导出 */
+export function exportSvgWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opts: ExportOptions) {
+  const { svg } = buildExportSVGWithOptions(svgEl, diagram, opts);
+  download(`${opts.filename || diagram.name || "fluidpath"}.svg`, new Blob([svg], { type: "image/svg+xml" }));
+}
+
+/** PDF 选项化导出（打印窗口，走同一管线） */
+export function exportPdfWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opts: ExportOptions) {
+  const { svg, w, h } = buildExportSVGWithOptions(svgEl, diagram, opts);
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${opts.filename || diagram.name || "FluidPath"}</title>
+<style>
+  @page { margin: 10mm; size: ${w > h ? "landscape" : "portrait"}; }
+  body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+  svg { max-width: 100%; max-height: 100vh; }
+</style></head><body>${svg}</body></html>`;
+  const win = window.open("", "_blank");
+  if (!win) { alert("请允许弹出窗口以导出 PDF"); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+  setTimeout(() => win.close(), 1000);
+}
+
+/** GIF 选项化导出（逐帧管线 + 附加节点 + DOM 后处理 + 主题色） */
+export async function exportGifWithOptions(
+  svgEl: SVGSVGElement,
+  diagram: Diagram,
+  opts: ExportOptions,
+  onProgress?: (ratio: number) => void
+): Promise<void> {
+  const { diagram: exDiagram, extra } = prepareExportDiagram(diagram, opts);
+  const bbox = bboxWith(extra, exDiagram);
+  const pad = Math.max(0, opts.padding || 0);
+  const w = Math.round(bbox.w + pad * 2);
+  const h = Math.round(bbox.h + pad * 2);
+  const outScale = Math.min(2, Math.max(0.4, opts.scale));
+  const outW = Math.round(w * outScale);
+  const outH = Math.round(h * outScale);
+  const transparent = opts.background === "transparent";
+
+  const { clone } = (() => {
+    const c = svgEl.cloneNode(true) as SVGSVGElement;
+    c.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
+    const world = c.querySelector("[data-world='1']");
+    if (world) world.removeAttribute("transform");
+    c.setAttribute("viewBox", `${bbox.x - pad} ${bbox.y - pad} ${w} ${h}`);
+    c.setAttribute("width", String(w));
+    c.setAttribute("height", String(h));
+    c.removeAttribute("style");
+    c.removeAttribute("class");
+    appendExportNodes(c, extra);
+    if (!transparent) {
+      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bg.setAttribute("x", String(bbox.x - pad));
+      bg.setAttribute("y", String(bbox.y - pad));
+      bg.setAttribute("width", String(w));
+      bg.setAttribute("height", String(h));
+      bg.setAttribute("fill", backgroundColorOf(diagram, opts));
+      c.insertBefore(bg, c.firstChild);
+    }
+    applySvgOverrides(c, opts);
+    resolveSvgTheme(c, opts.darkMode ? "dark" : "light");
+    return { clone: c };
+  })();
+
+  const DURATION = 2; // 秒
+  const delay = Math.max(20, Math.round(opts.gifFrameDelay || 66));
+  const FRAMES = Math.max(8, Math.round((DURATION * 1000) / delay));
+
+  const flows: Array<{ el: Element; cyclePx: number; dir: number }> = [];
+  for (const pipe of exDiagram.pipes) {
+    const el = clone.querySelector(`[data-flow="${pipe.id}"]`);
+    if (!el) continue;
+    if (!pipe.animated) continue;
+    const dashLen = Math.max(6, pipe.visualDiameter * 1.5);
+    const gapMul = pipe.particleDensity === "high" ? 1.1 : pipe.particleDensity === "medium" ? 2.1 : 3.6;
+    const period = dashLen + Math.round(dashLen * gapMul);
+    const speedPx = 26 + pipe.flowSpeed * 58;
+    const cycles = Math.max(1, Math.round((speedPx * DURATION) / period));
+    flows.push({ el, cyclePx: cycles * period, dir: pipe.direction === "forward" ? 1 : -1 });
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+  const drips = Array.from(clone.querySelectorAll('[data-drip="1"]')).map((el) => ({
+    el,
+    phase: Number(el.getAttribute("data-drip-phase") || 0)
+  }));
+  const dripCycles = Math.max(1, Math.round(DURATION / 1.05));
+
+  const gif = GIFEncoder();
+  let palette: number[][] | null = null;
+
+  for (let i = 0; i < FRAMES; i++) {
+    const t = i / FRAMES;
+    for (const f of flows) {
+      f.el.setAttribute("stroke-dashoffset", (-f.dir * f.cyclePx * t).toFixed(2));
+    }
+    for (const dp of drips) {
+      const p = (t * dripCycles + dp.phase) % 1;
+      const op = p < 0.12 ? (p / 0.12) * 0.9 : p > 0.8 ? ((1 - p) / 0.2) * 0.9 : 0.9;
+      dp.el.setAttribute("transform", `translate(0 ${(46 * p).toFixed(1)})`);
+      dp.el.setAttribute("opacity", op.toFixed(2));
+    }
+    const xml = new XMLSerializer().serializeToString(clone);
+    const img = await rasterize(xml, w, h);
+    if (!transparent) {
+      ctx.fillStyle = backgroundColorOf(diagram, opts);
+      ctx.fillRect(0, 0, outW, outH);
+    } else {
+      ctx.clearRect(0, 0, outW, outH);
+    }
+    ctx.drawImage(img, 0, 0, outW, outH);
+    const { data } = ctx.getImageData(0, 0, outW, outH);
+    if (!palette) palette = quantize(data, 256);
+    const index = applyPalette(data, palette);
+    gif.writeFrame(index, outW, outH, { palette: palette ?? undefined, delay, repeat: 0 });
+    onProgress?.((i + 1) / FRAMES);
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  gif.finish();
+  const bytes = gif.bytes();
+  download(`${opts.filename || diagram.name || "fluidpath"}.gif`, new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/gif" }));
 }
 
 export function exportJSON(diagram: Diagram) {

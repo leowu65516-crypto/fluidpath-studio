@@ -19,6 +19,7 @@ import {
 } from "../store";
 import { exportEngineeringJSON, exportGIF, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram, saveJSONFile } from "../export";
 import { exportMachinePack, parseMachinePack } from "../machinePack";
+import { ExportDialog } from "./ExportDialog";
 import { ConditionPanel } from "./ConditionPanel";
 import { PromptDialog } from "./PromptDialog";
 import { useT } from "../i18n";
@@ -43,6 +44,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
   const playing = diagram.settings.globalAnimationPlaying;
   const hasSel = ui.selection.nodes.length + ui.selection.pipes.length > 0;
   const [gifProgress, setGifProgress] = useState<number | null>(null);
+  const [exportDialogFmt, setExportDialogFmt] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement | null>(null);
   const [layerOpen, setLayerOpen] = useState(false);
@@ -88,12 +90,27 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "e" && !(e.target as HTMLElement).closest("input, textarea, select")) {
         e.preventDefault();
-        doExport(lastExport);
+        quickExport(lastExport);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lastExport, svgRef, diagram, gifProgress]);
+
+  /** Ctrl+E 快速导出：跳过预览对话框，直接按上次格式与默认参数落盘 */
+  function quickExport(format: string) {
+    setExportOpen(false);
+    if (!svgRef.current) return;
+    switch (format) {
+      case "png": exportPNG(svgRef.current, diagram, 2); break;
+      case "jpg": exportJPG(svgRef.current, diagram, 2); break;
+      case "svg": exportSVG(svgRef.current, diagram); break;
+      case "pdf": exportPDF(svgRef.current, diagram, undefined); break;
+      case "gif": onExportGIF(); break;
+      case "json": void saveToLocal(); break;
+      case "engineering-json": exportEngineeringJSON(diagram); break;
+    }
+  }
 
   function doExport(format: string) {
     setExportOpen(false);
@@ -101,11 +118,15 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
     try { localStorage.setItem("fluidpath.lastExport", format); } catch { /* ignore */ }
     setLastExport(format);
     switch (format) {
-      case "png": exportPNG(svgRef.current, diagram, 2); break;
-      case "jpg": exportJPG(svgRef.current, diagram, 2); break;
-      case "svg": exportSVG(svgRef.current, diagram); break;
-      case "pdf": exportPDF(svgRef.current, diagram, undefined); break;
-      case "gif": onExportGIF(); break;
+      case "png":
+      case "jpg":
+      case "svg":
+      case "pdf":
+      case "gif":
+        // 图像导出进入预览对话框（所见即所得）；Ctrl+E 快速导出走 quickExport
+        setExportOpen(false);
+        setExportDialogFmt(format);
+        break;
       case "json": void saveToLocal(); break;
       case "engineering-json": exportEngineeringJSON(diagram); break;
       case "share": {
@@ -309,11 +330,15 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" title={t("打开 JSON")} onClick={openJsonFromDesktop}>
         <Icon d="M3 8l3-4h5l2 3h8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />{t("打开 JSON")}
       </button>
-      <button className="tb-btn sq" title={t("导入机型包")} aria-label={t("导入机型包")} onClick={() => packRef.current?.click()}>
-        <Icon d="M21 8l-9-5-9 5v8l9 5 9-5zM12 3v18M3 8l9 5 9-5" />
+      <button className="tb-btn" title={t("导入机型包（图纸+验收+说明一次恢复）")} onClick={() => packRef.current?.click()}>
+        <Icon d="M21 8l-9-5-9 5v8l9 5 9-5zM12 3v18M3 8l9 5 9-5" />{t("导入机型包")}
       </button>
-      <button className="tb-btn sq" title={t("导出机型包（图纸+场景+验收一次打包）")} aria-label={t("导出机型包")} onClick={() => { const fn = exportMachinePack(diagram); toast(t("机型包已导出") + ": " + fn); }}>
-        <Icon d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+      <button className="tb-btn" title={t("导出机型包（图纸+场景+验收一次打包）")} onClick={() => {
+        try { if (!localStorage.getItem("fluidpath.packHintShown")) { toast(t("机型包 = 图纸 + 验收案例 + 元数据一次打包，对方导入即可打开完整工作现场")); localStorage.setItem("fluidpath.packHintShown", "1"); } } catch { /* ignore */ }
+        const fn = exportMachinePack(diagram);
+        toast(t("机型包已导出") + ": " + fn);
+      }}>
+        <Icon d="M12 3v12M7 10l5 5 5-5M5 21h14" />{t("导出机型包")}
       </button>
       <button className="tb-btn sq" title={t("导入分享码")} aria-label={t("导入分享码")} onClick={() => setImportOpen(true)}>
         <Icon d="M9 12h6M9 16h6M7 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" />
@@ -430,7 +455,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <div className="tb-sep" />
       {/* 导出下拉菜单 */}
       <div className="export-dropdown" ref={exportRef}>
-        <button className="tb-btn export-main" onClick={() => doExport(lastExport)} title={`Ctrl+E 快速导出 ${lastExport.toUpperCase()} · 点击 ▼ 选择格式`}>
+        <button className="tb-btn export-main" onClick={() => { setExportOpen(false); setExportDialogFmt(lastExport); }} title={`打开导出预览（上次格式 ${lastExport.toUpperCase()}）· Ctrl+E 快速导出 · 点击 ▼ 选择格式`}>
           <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />{t("导出")} {lastExport.toUpperCase()}
         </button>
         <button className={`tb-btn sq export-toggle ${exportOpen ? "active" : ""}`} onClick={(e) => { menuRectFrom(e.currentTarget); setExportOpen(!exportOpen); }} title="选择导出格式">▼</button>
@@ -444,12 +469,12 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
               <label><input type="checkbox" checked={diagram.settings.showFluidColors !== false} onChange={(e) => updateDiagram((d) => { d.settings.showFluidColors = e.target.checked; }, false)} /> {t("显示介质颜色")}</label>
             </div>
             <hr />
-            <button className="export-item" onClick={() => doExport("pdf")}><span className="export-badge">📄</span> PDF 文档<small>矢量 · 适合打印</small></button>
-            <button className="export-item" onClick={() => doExport("gif")} disabled={gifProgress !== null}><span className="export-badge">🎞️</span> GIF {t("动图")}<small>{gifProgress !== null ? `${t("生成中")} ${Math.round(gifProgress * 100)}%…` : t("含流动动画")}</small></button>
+            <button className="export-item" onClick={() => doExport("pdf")}><span className="export-badge">📄</span> PDF 文档<small>{t("预览 · 可调背景与留白")}</small></button>
+            <button className="export-item" onClick={() => doExport("gif")} disabled={gifProgress !== null}><span className="export-badge">🎞️</span> GIF {t("动图")}<small>{gifProgress !== null ? `${t("生成中")} ${Math.round(gifProgress * 100)}%…` : t("预览 · 可调尺寸与速度")}</small></button>
             <button className="export-item" onClick={() => doExport("jpg")}><span className="export-badge">🖼️</span> JPG 图片<small>高压缩 · 用于文档</small></button>
             <hr />
-            <button className="export-item" onClick={() => doExport("png")}><span className="export-badge">🖼️</span> PNG 图片<small>2x 高清</small></button>
-            <button className="export-item" onClick={() => doExport("svg")}><span className="export-badge">📐</span> SVG 矢量<small>可编辑 · 无限缩放</small></button>
+            <button className="export-item" onClick={() => doExport("png")}><span className="export-badge">🖼️</span> PNG 图片<small>{t("预览 · 可调字号与图例")}</small></button>
+            <button className="export-item" onClick={() => doExport("svg")}><span className="export-badge">📐</span> SVG 矢量<small>{t("可编辑 · 无限缩放")}</small></button>
             <hr />
             <button className="export-item" onClick={() => doExport("json")}><span className="export-badge">💾</span> 工程文件 (.json)<small>完整数据</small></button>
             <button className="export-item" onClick={() => doExport("engineering-json")}><span className="export-badge">🛡️</span> 工程 JSON<small>不含教学显示覆盖</small></button>
@@ -458,6 +483,13 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         )}
       </div>
       </div>
+      )}
+      {exportDialogFmt && (
+        <ExportDialog
+          svgRef={svgRef}
+          initialFormat={exportDialogFmt as "png" | "jpg" | "svg" | "pdf" | "gif"}
+          onClose={() => setExportDialogFmt(null)}
+        />
       )}
       {importOpen && (
         <PromptDialog

@@ -173,14 +173,14 @@ function PipeViewImpl({
         {pipe.annotation && (
           <g pointerEvents="none">
             <rect x={mid.pt.x - 34} y={mid.pt.y + wallW * 0.7 + 4} width={68} height={16} rx={4} fill="var(--tip-bg)" stroke="#d9a441" strokeWidth={1} />
-            <text x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + 15.5} textAnchor="middle" fontSize={10} fill="#c07b1f" fontFamily="system-ui, sans-serif" fontWeight={600}>{pipe.annotation}</text>
+            <text className="fp-pipe-annotation" x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + 15.5} textAnchor="middle" fontSize={10} fill="#c07b1f" fontFamily="system-ui, sans-serif" fontWeight={600}>{pipe.annotation}</text>
           </g>
         )}
         {/* 自动介质标签 */}
         {showFluidLabels && displayFluidType && displayFluidType !== "custom" && (
           <g pointerEvents="none">
             <rect x={mid.pt.x - 30} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 21 : 5)} width={60} height={15} rx={4} fill={visibleFluidColor} fillOpacity={0.18} stroke={visibleFluidColor} strokeWidth={1} />
-          <text x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 31 : 15)} textAnchor="middle" fontSize={9.5} fill={visibleFluidColor} fontFamily="system-ui, sans-serif" fontWeight={650}>
+          <text className="fp-fluid-label" x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 31 : 15)} textAnchor="middle" fontSize={9.5} fill={visibleFluidColor} fontFamily="system-ui, sans-serif" fontWeight={650}>
               {FLUID_PRESETS.find((f) => f.key === displayFluidType)?.label ?? displayFluidType}
             </text>
           </g>

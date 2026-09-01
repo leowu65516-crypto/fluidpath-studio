@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { PromptDialog } from "./PromptDialog";
 import { availableScenariosForDiagram, getScenario } from "../scenarios";
-import { enterScenario, setScenarioStep, exitScenario, useAppState, saveWorkCondition, resetScenarioOverrides, setScenarioHighlightMode } from "../store";
+import { enterScenario, setScenarioStep, exitScenario, useAppState, saveWorkCondition, resetScenarioOverrides, setScenarioHighlightMode, saveScenarioOverridesToStep, clearSavedScenarioStep } from "../store";
 import { useT } from "../i18n";
+import { toast } from "../toast";
 
 export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   const { ui, diagram } = useAppState();
@@ -132,14 +133,36 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       {Object.keys(ui.scenario?.overrides ?? {}).length > 0 && (
-        <div style={{ margin: "0 16px 8px", padding: "7px 10px", borderRadius: 8, background: "var(--accent-soft)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ margin: "0 16px 8px", padding: "7px 10px", borderRadius: 8, background: "var(--accent-soft)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
           <span style={{ color: "var(--accent)", fontWeight: 600 }}>🎛 {t("已手动微调 {n} 处").replace("{n}", String(Object.keys(ui.scenario?.overrides ?? {}).length))}</span>
-          <button
-            onClick={() => resetScenarioOverrides()}
-            style={{ border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: 11.5, padding: "3px 8px", borderRadius: 6, cursor: "pointer" }}
-          >↺ {t("重置微调")}</button>
+          <span style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => {
+                const n = saveScenarioOverridesToStep(ui.scenario!.stepIndex);
+                if (n > 0) toast(t("已保存到第 {n} 步，随图纸保存，下次演示自动生效").replace("{n}", String(ui.scenario!.stepIndex + 1)));
+              }}
+              style={{ border: "1px solid var(--accent)", background: "var(--accent)", color: "#fff", fontSize: 11.5, padding: "3px 8px", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}
+              title={t("把当前微调固化到此步：随图纸保存，下次演示/打开自动生效（从此步开始）")}
+            >💾 {t("保存到本步")}</button>
+            <button
+              onClick={() => resetScenarioOverrides()}
+              style={{ border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: 11.5, padding: "3px 8px", borderRadius: 6, cursor: "pointer" }}
+            >↺ {t("重置微调")}</button>
+          </span>
         </div>
       )}
+      {(diagram.settings.scenarioOverrides?.[ui.scenario?.scenarioId ?? ""]?.[ui.scenario?.stepIndex ?? 0] ?? null) && (() => {
+        const savedCount = Object.keys(diagram.settings.scenarioOverrides![ui.scenario!.scenarioId][ui.scenario!.stepIndex]).length;
+        return (
+          <div style={{ margin: "0 16px 8px", padding: "6px 10px", borderRadius: 8, border: "1px dashed var(--border)", fontSize: 11.5, color: "var(--text-dim)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span>✓ {t("本步已保存 {n} 项微调（随图纸）").replace("{n}", String(savedCount))}</span>
+            <button
+              onClick={() => { clearSavedScenarioStep(ui.scenario!.stepIndex); toast(t("已清除本步保存的微调")); }}
+              style={{ border: "none", background: "transparent", color: "var(--danger)", fontSize: 11.5, cursor: "pointer" }}
+            >{t("清除")}</button>
+          </div>
+        );
+      })()}
       {/* 步骤进度条 */}
       <div style={{ padding: "0 16px" }}>
         <div style={{ display: "flex", gap: 4 }}>

@@ -35,7 +35,7 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 51 个测试文件 / 312 用例，见 §6 |
+| `src/__tests__/` | 52 个测试文件 / 317 用例，见 §6 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
 | `BCTMS.json`（项目根） | 另一台机型 BCTMS 快照（62/70，供 flow-isolation 测试） |
@@ -333,7 +333,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npx vitest run                   # 全量测试（当前 312 个，51 文件）
+npx vitest run                   # 全量测试（当前 317 个，52 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -399,7 +399,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：51 文件 / 312 用例全绿，tsc 无错误。**
+**当前全量：52 文件 / 317 用例全绿，tsc 无错误。**
 
 ---
 
@@ -430,6 +430,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.21.0 | 2026-09-01 | 演示微调持久化：saveScenarioOverridesToStep 写入 settings.scenarioOverrides（随图纸/JSON/机型包），「从此步生效」；setScenarioStep 改为快照重建（每步状态确定）；快照恢复保留已存微调；面板显示/清除本步已存微调。 |
 | 1.20.0 | 2026-09-01 | 演示微调叠加层：演示中拨阀/泵跨步骤保留（overrideScenarioNode，退出/切场景清空并还原快照）+ 场景面板微调计数/重置 + 高亮模式开关（按步骤/跟随流动）。 |
 | 1.19.0 | 2026-09-01 | 量感层：相对流量级联衰减（relativeFlow.ts，分流均分/汇流相加，手填 override）+ 压力域着色（含停流带压管段，默认关）+ 出视区 skip 渲染（200px 缓冲）。 |
 | 1.18.0 | 2026-08-30 | 导出预览对话框（实时预览+背景/缩放/留白/文件名/仅选中）；导出覆盖层（文字增强/状态徽标样式/图例开关，画布零污染）；图例状态颜色说明段（legend.ts 独立模块）；自定义文字层（标题/说明/水印/日期，可写回图纸）；GIF 帧间隔与暗色导出（修复导出文字变黑）；机型包按钮文字化+引导+指南讲解；状态徽标视觉增强。 |

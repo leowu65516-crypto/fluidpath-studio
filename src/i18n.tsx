@@ -401,6 +401,13 @@ const EN: Record<string, string> = {
   "高亮跟随实际流动：微调阀位后，新变为流动的管路自动发光": "Highlight follows real flow: pipes that start flowing after your tweaks glow automatically",
   "已手动微调 {n} 处": "{n} manual tweak(s)",
   "重置微调": "Reset tweaks",
+  "保存到本步": "Save to this step",
+  "已保存到第 {n} 步，随图纸保存，下次演示自动生效": "Saved to step {n} with the drawing — future presentations apply it automatically",
+  "把当前微调固化到此步：随图纸保存，下次演示/打开自动生效（从此步开始）": "Persist these tweaks into this step: saved with the drawing and applied automatically from this step onward",
+  "本步已保存 {n} 项微调（随图纸）": "{n} tweak(s) saved for this step (with the drawing)",
+  "已清除本步保存的微调": "Saved tweaks for this step cleared",
+  "清除": "Clear",
+
 
   "快速导出（跳过此界面）": "Quick fill with Ctrl+E (skips this dialog)",
 

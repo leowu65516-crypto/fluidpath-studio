@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.20.0";
+export const APP_VERSION = "1.21.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.21.0",
+    date: "2026-09-01",
+    highlights: [
+      "演示微调可持久化：微调后点「💾 保存到本步」，固化进图纸（settings.scenarioOverrides），下次打开/演示自动生效，随 JSON/分享/机型包交付",
+      "「从此步开始生效」语义：保存于第 N 步的微调在第 N 步及之后应用，之前步骤不受影响",
+      "演示切换步骤改为从快照重建，每步状态确定（基线 + 步骤阀位 + 已保存微调 + 会话微调）；快照恢复保留演示期间保存的微调",
+      "场景面板显示本步已保存微调数量，可一键清除",
+    ],
+  },
   {
     version: "1.20.0",
     date: "2026-09-01",

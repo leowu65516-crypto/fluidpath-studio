@@ -218,6 +218,8 @@ export interface DiagramSettings {
   flowSense?: boolean;
   /** 压力域着色：运行泵/锅炉出侧可达管加淡色 halo（默认关闭） */
   pressureShading?: boolean;
+  /** 演示微调持久化：scenarioId → stepIndex → nodeId → 阀/泵状态。「从此步生效」，随图纸保存/分享/机型包 */
+  scenarioOverrides?: Record<string, Record<number, Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>>>;
   /** 是否在管路上自动显示介质名称 */
   showFluidLabels?: boolean;
   /** 导出整理：是否显示元器件名称、管路编号与介质颜色。 */

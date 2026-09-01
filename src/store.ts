@@ -337,13 +337,14 @@ function expandScenarioNodes(diagram: Diagram, seeds: Set<string>): Set<string> 
  * 2. 按元件角色在当前图纸解析节点，累积应用场景步骤的泵/阀状态；
  * 3. 计算高亮节点（种子 + 中间接头自动补齐）与高亮管路（两端都在激活集内）。
  */
-export function enterScenario(scenarioId: string, stepIndex = 0) {
+export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuild?: boolean }) {
   const scenario = getScenario(scenarioId);
   if (!scenario) return;
   const resolved = resolveScenarioRoles(state.diagram).nodes;
   const { activeNodes, valves } = collectScenarioState(scenario, stepIndex, resolved);
   const prev = state.ui.scenario;
   const isNewEntry = !prev;
+  const rebuild = opts?.rebuild === true;
   // 微调叠加层：同场景跨步骤保留；切场景/首次进入清空
   const sameScenario = !!prev && prev.scenarioId === scenarioId;
   const overrides = sameScenario ? { ...(prev.overrides ?? {}) } : {};
@@ -353,7 +354,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0) {
     scenarioSnapshotDirty = state.ui.dirty;
   }
   updateDiagram((d) => {
-    if (isNewEntry) {
+    if (isNewEntry || rebuild) {
       // 基线复位：所有泵停、两通阀关、三通阀 off（场景步骤只激活自己需要的）
       for (const n of d.nodes) {
         if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = false;
@@ -362,7 +363,13 @@ export function enterScenario(scenarioId: string, stepIndex = 0) {
       }
     }
     applyStates(d, valveActionsToPreset(valves));
-    // 微调叠加层最后应用（覆盖场景预设）
+    // 已保存的微调（settings.scenarioOverrides）：「从此步生效」——应用 step <= 当前的全部覆盖，按步升序
+    const savedAll = d.settings.scenarioOverrides?.[scenarioId] ?? {};
+    const savedSteps = Object.keys(savedAll).map(Number).filter((n) => Number.isFinite(n) && n <= stepIndex).sort((a, b) => a - b);
+    for (const sv of savedSteps) {
+      applyStates(d, savedAll[sv]);
+    }
+    // 会话叠加层（未保存的微调）最后应用（覆盖场景预设与已保存值）
     if (sameScenario && Object.keys(overrides).length > 0) applyStates(d, overrides as Parameters<typeof applyStates>[1]);
   }, false);
   // 闪烁定位本步新增的元件（换步骤时脉冲高亮新激活项，便于快速找到）
@@ -390,11 +397,26 @@ export function enterScenario(scenarioId: string, stepIndex = 0) {
   });
 }
 
-/** 跳到场景下一/指定步骤 */
+/** 跳到场景下一/指定步骤：从快照重建，保证每步状态确定（基线 + 0..i 步阀位 + 已保存微调 + 会话微调） */
 export function setScenarioStep(stepIndex: number) {
   const sc = state.ui.scenario;
   if (!sc) return;
-  enterScenario(sc.scenarioId, stepIndex);
+  if (scenarioSnapshot) {
+    setState({
+      ...state,
+      diagram: restoreSnapshotDiagram(),
+      ui: { ...state.ui, dirty: scenarioSnapshotDirty, selection: { nodes: [], pipes: [] } },
+    });
+  }
+  enterScenario(sc.scenarioId, stepIndex, { rebuild: true });
+}
+
+/** 从快照恢复图纸：保留演示期间保存的 scenarioOverrides（否则会被旧快照吞掉） */
+function restoreSnapshotDiagram(): Diagram {
+  const cur = state.diagram.settings.scenarioOverrides;
+  const d = structuredClone(scenarioSnapshot!);
+  if (cur) d.settings.scenarioOverrides = cur;
+  return d;
 }
 
 /** 退出演示模式：还原进入演示前的图纸快照（不污染用户阀位） */
@@ -403,7 +425,7 @@ export function exitScenario() {
   if (scenarioSnapshot) {
     setState({
       ...state,
-      diagram: structuredClone(scenarioSnapshot),
+      diagram: restoreSnapshotDiagram(),
       ui: { ...state.ui, scenario: null, dirty: scenarioSnapshotDirty, selection: { nodes: [], pipes: [] } },
     });
   } else {
@@ -509,9 +531,9 @@ export function overrideScenarioNode(nodeId: string, patch: { pumpOn?: boolean; 
 export function resetScenarioOverrides() {
   const sc = state.ui.scenario;
   if (!sc) return;
-  // 从快照重建（exit 还原图纸 + re-enter 重放步骤），确保回到场景预设阀位
-  exitScenario();
-  enterScenario(sc.scenarioId, sc.stepIndex);
+  // 清会话叠加层后重建：回到「场景预设 + 已保存微调」
+  setUI({ scenario: { ...sc, overrides: {} } });
+  setScenarioStep(sc.stepIndex);
 }
 
 /** 演示高亮模式：step=按步骤种子 / flow=跟随实际流动发光 */
@@ -519,6 +541,40 @@ export function setScenarioHighlightMode(mode: "step" | "flow") {
   const sc = state.ui.scenario;
   if (!sc) return;
   setUI({ scenario: { ...sc, highlightMode: mode } });
+}
+
+/** 把当前演示微调（叠加层）保存到指定步骤：随图纸持久化，「从此步生效」 */
+export function saveScenarioOverridesToStep(stepIndex: number): number {
+  const sc = state.ui.scenario;
+  if (!sc) return 0;
+  const overrides = sc.overrides ?? {};
+  const count = Object.keys(overrides).length;
+  if (count === 0) return 0;
+  updateDiagram((d) => {
+    const all = d.settings.scenarioOverrides ?? {};
+    const perStep = { ...(all[sc.scenarioId]?.[stepIndex] ?? {}), ...overrides };
+    all[sc.scenarioId] = { ...(all[sc.scenarioId] ?? {}), [stepIndex]: perStep };
+    d.settings.scenarioOverrides = all;
+  });
+  // 已持久化，清空会话叠加层（避免重复应用）
+  setUI({ scenario: { ...sc, overrides: {} } });
+  return count;
+}
+
+/** 清除某步已保存的微调（随后重建演示） */
+export function clearSavedScenarioStep(stepIndex: number) {
+  const sc = state.ui.scenario;
+  if (!sc) return;
+  updateDiagram((d) => {
+    const all = d.settings.scenarioOverrides;
+    if (!all || !all[sc.scenarioId]) return;
+    const next = { ...all[sc.scenarioId] };
+    delete next[stepIndex];
+    d.settings.scenarioOverrides = { ...all, [sc.scenarioId]: next };
+  });
+  // 重建：exit + re-enter（应用剩余已保存覆盖）
+  exitScenario();
+  enterScenario(sc.scenarioId, sc.stepIndex);
 }
 
 export function hasActiveScenario() {

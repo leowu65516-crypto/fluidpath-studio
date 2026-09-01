@@ -3,6 +3,7 @@ import { render, act, screen, waitFor, cleanup } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
 import {
+  fitToScreen,
   loadDiagram,
   setSelection,
   patchPipe,
@@ -62,6 +63,7 @@ describe("UI 集成：批量编辑、管路标注、样式刷、流速", () => {
     act(() => {
       loadDiagram(toDiagram(b2c));
     });
+    act(() => { fitToScreen(1200, 900); });
     act(() => {
       const d = store.get().diagram;
       patchPipe(d.pipes[0].id, { annotation: "测试标注XYZ" });

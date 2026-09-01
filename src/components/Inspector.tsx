@@ -758,6 +758,26 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   <button className={pipe.direction === "reverse" ? "on" : ""} onClick={() => patchPipe(pipe.id, { direction: "reverse" })}>{t("反向")}</button>
                 </div>
               </Row>
+              <Row label={t("相对流量")}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", width: "100%" }}>
+                  <input
+                    type="checkbox"
+                    checked={pipe.relativeFlow != null}
+                    title={t("手动指定相对流量（覆盖量感自动计算）")}
+                    onChange={(e) => patchPipe(pipe.id, { relativeFlow: e.target.checked ? 100 : undefined }, true)}
+                  />
+                  <input
+                    type="range"
+                    min={10}
+                    max={100}
+                    value={pipe.relativeFlow ?? 100}
+                    disabled={pipe.relativeFlow == null}
+                    onChange={(e) => patchPipe(pipe.id, { relativeFlow: Number(e.target.value) }, false)}
+                    onMouseUp={() => patchPipe(pipe.id, {}, true)}
+                  />
+                  <span style={{ fontSize: 11, color: "var(--text-dim)", width: 36, flexShrink: 0 }}>{pipe.relativeFlow ?? t("自动")}</span>
+                </div>
+              </Row>
               <Row label={`${t("流速")} ${pipe.flowSpeed.toFixed(1)} m/s`}>
                 <input
                   type="range"
@@ -848,6 +868,30 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <option value="grid">{t("方格")}</option>
                 <option value="solid">{t("纯色")}</option>
               </select>
+            </Row>
+            <Row label={t("量感粒子密度")}>
+              <input
+                type="checkbox"
+                checked={diagram.settings.flowSense !== false}
+                onChange={(e) =>
+                  updateDiagram((d) => {
+                    d.settings.flowSense = e.target.checked;
+                  }, false)
+                }
+              />
+              <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("支路流量小则粒子稀（主路密、支路疏）")}</span>
+            </Row>
+            <Row label={t("压力域着色")}>
+              <input
+                type="checkbox"
+                checked={diagram.settings.pressureShading === true}
+                onChange={(e) =>
+                  updateDiagram((d) => {
+                    d.settings.pressureShading = e.target.checked;
+                  }, false)
+                }
+              />
+              <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("运行泵/锅炉可达管加淡色描边")}</span>
             </Row>
             <Row label={t("交叉跨线")}>
               <input

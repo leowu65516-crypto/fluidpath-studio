@@ -388,6 +388,15 @@ const EN: Record<string, string> = {
 
   // 弹窗
   "确定": "OK",
+  "量感粒子密度": "Flow-sense density",
+  "支路流量小则粒子稀（主路密、支路疏）": "Thin branches render sparser particles (trunk dense, branches sparse)",
+  "压力域着色": "Pressure-domain tint",
+  "运行泵/锅炉可达管加淡色描边": "Tint pipes reachable from running pumps / boilers",
+  "相对流量": "Relative flow",
+  "手动指定相对流量（覆盖量感自动计算）": "Manual relative flow (overrides the automatic flow-sense)",
+  "自动": "Auto",
+  "快速导出（跳过此界面）": "Quick fill with Ctrl+E (skips this dialog)",
+
 
   // i18n 扫尾（P0）：密码门 / 端口编辑 / 右键菜单 / 诊断面板 / Inspector
   "液路动态示意图 · 教学工作台（内部测试版）": "Fluid-path schematics · teaching workbench (internal beta)",

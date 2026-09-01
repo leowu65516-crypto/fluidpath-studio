@@ -159,6 +159,8 @@ export interface Pipe {
   forceStop?: boolean;
   /** 管路中段标注文字（如直径/介质/编号） */
   annotation?: string;
+  /** 相对流量手填 override（0–100；未设置时由量感层自动计算） */
+  relativeFlow?: number;
 }
 
 export interface FluidPreset {
@@ -212,6 +214,10 @@ export interface DiagramSettings {
   showAlignmentGuides?: boolean;
   /** 全局流速倍率（0.5–2.5，仅影响动画播放速度） */
   flowScale?: number;
+  /** 量感层：相对流量级联衰减驱动粒子密度（默认开启） */
+  flowSense?: boolean;
+  /** 压力域着色：运行泵/锅炉出侧可达管加淡色 halo（默认关闭） */
+  pressureShading?: boolean;
   /** 是否在管路上自动显示介质名称 */
   showFluidLabels?: boolean;
   /** 导出整理：是否显示元器件名称、管路编号与介质颜色。 */

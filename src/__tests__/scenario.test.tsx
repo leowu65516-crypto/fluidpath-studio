@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, act } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
-import { loadDiagram, store, enterScenario, exitScenario } from "../store";
+import { loadDiagram, store, enterScenario, exitScenario, fitToScreen } from "../store";
 import { SCENARIOS, getScenario, collectScenarioState, resolveScenarioRoles, availableScenariosForDiagram } from "../scenarios";
 import bcmtsRaw from "../../BCMTS.json";
 import type { Diagram } from "../types";
@@ -186,6 +186,7 @@ describe("演示模式画布渲染", () => {
   it("进入场景后画布出现黄色高亮环 + 淡化非激活", () => {
     renderApp();
     act(() => { loadDiagram(toDiagram(bcmtsRaw)); });
+    act(() => { fitToScreen(1200, 900); });
     act(() => { enterScenario("coffee", 2); });
     const svg = document.querySelector(".main-canvas");
     const highlightRects = svg ? Array.from(svg.querySelectorAll('rect[stroke="#ffd34d"]')) : [];

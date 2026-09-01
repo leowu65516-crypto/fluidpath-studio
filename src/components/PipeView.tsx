@@ -13,6 +13,7 @@ import {
 } from "../geometry";
 import type { HopObstacle } from "../geometry";
 import { FLUID_PRESETS } from "../types";
+import { downscaleDensity } from "../relativeFlow";
 import type { FluidIssue } from "../fluidRules";
 
 interface PipeViewProps {
@@ -43,6 +44,10 @@ interface PipeViewProps {
   onLabelDoubleClick: (pipeId: string, x: number, y: number, label: string) => void;
   issues?: FluidIssue[];
   onFluidIssueClick?: (pipe: Pipe, e: React.MouseEvent) => void;
+  /** 量感层：相对流量因子 0–1（未设置 = 1） */
+  flowFactor?: number;
+  /** 压力域着色：运行泵/锅炉可达管加淡色 halo */
+  pressureHalo?: boolean;
 }
 
 /** 蒸汽锅炉底部排废：阀门打开后，锅炉底部至排出口整段按蒸汽显示。 */
@@ -87,6 +92,7 @@ function PipeViewImpl({
   chainGlow, chainStamp, lintMsg, onLintClick, funcChain,
   flowRefMap, onPipeBodyMouseDown, onVertexMouseDown, onContextMenu, onRemoveVertex, onLabelDoubleClick,
   issues, onFluidIssueClick,
+  flowFactor, pressureHalo,
 }: PipeViewProps) {
   const pts = pipePolyline(pipe, nodes);
   if (!pts || pts.length < 2) return null;
@@ -116,7 +122,11 @@ function PipeViewImpl({
   }
   const fluidW = Math.max(2, pipe.visualDiameter);
   const dashLen = Math.max(6, pipe.visualDiameter * 1.5);
-  const gapMul = pipe.particleDensity === "high" ? 1.1 : pipe.particleDensity === "medium" ? 2.1 : 3.6;
+  // 量感层：手填 relativeFlow 优先，否则用自动计算的流量因子降档粒子密度
+  const manualFactor = pipe.relativeFlow != null ? Math.max(0, Math.min(100, pipe.relativeFlow)) / 100 : undefined;
+  const effFactor = manualFactor ?? flowFactor ?? 1;
+  const effDensity = downscaleDensity(pipe.particleDensity, effFactor);
+  const gapMul = effDensity === "high" ? 1.1 : effDensity === "medium" ? 2.1 : 3.6;
   const dash = `${dashLen} ${Math.round(dashLen * gapMul)}`;
   const len = polylineLength(pts);
   const mid = pointAtLength(pts, len / 2);
@@ -147,6 +157,9 @@ function PipeViewImpl({
         <path d={d} fill="none" stroke="#2f7fd6" strokeWidth={wallW + 8} strokeOpacity={0.18} strokeLinejoin="round" strokeLinecap="round" pointerEvents="none" />
       )}
       <g opacity={dimOpacity}>
+        {pressureHalo && !disabled && (
+          <path d={d} fill="none" stroke="var(--accent)" strokeOpacity={0.14} strokeWidth={wallW + 9} strokeLinejoin="round" strokeLinecap="round" pointerEvents="none" />
+        )}
         <path d={d} fill="none" stroke="#7d8b99" strokeOpacity={0.55} strokeWidth={wallW + 2.4} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={pipe.wallColor} strokeOpacity={wallOpacity} strokeWidth={wallW} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={visibleFluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" />

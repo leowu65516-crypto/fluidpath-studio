@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.18.0";
+export const APP_VERSION = "1.19.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.19.0",
+    date: "2026-09-01",
+    highlights: [
+      "量感层：相对流量级联衰减——三通/十字按流动支路数均分流量，主路粒子密、支路疏，学员一眼看出「水主要走哪条路」（项目设置可关；单管可手填相对流量 % 覆盖自动计算）",
+      "压力域着色：运行泵/锅炉出侧顺拓扑可达的管加淡色描边，含「停流但带压」的阀前管段——打开阀就有水（默认关，项目设置开启）",
+      "出视区 skip 渲染：视口外 + 200px 缓冲的节点/管路不渲染，为 150+ 管大图纸兜底",
+      "量感计算独立模块 relativeFlow.ts，只复用三层引擎流停判定，零新仿真语义",
+    ],
+  },
   {
     version: "1.18.0",
     date: "2026-08-30",

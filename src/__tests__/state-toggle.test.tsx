@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, act } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
-import { loadDiagram, store, patchNode } from "../store";
+import { loadDiagram, store, patchNode, fitToScreen } from "../store";
 import { createNode } from "../symbols";
 import fixedJson from "../../MSY2.json";
 import type { Diagram } from "../types";
@@ -28,6 +28,7 @@ describe("阀/泵默认显示画布开关", () => {
     renderApp();
     const d = JSON.parse(JSON.stringify(fixedJson));
     act(() => { loadDiagram(d); });
+    act(() => { fitToScreen(1200, 900); });
     const svg = document.querySelector(".main-canvas");
     // 泵/阀下方开关矩形（含"运行/停止"或"开/关"文字）
     const texts = svg ? Array.from(svg.querySelectorAll("text")).map((t) => t.textContent ?? "") : [];

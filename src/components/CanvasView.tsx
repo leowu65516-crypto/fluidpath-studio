@@ -65,6 +65,7 @@ import { patchNode, patchPipe } from "../store";
 import { parseDiagramJSON } from "../export";
 import { toast } from "../toast";
 import { checkDiagramFluid, checkPipeFluid, fluidLabel, fluidColor } from "../fluidRules";
+import { computeRelativeFlow, computePressureDomain } from "../relativeFlow";
 
 type DragState =
   | { type: "pan"; startClientX: number; startClientY: number; startPanX: number; startPanY: number }
@@ -105,6 +106,27 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   const chainPathSet = new Set(ui.chainPath?.pipeIds ?? []);
   // 介质物理常识校验：实时计算冲突，供画布感叹号与修复菜单使用
   const fluidIssues = useMemo(() => checkDiagramFluid(diagram, lang), [diagram, lang]);
+  // 量感层：相对流量因子（设置可关）+ 压力域（默认关）
+  const flowFactors = useMemo(
+    () => (diagram.settings.flowSense === false ? new Map<string, number>() : computeRelativeFlow(diagram.pipes, diagram.nodes)),
+    [diagram.pipes, diagram.nodes, diagram.settings.flowSense]
+  );
+  const pressureSet = useMemo(
+    () => (diagram.settings.pressureShading ? computePressureDomain(diagram.pipes, diagram.nodes) : null),
+    [diagram.pipes, diagram.nodes, diagram.settings.pressureShading]
+  );
+  // 出视区 skip 渲染：视口外 + 200px 缓冲的节点/管路不渲染（为 150+ 管大图纸兜底）
+  const cullRect = useMemo(() => {
+    const w = typeof window !== "undefined" ? window.innerWidth : 1200;
+    const h = typeof window !== "undefined" ? window.innerHeight : 800;
+    const BUF = 200;
+    return {
+      x: -ui.panX / ui.zoom - BUF,
+      y: -ui.panY / ui.zoom - BUF,
+      w: w / ui.zoom + BUF * 2,
+      h: h / ui.zoom + BUF * 2,
+    };
+  }, [ui.zoom, ui.panX, ui.panY]);
   // 结构问题即时 lint：接线/介质错误实时红点（不依赖打开诊断面板）
   const structLint = useMemo(() => {
     const nodeMsg = new Map<string, string>();
@@ -912,6 +934,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
       if (node.type === "solenoid3") return node.valvePath === "A" ? t("A 路") : node.valvePath === "B" ? t("B 路") : t("关");
       return "";
     })();
+    if (!rectsIntersect(nodeBBox(node), cullRect)) return null;
     return (
       <g key={node.id}>
         <title>{nodeCanvasLabel(node, lang) || defOf(node.type, node.variant).label}{stateHint ? `（${stateHint}）` : ""}{node.fault ? ` · ${t("故障")}` : ""}</title>
@@ -1201,6 +1224,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             const scenario = ui.scenario;
             const inScenario = scenario ? scenario.activePipes.includes(p.id) : true;
             const scenarioDim = scenario ? !inScenario : false;
+            const pipePts = pipePtsById.get(p.id);
+            if (pipePts && !rectsIntersect(polylineBBox(pipePts), cullRect)) return null;
             return (
               <PipeView
                 key={p.id}
@@ -1231,6 +1256,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                 onLabelDoubleClick={(pid, x, y, label) => beginLabelEdit("pipe", pid, x, y, label)}
                 issues={fluidIssues.get(p.id)}
                 onFluidIssueClick={handleFluidIssueClick}
+                flowFactor={flowFactors.get(p.id)}
+                pressureHalo={!!pressureSet?.has(p.id)}
               />
             );
           })}</g>

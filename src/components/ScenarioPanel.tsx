@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PromptDialog } from "./PromptDialog";
 import { availableScenariosForDiagram, getScenario } from "../scenarios";
-import { enterScenario, setScenarioStep, exitScenario, useAppState, saveWorkCondition } from "../store";
+import { enterScenario, setScenarioStep, exitScenario, useAppState, saveWorkCondition, resetScenarioOverrides, setScenarioHighlightMode } from "../store";
 import { useT } from "../i18n";
 
 export function ScenarioPanel({ onClose }: { onClose: () => void }) {
@@ -79,7 +79,21 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       <div style={{ padding: "14px 16px" }}>
-        <div style={{ fontSize: 14, fontWeight: 650, color: "var(--accent)", marginBottom: 8 }}>{step?.title}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 650, color: "var(--accent)" }}>{step?.title}</div>
+          <div className="seg" style={{ display: "inline-flex", border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden" }}>
+            <button
+              onClick={() => setScenarioHighlightMode("step")}
+              title={t("高亮按场景步骤的种子元件")}
+              style={{ border: "none", background: (ui.scenario?.highlightMode ?? "step") === "step" ? "var(--accent)" : "transparent", color: (ui.scenario?.highlightMode ?? "step") === "step" ? "#fff" : "var(--text-dim)", fontSize: 11, padding: "3px 8px", cursor: "pointer" }}
+            >{t("按步骤")}</button>
+            <button
+              onClick={() => setScenarioHighlightMode("flow")}
+              title={t("高亮跟随实际流动：微调阀位后，新变为流动的管路自动发光")}
+              style={{ border: "none", background: ui.scenario?.highlightMode === "flow" ? "var(--accent)" : "transparent", color: ui.scenario?.highlightMode === "flow" ? "#fff" : "var(--text-dim)", fontSize: 11, padding: "3px 8px", cursor: "pointer" }}
+            >{t("跟随流动")}</button>
+          </div>
+        </div>
         <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7, minHeight: 60 }}>{step?.desc}</div>
         {step?.narrator && (
           <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "var(--surface-2)", fontSize: 12.5, color: "var(--text-dim)", lineHeight: 1.7 }}>
@@ -117,6 +131,15 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
+      {Object.keys(ui.scenario?.overrides ?? {}).length > 0 && (
+        <div style={{ margin: "0 16px 8px", padding: "7px 10px", borderRadius: 8, background: "var(--accent-soft)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ color: "var(--accent)", fontWeight: 600 }}>🎛 {t("已手动微调 {n} 处").replace("{n}", String(Object.keys(ui.scenario?.overrides ?? {}).length))}</span>
+          <button
+            onClick={() => resetScenarioOverrides()}
+            style={{ border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: 11.5, padding: "3px 8px", borderRadius: 6, cursor: "pointer" }}
+          >↺ {t("重置微调")}</button>
+        </div>
+      )}
       {/* 步骤进度条 */}
       <div style={{ padding: "0 16px" }}>
         <div style={{ display: "flex", gap: 4 }}>

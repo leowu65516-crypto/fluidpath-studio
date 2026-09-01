@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.19.0";
+export const APP_VERSION = "1.20.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.20.0",
+    date: "2026-09-01",
+    highlights: [
+      "演示微调叠加层：演示中直接拨画布阀/泵开关做细节微调，改动跨步骤保留（切上一步/下一步不丢失），场景面板显示微调数量并可一键重置",
+      "高亮跟随流动：新增「按步骤 / 跟随流动」高亮模式开关，跟随流动模式下微调后新变为流动的管路自动发光",
+      "微调零污染：叠加层只在演示会话内生效，切场景/退出演示自动清空并还原快照",
+    ],
+  },
   {
     version: "1.19.0",
     date: "2026-09-01",

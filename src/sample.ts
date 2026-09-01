@@ -246,7 +246,7 @@ export function createMinimalBrewDiagram(): Diagram {
       pipe("供水", portOn(pump, "right"), portOn(brew, "bottom"), "#2f7fd6", [], { fluidType: "coldWater" }),
       pipe("咖啡", portOn(brew, "top"), portOn(out, "top"), "#7b4a2d", [], { fluidType: "coffee" }),
     ],
-    settings: { showGrid: true, background: "#eef2f7", globalAnimationPlaying: true, crossoverHops: true, appVersion: "1.19.0" },
+    settings: { showGrid: true, background: "#eef2f7", globalAnimationPlaying: true, crossoverHops: true, appVersion: "1.20.0" },
   };
 }
 

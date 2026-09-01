@@ -24,7 +24,7 @@ import { MiniMap } from "./MiniMap";
 import { PipeView } from "./PipeView";
 import { useT } from "../i18n";
 import { ContextMenu } from "./ContextMenu";
-import { focusElement, blinkElements, showChainPath } from "../store";
+import { focusElement, blinkElements, showChainPath, overrideScenarioNode } from "../store";
 import { collectAdvice, traceStopCause } from "../advice";
 import { traceFunctionalChain } from "../functionalChain";
 import {
@@ -745,6 +745,16 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   function onValveToggle(nodeId: string, path?: "A" | "B" | "off") {
     const node = store.get().diagram.nodes.find((n) => n.id === nodeId);
     if (!node) return;
+    // 演示中：手动微调写入叠加层（跨步骤保留，不进撤销历史；退出演示还原快照）
+    if (store.get().ui.scenario) {
+      let patch: { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" } | null = null;
+      if (node.type === "solenoid2") patch = { valveState: node.valveState === "closed" ? "open" : "closed" };
+      else if (node.type === "solenoid3" && path) patch = { valvePath: path };
+      else if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") patch = { pumpOn: node.pumpOn === false };
+      if (patch && overrideScenarioNode(nodeId, patch)) {
+        return;
+      }
+    }
     pushHistory();
     if (node.type === "solenoid2") {
       patchNode(nodeId, { valveState: node.valveState === "closed" ? "open" : "closed" });
@@ -925,7 +935,9 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
     const portOpacity = showPorts ? 1 : 0.45;
     // 演示模式：激活节点高亮光环，非激活淡化
     const scenario = ui.scenario;
-    const nodeActive = scenario ? scenario.activeNodes.includes(node.id) : true;
+    const nodeActive = scenario
+      ? scenario.activeNodes.includes(node.id) || Object.keys(scenario.overrides ?? {}).includes(node.id)
+      : true;
     const nodeDim = scenario ? !nodeActive : false;
     // 悬停浮动提示：元件名 + 类型 + 当前状态（解决元件多、文字小找不到）
     const stateHint = (() => {
@@ -1222,7 +1234,11 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           })()}
           <g>{diagram.pipes.filter((p) => visiblePipeIds.has(p.id)).map((p, i) => {
             const scenario = ui.scenario;
-            const inScenario = scenario ? scenario.activePipes.includes(p.id) : true;
+            const highlightFlow = scenario?.highlightMode === "flow";
+            const inScenario = scenario
+              ? scenario.activePipes.includes(p.id) ||
+                (highlightFlow && !pipeEffectiveDisabled(p, diagram.nodes))
+              : true;
             const scenarioDim = scenario ? !inScenario : false;
             const pipePts = pipePtsById.get(p.id);
             if (pipePts && !rectsIntersect(polylineBBox(pipePts), cullRect)) return null;

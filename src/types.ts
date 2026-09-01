@@ -292,6 +292,10 @@ export interface UIState {
     activeNodes: string[];
     /** 激活的高亮管路 id */
     activePipes: string[];
+    /** 演示微调叠加层：手动改动的阀/泵状态，跨步骤保留（退出/切场景清空） */
+    overrides?: Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>;
+    /** 高亮模式：step=按场景步骤种子 / flow=跟随实际流动的管路发光 */
+    highlightMode?: "step" | "flow";
   } | null;
   /** 定位闪烁：回路诊断/场景演示点击关联元素时短暂脉冲高亮（stamp 变化重启动画） */
   blink?: { ids: string[]; stamp: number } | null;

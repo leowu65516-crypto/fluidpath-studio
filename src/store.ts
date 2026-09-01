@@ -342,7 +342,12 @@ export function enterScenario(scenarioId: string, stepIndex = 0) {
   if (!scenario) return;
   const resolved = resolveScenarioRoles(state.diagram).nodes;
   const { activeNodes, valves } = collectScenarioState(scenario, stepIndex, resolved);
-  const isNewEntry = !state.ui.scenario;
+  const prev = state.ui.scenario;
+  const isNewEntry = !prev;
+  // 微调叠加层：同场景跨步骤保留；切场景/首次进入清空
+  const sameScenario = !!prev && prev.scenarioId === scenarioId;
+  const overrides = sameScenario ? { ...(prev.overrides ?? {}) } : {};
+  const highlightMode = prev?.highlightMode ?? "step";
   if (isNewEntry) {
     scenarioSnapshot = structuredClone(state.diagram);
     scenarioSnapshotDirty = state.ui.dirty;
@@ -357,6 +362,8 @@ export function enterScenario(scenarioId: string, stepIndex = 0) {
       }
     }
     applyStates(d, valveActionsToPreset(valves));
+    // 微调叠加层最后应用（覆盖场景预设）
+    if (sameScenario && Object.keys(overrides).length > 0) applyStates(d, overrides as Parameters<typeof applyStates>[1]);
   }, false);
   // 闪烁定位本步新增的元件（换步骤时脉冲高亮新激活项，便于快速找到）
   if (isNewEntry) {
@@ -379,7 +386,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0) {
     })
     .map((p) => p.id);
   setUI({
-    scenario: { scenarioId, stepIndex, activeNodes: [...expanded], activePipes },
+    scenario: { scenarioId, stepIndex, activeNodes: [...expanded], activePipes, overrides, highlightMode },
   });
 }
 
@@ -483,6 +490,35 @@ export function deleteValidationCase(id: string) {
 
 export function listValidationCases(): ValidationCase[] {
   return state.diagram.settings.validationCases ?? [];
+}
+
+/** 演示微调：记录手动改动到叠加层（跨步骤保留；返回是否处于演示中） */
+export function overrideScenarioNode(nodeId: string, patch: { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }): boolean {
+  const sc = state.ui.scenario;
+  if (!sc) return false;
+  const overrides = { ...(sc.overrides ?? {}), [nodeId]: { ...(sc.overrides?.[nodeId] ?? {}), ...patch } };
+  setUI({ scenario: { ...sc, overrides } });
+  // 即时生效（不进撤销历史；退出演示时快照还原）
+  updateDiagram((d) => {
+    applyStates(d, { [nodeId]: patch });
+  }, false);
+  return true;
+}
+
+/** 重置演示微调：回到场景预设阀位 */
+export function resetScenarioOverrides() {
+  const sc = state.ui.scenario;
+  if (!sc) return;
+  // 从快照重建（exit 还原图纸 + re-enter 重放步骤），确保回到场景预设阀位
+  exitScenario();
+  enterScenario(sc.scenarioId, sc.stepIndex);
+}
+
+/** 演示高亮模式：step=按步骤种子 / flow=跟随实际流动发光 */
+export function setScenarioHighlightMode(mode: "step" | "flow") {
+  const sc = state.ui.scenario;
+  if (!sc) return;
+  setUI({ scenario: { ...sc, highlightMode: mode } });
 }
 
 export function hasActiveScenario() {

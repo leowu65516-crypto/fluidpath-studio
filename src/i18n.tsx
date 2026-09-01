@@ -395,6 +395,13 @@ const EN: Record<string, string> = {
   "相对流量": "Relative flow",
   "手动指定相对流量（覆盖量感自动计算）": "Manual relative flow (overrides the automatic flow-sense)",
   "自动": "Auto",
+  "按步骤": "By step",
+  "跟随流动": "Follow flow",
+  "高亮按场景步骤的种子元件": "Highlight the scenario's seed components per step",
+  "高亮跟随实际流动：微调阀位后，新变为流动的管路自动发光": "Highlight follows real flow: pipes that start flowing after your tweaks glow automatically",
+  "已手动微调 {n} 处": "{n} manual tweak(s)",
+  "重置微调": "Reset tweaks",
+
   "快速导出（跳过此界面）": "Quick fill with Ctrl+E (skips this dialog)",
 
 

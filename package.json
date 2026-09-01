@@ -3,7 +3,7 @@
   "description": "FluidPath Studio — 液路动态示意图编辑器（Electron + React）",
   "author": "FluidPath Studio",
   "private": true,
-  "version": "1.19.0",
+  "version": "1.20.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {

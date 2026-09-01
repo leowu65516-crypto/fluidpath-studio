@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PromptDialog } from "./PromptDialog";
 import { availableScenariosForDiagram, getScenario } from "../scenarios";
-import { enterScenario, setScenarioStep, exitScenario, useAppState, saveWorkCondition, resetScenarioOverrides, setScenarioHighlightMode, saveScenarioOverridesToStep, clearSavedScenarioStep } from "../store";
+import { enterScenario, setScenarioStep, exitScenario, useAppState, saveWorkCondition, resetScenarioOverrides, saveScenarioOverridesToStep, clearSavedScenarioStep, createCustomScenarioFromConditions, deleteCustomScenarioById } from "../store";
 import { useT } from "../i18n";
 import { toast } from "../toast";
 
@@ -11,6 +11,9 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   const [picking, setPicking] = useState(!ui.scenario);
   const [condDialog, setCondDialog] = useState(false);
   const [quizPick, setQuizPick] = useState<number | null>(null);
+  const [showConditionPicker, setShowConditionPicker] = useState(false);
+  const [pickedConditions, setPickedConditions] = useState<string[]>([]);
+  const condNames = useMemo(() => (diagram.settings.workConditions ?? []).map((c) => c.name), [diagram.settings.workConditions]);
 
   const scenario = ui.scenario ? getScenario(ui.scenario.scenarioId) : undefined;
   const stepIndex = ui.scenario?.stepIndex ?? 0;
@@ -49,10 +52,63 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--surface)"; }}
             >
               <span style={{ fontSize: 20 }}>{s.icon}</span>
-              <span style={{ flex: 1 }}>{s.title}</span>
-              <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{s.steps.length} {t("步")}</span>
+              <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
+                {s.title}
+                {s.custom && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 8, background: "var(--accent-soft)", color: "var(--accent)" }}>{t("自定义")}</span>}
+              </span>
+              <span style={{ fontSize: 11, color: "var(--text-dim)", display: "flex", alignItems: "center", gap: 6 }}>
+                {s.steps.length} {t("步")}
+                {s.custom && (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); if (confirm(t("删除该自定义演示？"))) { deleteCustomScenarioById(s.id); if (diagram.settings.customScenarios?.length === 0) setPicking(true); } }}
+                    style={{ color: "var(--danger)", fontSize: 13, padding: "0 3px" }}
+                    title={t("删除")}
+                  >×</span>
+                )}
+              </span>
             </button>
           ))}
+          {showConditionPicker ? (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 6 }}>{t("选择工况（按点选顺序编排步骤）")}：</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+                {condNames.length === 0 && <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("本图纸还没有工况——先在「工况」面板保存几个开关方案")}</div>}
+                {condNames.map((name) => (
+                  <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, cursor: "pointer", color: "var(--text)" }}>
+                    <input
+                      type="checkbox"
+                      checked={pickedConditions.includes(name)}
+                      onChange={(e) => {
+                        setPickedConditions((prev) => e.target.checked ? [...prev, name] : prev.filter((x) => x !== name));
+                      }}
+                    />
+                    <span style={{ flex: 1 }}>{pickedConditions.indexOf(name) >= 0 ? `${pickedConditions.indexOf(name) + 1}. ${name}` : name}</span>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  disabled={pickedConditions.length === 0}
+                  onClick={() => {
+                    const id = createCustomScenarioFromConditions(pickedConditions, lang);
+                    if (id) {
+                      setPickedConditions([]);
+                      setShowConditionPicker(false);
+                      enterScenario(id, 0);
+                      setPicking(false);
+                      toast(t("自定义演示已创建"));
+                    }
+                  }}
+                  style={{ flex: 1, padding: "7px 0", borderRadius: 6, border: "none", background: pickedConditions.length ? "var(--accent)" : "var(--surface-2)", color: pickedConditions.length ? "#fff" : "var(--text-dim)", cursor: pickedConditions.length ? "pointer" : "default", fontSize: 12.5, fontWeight: 600 }}
+                >⭐ {t("创建演示")}</button>
+                <button onClick={() => setShowConditionPicker(false)} style={{ padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", cursor: "pointer", fontSize: 12.5 }}>{t("取消")}</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowConditionPicker(true)} style={{ marginTop: 4, fontSize: 12.5, padding: "8px 0", borderRadius: 6, border: "1px dashed var(--accent)", background: "var(--accent-soft)", color: "var(--accent)", cursor: "pointer" }}>
+              ⭐ {t("从工况新建演示")}
+            </button>
+          )}
           <button onClick={onClose} style={{ marginTop: 4, fontSize: 12.5, padding: "8px 0", borderRadius: 6, border: "none", background: "transparent", color: "var(--text-dim)", cursor: "pointer" }}>
             {t("取消")}
           </button>
@@ -80,21 +136,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       <div style={{ padding: "14px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 650, color: "var(--accent)" }}>{step?.title}</div>
-          <div className="seg" style={{ display: "inline-flex", border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden" }}>
-            <button
-              onClick={() => setScenarioHighlightMode("step")}
-              title={t("高亮按场景步骤的种子元件")}
-              style={{ border: "none", background: (ui.scenario?.highlightMode ?? "step") === "step" ? "var(--accent)" : "transparent", color: (ui.scenario?.highlightMode ?? "step") === "step" ? "#fff" : "var(--text-dim)", fontSize: 11, padding: "3px 8px", cursor: "pointer" }}
-            >{t("按步骤")}</button>
-            <button
-              onClick={() => setScenarioHighlightMode("flow")}
-              title={t("高亮跟随实际流动：微调阀位后，新变为流动的管路自动发光")}
-              style={{ border: "none", background: ui.scenario?.highlightMode === "flow" ? "var(--accent)" : "transparent", color: ui.scenario?.highlightMode === "flow" ? "#fff" : "var(--text-dim)", fontSize: 11, padding: "3px 8px", cursor: "pointer" }}
-            >{t("跟随流动")}</button>
-          </div>
-        </div>
+        <div style={{ fontSize: 14, fontWeight: 650, color: "var(--accent)", marginBottom: 8 }}>{step?.title}</div>
         <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7, minHeight: 60 }}>{step?.desc}</div>
         {step?.narrator && (
           <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "var(--surface-2)", fontSize: 12.5, color: "var(--text-dim)", lineHeight: 1.7 }}>

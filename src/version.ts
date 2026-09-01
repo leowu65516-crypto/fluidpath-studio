@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.21.0";
+export const APP_VERSION = "1.22.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,17 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.22.0",
+    date: "2026-09-01",
+    highlights: [
+      "自定义演示场景：演示面板点「⭐ 从工况新建演示」，勾选多个工况（按点选顺序编排步骤）生成专属演示流程，随图纸保存、可删除；演示中微调同样可「保存到本步」持久化",
+      "顶栏精简：移除图纸名编辑框（保存/另存时命名）与明暗主题按钮（快捷键 Ctrl+Shift+T 保留），模式切换不再需要横向滚动",
+      "加载提示停留时间 12s → 1s，快速工作不被打断",
+      "演示高亮简化：固定「跟随流动」——场景种子管与实际流动的管都发光，语义更清晰",
+      "使用指南细化：补三态模式、量感粒子密度、压力域着色、演示微调保存、自定义演示、导出预览等章节；修正模板名称漂移",
+    ],
+  },
   {
     version: "1.21.0",
     date: "2026-09-01",

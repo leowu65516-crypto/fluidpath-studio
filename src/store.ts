@@ -338,10 +338,11 @@ function expandScenarioNodes(diagram: Diagram, seeds: Set<string>): Set<string> 
  * 3. 计算高亮节点（种子 + 中间接头自动补齐）与高亮管路（两端都在激活集内）。
  */
 export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuild?: boolean }) {
-  const scenario = getScenario(scenarioId);
+  const scenario = getScenario(scenarioId, state.diagram);
   if (!scenario) return;
   const resolved = resolveScenarioRoles(state.diagram).nodes;
-  const { activeNodes, valves } = collectScenarioState(scenario, stepIndex, resolved);
+  const nodeIds = new Set(state.diagram.nodes.map((n) => n.id));
+  const { activeNodes, valves } = collectScenarioState(scenario, stepIndex, resolved, nodeIds);
   const prev = state.ui.scenario;
   const isNewEntry = !prev;
   const rebuild = opts?.rebuild === true;
@@ -376,7 +377,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
   if (isNewEntry) {
     blinkElements([...activeNodes]);
   } else {
-    const prevSeeds = collectScenarioState(scenario, stepIndex - 1, resolved).activeNodes;
+    const prevSeeds = collectScenarioState(scenario, stepIndex - 1, resolved, nodeIds).activeNodes;
     const newIds = [...activeNodes].filter((id) => !prevSeeds.has(id));
     if (newIds.length) blinkElements(newIds);
   }
@@ -575,6 +576,60 @@ export function clearSavedScenarioStep(stepIndex: number) {
   // 重建：exit + re-enter（应用剩余已保存覆盖）
   exitScenario();
   enterScenario(sc.scenarioId, sc.stepIndex);
+}
+
+/** 从工况创建自定义演示场景：每个工况一步，按传入顺序编排 */
+export function createCustomScenarioFromConditions(names: string[], lang: "zh" | "en" = "zh"): string | null {
+  const conds = state.diagram.settings.workConditions ?? [];
+  const steps = [];
+  const allNodes = new Set<string>();
+  for (const name of names) {
+    const cond = conds.find((c) => c.name === name);
+    if (!cond) continue;
+    // 种子 = 该工况中「显式激活」的元件（泵开/阀开/三通 A·B）
+    const seeds = Object.entries(cond.state)
+      .filter(([, st]) => st.pumpOn === true || st.valveState === "open" || (st.valvePath && st.valvePath !== "off"))
+      .map(([nodeId]) => nodeId);
+    seeds.forEach((id) => allNodes.add(id));
+    const valves: Record<string, import("./types").SceneValveAction> = {};
+    for (const [nodeId, st] of Object.entries(cond.state)) {
+      if (st.pumpOn !== undefined) valves[nodeId] = st.pumpOn ? "pump-run" : "pump-stop";
+      else if (st.valveState !== undefined) valves[nodeId] = st.valveState;
+      else if (st.valvePath !== undefined) valves[nodeId] = st.valvePath;
+    }
+    steps.push({
+      title: name,
+      desc: lang === "zh" ? `一键应用工况「${name}」的阀位组合（自定义演示步骤）` : `Apply condition "${name}" (custom demo step)`,
+      addNodes: seeds,
+      valves,
+    });
+  }
+  if (steps.length === 0) return null;
+  const scene: import("./types").SceneScenario = {
+    id: uid("scn"),
+    title: names.join(" → ").slice(0, 60) || (lang === "zh" ? "自定义演示" : "Custom demo"),
+    icon: "⭐",
+    allNodes: [...allNodes],
+    steps,
+    custom: true,
+    createdAt: new Date().toISOString(),
+  };
+  updateDiagram((d) => {
+    d.settings.customScenarios = [...(d.settings.customScenarios ?? []), scene];
+  });
+  return scene.id;
+}
+
+/** 删除自定义演示场景 */
+export function deleteCustomScenarioById(id: string): boolean {
+  let removed = false;
+  updateDiagram((d) => {
+    const list = d.settings.customScenarios ?? [];
+    const next = list.filter((s) => s.id !== id);
+    removed = next.length !== list.length;
+    if (removed) d.settings.customScenarios = next;
+  });
+  return removed;
 }
 
 export function hasActiveScenario() {

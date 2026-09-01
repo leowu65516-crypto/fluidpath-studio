@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, act, cleanup } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
-import { loadDiagram, store, enterScenario, setScenarioStep, exitScenario, overrideScenarioNode, resetScenarioOverrides, setScenarioHighlightMode } from "../store";
+import { loadDiagram, store, enterScenario, setScenarioStep, exitScenario, overrideScenarioNode, resetScenarioOverrides } from "../store";
 import bcmtsRaw from "../../BCMTS.json";
 
 function toDiagram(json: any) {
@@ -67,12 +67,4 @@ describe("演示微调叠加层", () => {
     expect(JSON.stringify(store.get().diagram.nodes.find((n) => n.id === COLD_VALVE))).toBe(before);
   });
 
-  it("highlightMode 设置与默认值", () => {
-    act(() => { enterScenario("coffee", 0); });
-    expect(store.get().ui.scenario?.highlightMode ?? "step").toBe("step");
-    act(() => { setScenarioHighlightMode("flow"); });
-    expect(store.get().ui.scenario?.highlightMode).toBe("flow");
-    act(() => { setScenarioStep(1); });
-    expect(store.get().ui.scenario?.highlightMode).toBe("flow");
-  });
 });

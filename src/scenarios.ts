@@ -12,29 +12,9 @@ export type ValveAction =
   | "B"          // 三通阀 B（下方通）
   | "off";       // 三通阀关闭
 
-export interface ScenarioStep {
-  title: string;
-  desc: string;
-  /** 此步新增激活的元件角色（累积到本步） */
-  addNodes?: string[];
-  /** 此步要设置的泵/阀状态（key = 元件角色） */
-  valves?: Record<string, ValveAction>;
-  /** 讲师旁白（比 desc 更口语化的讲解词，双语） */
-  narrator?: { zh: string; en: string };
-  /** 画布标注说明：指向角色元件的短提示 */
-  callouts?: { role: string; text: { zh: string; en: string } }[];
-  /** 学员小测验（可选，答对/答错即时反馈） */
-  quiz?: { q: { zh: string; en: string }; options: { zh: string; en: string }[]; answer: number };
-}
+export type ScenarioStep = import("./types").SceneScenarioStep;
 
-export interface Scenario {
-  id: string;
-  title: string;
-  icon: string;
-  /** 场景全流程元件角色（用于匹配检查与退出还原边界） */
-  allNodes: string[];
-  steps: ScenarioStep[];
-}
+export type Scenario = import("./types").SceneScenario;
 
 // ===== 元件角色匹配规则 =====
 // 按「类型 + 标签关键词」在当前加载的图纸中解析元件：
@@ -244,8 +224,9 @@ export const SCENARIOS: Scenario[] = [
 /** 当前图纸实际可以讲述的场景。关键角色缺失时不显示该场景，避免误报演示元件。 */
 export function availableScenariosForDiagram(diagram: Diagram): Scenario[] {
   const { nodes } = resolveScenarioRoles(diagram);
+  const nodeIds = new Set(diagram.nodes.map((n) => n.id));
   const has = (...roles: string[]) => roles.every((role) => Boolean(nodes[role]));
-  return SCENARIOS.filter((scenario) => {
+  const builtin = SCENARIOS.filter((scenario) => {
     if (scenario.id === "coffee") {
       return has("waterPump", "brewChamber", "coffeeOut");
     }
@@ -264,12 +245,25 @@ export function availableScenariosForDiagram(diagram: Diagram): Scenario[] {
     if (scenario.id === "drain") {
       return has("waterPump", "coffeeDrainV3", "milkDrainV3", "steamDrainV2", "wasteOut");
     }
-    return scenario.allNodes.some((role) => Boolean(nodes[role]));
+    return scenario.allNodes.some((role) => Boolean(nodes[role]) || nodeIds.has(role));
   });
+  const customs = (diagram.settings.customScenarios ?? []).filter((s) => s.steps.length > 0);
+  return [...builtin, ...customs];
 }
 
-export function getScenario(id: string): Scenario | undefined {
-  return SCENARIOS.find((s) => s.id === id);
+export function getScenario(id: string, diagram?: Diagram): Scenario | undefined {
+  const builtin = SCENARIOS.find((s) => s.id === id);
+  if (builtin) return builtin;
+  return diagram?.settings.customScenarios?.find((s) => s.id === id);
+}
+
+/** 删除自定义场景 */
+export function deleteCustomScenario(diagram: Diagram, id: string): boolean {
+  const list = diagram.settings.customScenarios ?? [];
+  const next = list.filter((s) => s.id !== id);
+  if (next.length === list.length) return false;
+  diagram.settings.customScenarios = next;
+  return true;
 }
 
 // ===== 讲师内容增强（narrator / callouts / quiz，启动时合并进场景步骤） =====
@@ -422,18 +416,20 @@ for (const sc of SCENARIOS) {
 export function collectScenarioState(
   scenario: Scenario,
   stepIndex: number,
-  resolved: Record<string, string | undefined>
+  resolved: Record<string, string | undefined>,
+  nodeIds?: Set<string>
 ) {
   const activeNodes = new Set<string>();
   const valves: Record<string, ValveAction> = {};
   for (let i = 0; i <= stepIndex && i < scenario.steps.length; i++) {
     const step = scenario.steps[i];
     step.addNodes?.forEach((role) => {
-      const id = resolved[role];
+      // 角色名经 resolved 解析；自定义场景的 allNodes/addNodes 直接用 nodeId
+      const id = resolved[role] ?? (nodeIds?.has(role) ? role : undefined);
       if (id) activeNodes.add(id);
     });
     for (const [role, action] of Object.entries(step.valves ?? {})) {
-      const id = resolved[role];
+      const id = resolved[role] ?? (nodeIds?.has(role) ? role : undefined);
       if (id) valves[id] = action;
     }
   }

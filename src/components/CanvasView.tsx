@@ -1234,10 +1234,9 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           })()}
           <g>{diagram.pipes.filter((p) => visiblePipeIds.has(p.id)).map((p, i) => {
             const scenario = ui.scenario;
-            const highlightFlow = scenario?.highlightMode === "flow";
+            // 演示高亮固定「跟随流动」：场景种子管 + 实际流动的管都发光
             const inScenario = scenario
-              ? scenario.activePipes.includes(p.id) ||
-                (highlightFlow && !pipeEffectiveDisabled(p, diagram.nodes))
+              ? scenario.activePipes.includes(p.id) || !pipeEffectiveDisabled(p, diagram.nodes)
               : true;
             const scenarioDim = scenario ? !inScenario : false;
             const pipePts = pipePtsById.get(p.id);

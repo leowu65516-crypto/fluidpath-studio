@@ -147,19 +147,11 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
     }
   }
   const [fullscreen, setFullscreen] = useState(!!document.fullscreenElement);
-  const [theme, setTheme] = useState<string>(() => {
+  // 主题：初始应用一次；切换仅通过快捷键 Ctrl+Shift+T（快捷键层负责 body dataset）
+  useEffect(() => {
     const saved = localStorage.getItem("fluidpath.theme");
-    const t2 = saved === "dark" ? "dark" : "light";
-    document.body.dataset.theme = t2;
-    return t2;
-  });
-
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    document.body.dataset.theme = next;
-    localStorage.setItem("fluidpath.theme", next);
-    setTheme(next);
-  }
+    document.body.dataset.theme = saved === "dark" ? "dark" : "light";
+  }, []);
 
   function toggleFullscreen() {
     if (document.fullscreenElement) {
@@ -178,9 +170,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
 
   // 外部（快捷键）切换主题时同步
   useEffect(() => {
-    const onTheme = () => setTheme(document.body.dataset.theme === "dark" ? "dark" : "light");
-    window.addEventListener("fp-theme", onTheme);
-    return () => window.removeEventListener("fp-theme", onTheme);
   }, []);
 
   async function onExportGIF() {
@@ -226,7 +215,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         }
         if (tips.length) {
           setPostLoadTip(tips.join("\n"));
-          setTimeout(() => setPostLoadTip(null), 12000);
+          setTimeout(() => setPostLoadTip(null), 1000);
         }
       } catch (err) {
         alert(`打开失败：${(err as Error).message}`);
@@ -307,15 +296,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         </svg>
         {!collapsed && <span>FluidPath Studio</span>}
       </div>
-      {!collapsed && (
-        <input
-          className="diagram-name"
-          value={diagram.name ?? ""}
-          title={t("图纸名称（保存/导出时用作文件名，可直接修改）")}
-          onChange={(e) => updateDiagram((d) => { d.name = e.target.value; })}
-          spellCheck={false}
-        />
-      )}
       <button className="tb-btn tb-collapse" onClick={onToggle} title={collapsed ? t("展开工具栏") : t("折叠工具栏")} aria-label={collapsed ? t("展开工具栏") : t("折叠工具栏")}>
         {collapsed ? "▼" : "▲"}
       </button>
@@ -433,10 +413,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         </button>
         {layerOpen && <LayerPanel onClose={() => setLayerOpen(false)} />}
       </div>
-      <button className="tb-btn" onClick={toggleTheme} title={theme === "dark" ? t("亮色") : t("暗色")}>
-        <Icon d={theme === "dark" ? "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" : "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 5a7 7 0 0 1 0 14z"} />
-        {theme === "dark" ? t("亮色") : t("暗色")}
-      </button>
       <div className="tb-sep" />
       {/* 三态工作模式：编辑 / 演示 / 验收 */}
       <div className="tb-mode seg" role="group" aria-label={t("工作模式")}>

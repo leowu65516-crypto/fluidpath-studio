@@ -220,6 +220,8 @@ export interface DiagramSettings {
   pressureShading?: boolean;
   /** 演示微调持久化：scenarioId → stepIndex → nodeId → 阀/泵状态。「从此步生效」，随图纸保存/分享/机型包 */
   scenarioOverrides?: Record<string, Record<number, Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>>>;
+  /** 自定义演示场景（从工况导入或用户创建），随图纸保存 */
+  customScenarios?: SceneScenario[];
   /** 是否在管路上自动显示介质名称 */
   showFluidLabels?: boolean;
   /** 导出整理：是否显示元器件名称、管路编号与介质颜色。 */
@@ -243,6 +245,35 @@ export interface DiagramSettings {
   workingCopyOf?: string;
   /** 编辑副本的创建时间。 */
   workingCopyStartedAt?: string;
+}
+
+/** 演示场景类型（内置场景与自定义场景共用；自定义场景的 allNodes/addNodes/valves 键直接用 nodeId） */
+export type SceneValveAction = "pump-run" | "pump-stop" | "open" | "closed" | "A" | "B" | "off";
+
+export interface SceneScenarioStep {
+  title: string;
+  desc: string;
+  addNodes?: string[];
+  valves?: Record<string, SceneValveAction>;
+  autoAdvanceMs?: number;
+  /** 讲师旁白（双语） */
+  narrator?: { zh: string; en: string };
+  /** 画布标注说明 */
+  callouts?: { role: string; text: { zh: string; en: string } }[];
+  /** 学员小测验 */
+  quiz?: { q: { zh: string; en: string }; options: { zh: string; en: string }[]; answer: number };
+}
+
+export interface SceneScenario {
+  id: string;
+  title: string;
+  icon: string;
+  /** 全流程元件（角色名或 nodeId） */
+  allNodes: string[];
+  steps: SceneScenarioStep[];
+  /** 自定义场景标记（可删除） */
+  custom?: boolean;
+  createdAt?: string;
 }
 
 export interface ValidationCase {

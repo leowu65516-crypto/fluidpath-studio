@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.22.0";
+export const APP_VERSION = "1.23.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.23.0",
+    date: "2026-09-02",
+    highlights: [
+      "三态模式产生真实操作差异：演示/验收模式锁定拓扑编辑（拖动/连线/缩放/删除/粘贴/标签编辑/撤销重做全部禁用），保留拨阀/泵开关、平移缩放与选择查看",
+      "画布顶部显示模式提示条（🎬 演示中 / 🔒 验收中 · 拓扑已锁定）；编辑类快捷键在演示/验收下给出锁定提示",
+      "修复：App 未订阅 store 导致模式切换后面板联动与提示条不更新",
+    ],
+  },
   {
     version: "1.22.0",
     date: "2026-09-01",

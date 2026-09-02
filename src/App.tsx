@@ -15,12 +15,13 @@ import { AdvicePanel } from "./components/AdvicePanel";
 import { ValidationPanel } from "./components/ValidationPanel";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
-import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario } from "./store";
+import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, useAppState } from "./store";
 import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave } from "./store";
 import type { AutosaveVersion } from "./store";
 import { decompressDiagram, parseDiagramJSON, saveJSONFile } from "./export";
 import { getBinding, matchKeys } from "./shortcuts";
+import { toast } from "./toast";
 import { useT } from "./i18n";
 
 const ARROW_DELTA: Record<string, [number, number]> = {
@@ -32,6 +33,7 @@ const ARROW_DELTA: Record<string, [number, number]> = {
 
 export default function App() {
   const { t } = useT();
+  const appState = useAppState();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -92,10 +94,10 @@ export default function App() {
     return { library: false, inspector: false, toolbar: false };
   });
   // ===== 三态工作模式联动（edit / present / verify）=====
-  const mode = store.get().ui.mode ?? "edit";
+  const mode = appState.ui.mode ?? "edit";
   const modeRef = useRef(mode);
   useEffect(() => {
-    const m = store.get().ui.mode ?? "edit";
+    const m = mode;
     if (modeRef.current === m) return;
     modeRef.current = m;
     if (m === "present") {
@@ -116,7 +118,7 @@ export default function App() {
       setShowScenario(false);
       if (hasActiveScenario()) exitScenario();
     }
-  }, [store.get().ui.mode]);
+  }, [mode]);
   const togglePanel = (key: keyof typeof collapsed) => () =>
     setCollapsed((c) => {
       const next = { ...c, [key]: !c[key] };
@@ -164,6 +166,13 @@ export default function App() {
       // 录制快捷键时本监听挂起（设置面板用捕获阶段处理）
       if ((e.target as HTMLElement).closest?.("[data-recording='1']")) return;
 
+      // 演示/验收模式：拓扑编辑类快捷键锁定（拨阀、视角、搜索、帮助等不受限）
+      const canEdit = (store.get().ui.mode ?? "edit") === "edit";
+      if (!canEdit && (hit("undo") || hit("redo") || hit("duplicate") || hit("group") || hit("ungroup") || hit("copy") || hit("paste") || hit("delete"))) {
+        e.preventDefault();
+        toast(t("演示/验收模式下已锁定编辑，切回「✏️ 编辑」可修改"));
+        return;
+      }
       if (hit("undo")) { e.preventDefault(); undo(); return; }
       if (hit("redo")) { e.preventDefault(); redo(); return; }
       if (hit("duplicate")) { e.preventDefault(); duplicateSelection(); return; }
@@ -242,6 +251,13 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className="app">
+        {mode === "present" || mode === "verify" ? (
+          <div className="mode-banner" data-ui="1">
+            {mode === "present"
+              ? "🎬 " + t("演示中 · 拓扑已锁定，可拨阀/微调，切回编辑可修改")
+              : "🔒 " + t("验收中 · 拓扑已锁定，可摆工况跑验收，切回编辑可修改")}
+          </div>
+        ) : null}
         <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={() => setShowHelp(true)} onOpenAdvice={() => { setShowValidation(false); setShowAdvice((v) => !v); }} onOpenValidation={() => { setShowAdvice(false); setShowValidation((v) => !v); }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />

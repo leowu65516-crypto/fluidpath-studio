@@ -415,6 +415,10 @@ const EN: Record<string, string> = {
   "本步已保存 {n} 项微调（随图纸）": "{n} tweak(s) saved for this step (with the drawing)",
   "已清除本步保存的微调": "Saved tweaks for this step cleared",
   "清除": "Clear",
+  "演示/验收模式下已锁定编辑，切回「✏️ 编辑」可修改": "Editing is locked in Present/Verify mode — switch back to Edit to modify",
+  "演示中 · 拓扑已锁定，可拨阀/微调，切回编辑可修改": "Presenting · topology locked; valves & tweaks available — switch to Edit to modify",
+  "验收中 · 拓扑已锁定，可摆工况跑验收，切回编辑可修改": "Verifying · topology locked; set conditions & run validations — switch to Edit to modify",
+
 
 
   "快速导出（跳过此界面）": "Quick fill with Ctrl+E (skips this dialog)",

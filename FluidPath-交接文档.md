@@ -35,7 +35,7 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 53 个测试文件 / 320 用例，见 §6 |
+| `src/__tests__/` | 54 个测试文件 / 324 用例，见 §6 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
 | `BCTMS.json`（项目根） | 另一台机型 BCTMS 快照（62/70，供 flow-isolation 测试） |
@@ -333,7 +333,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npx vitest run                   # 全量测试（当前 320 个，53 文件）
+npx vitest run                   # 全量测试（当前 324 个，54 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -399,7 +399,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：53 文件 / 320 用例全绿，tsc 无错误。**
+**当前全量：54 文件 / 324 用例全绿，tsc 无错误。**
 
 ---
 
@@ -430,6 +430,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.23.0 | 2026-09-02 | 三态模式操作权限：演示/验收锁定拓扑编辑（拖动/连线/缩放/删除/粘贴/标签编辑/撤销重做），保留拨阀/平移/选择；画布模式提示条；App 订阅 store 修复模式联动不刷新。 |
 | 1.22.0 | 2026-09-01 | 自定义演示场景（从工况多选合成多步，随图纸保存可删除）；顶栏精简（删图纸名编辑框与暗色按钮）；加载提示 1s；演示高亮固定跟随流动；使用指南细化（三模式/量感/微调保存/自定义演示/导出预览）。 |
 | 1.21.0 | 2026-09-01 | 演示微调持久化：saveScenarioOverridesToStep 写入 settings.scenarioOverrides（随图纸/JSON/机型包），「从此步生效」；setScenarioStep 改为快照重建（每步状态确定）；快照恢复保留已存微调；面板显示/清除本步已存微调。 |
 | 1.20.0 | 2026-09-01 | 演示微调叠加层：演示中拨阀/泵跨步骤保留（overrideScenarioNode，退出/切场景清空并还原快照）+ 场景面板微调计数/重置 + 高亮模式开关（按步骤/跟随流动）。 |

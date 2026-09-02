@@ -115,6 +115,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
     () => (diagram.settings.pressureShading ? computePressureDomain(diagram.pipes, diagram.nodes) : null),
     [diagram.pipes, diagram.nodes, diagram.settings.pressureShading]
   );
+  // 模式权限：仅编辑模式可改拓扑（拖动/连线/删除/标签编辑）；演示/验收保留拨阀与视角
+  const canEdit = (ui.mode ?? "edit") === "edit";
   // 出视区 skip 渲染：视口外 + 200px 缓冲的节点/管路不渲染（为 150+ 管大图纸兜底）
   const cullRect = useMemo(() => {
     const w = typeof window !== "undefined" ? window.innerWidth : 1200;
@@ -310,6 +312,11 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   function onNodeMouseDown(e: React.MouseEvent, node: DiagramNode) {
     if (e.button !== 0 || spaceRef.current) return;
     e.stopPropagation();
+    // 演示/验收：只允许选中查看，禁止拖动拓扑
+    if (!canEdit) {
+      selectNode(node.id, e.shiftKey);
+      return;
+    }
     // 样式刷模式：第一次点击吸取，后续点击应用
     if (ui.styleBrush) {
       e.preventDefault();
@@ -448,6 +455,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
 
   // ===== 节点缩放（四角手柄）+ Shift 旋转 =====
   function onResizeMouseDown(e: React.MouseEvent, node: DiagramNode, corner: string) {
+    if (!canEdit) return;
     if (e.button !== 0) return;
     e.stopPropagation();
     const startWorld = screenToWorld(e.clientX, e.clientY);
@@ -520,6 +528,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
 
   // ===== 端口连线 =====
   function onPortMouseDown(e: React.MouseEvent, nodeId: string, portId: string) {
+    if (!canEdit) return;
     if (e.button !== 0) return;
     e.stopPropagation();
     if (e.altKey) {
@@ -572,7 +581,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
 
   // ===== 管路折点拖动（曲线自由 / 折线落网格） =====
   function onVertexMouseDown(e: React.MouseEvent, pipe: Pipe, pts: Pt[], vIndex: number) {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || !canEdit) return;
     e.stopPropagation();
     const free = pipe.routing === "curved";
     dragRef.current = { type: "vertex", pipeId: pipe.id, vIndex, pts: pts.map((p) => ({ ...p })), free, moved: false };
@@ -767,6 +776,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
 
   // ===== 标签就地编辑 =====
   function beginLabelEdit(kind: "pipe" | "node", id: string, worldX: number, worldY: number, value: string) {
+    if (!canEdit) return;
     setEditingLabel({ kind, id, x: worldX, y: worldY, width: Math.max(90, value.length * 7 + 30), value });
     // 下一帧聚焦
     requestAnimationFrame(() => editInputRef.current?.focus());

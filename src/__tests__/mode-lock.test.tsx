@@ -29,7 +29,7 @@ describe("模式操作权限", () => {
     act(() => { setWorkMode("present"); });
     const count = store.get().diagram.nodes.length;
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
     });
     expect(store.get().diagram.nodes.length).toBe(count);
   });
@@ -46,7 +46,7 @@ describe("模式操作权限", () => {
     act(() => { setWorkMode("verify"); });
     const count = store.get().diagram.nodes.length;
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
     });
     expect(store.get().diagram.nodes.length).toBe(count);
     expect(document.querySelector(".mode-banner")).toBeTruthy();
@@ -57,13 +57,13 @@ describe("模式操作权限", () => {
     act(() => { setWorkMode("edit"); });
     const count = store.get().diagram.nodes.length;
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
     });
     expect(store.get().diagram.nodes.length).toBe(count); // 未选中时删除无变化，但快捷键未被拦截（无 toast）
     // 拦截验证：切演示后有 toast 元素
     act(() => { setWorkMode("present"); });
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
     });
     const toastEl = document.querySelector(".toast") || document.body;
     expect(toastEl).toBeTruthy();

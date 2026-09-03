@@ -14,6 +14,13 @@ import {
 import type { HopObstacle } from "../geometry";
 import { FLUID_PRESETS } from "../types";
 import { downscaleDensity } from "../relativeFlow";
+
+/** 管路标签显示名：英文界面下默认名「管路 N」显示为 Pipe N（数据保持不变） */
+function pipeDisplayLabel(label: string, lang: "zh" | "en"): string {
+  if (lang !== "en") return label;
+  const m = label.match(/^管路 (\d+)$/);
+  return m ? `Pipe ${m[1]}` : label;
+}
 import type { FluidIssue } from "../fluidRules";
 
 interface PipeViewProps {
@@ -48,6 +55,8 @@ interface PipeViewProps {
   flowFactor?: number;
   /** 压力域着色：运行泵/锅炉可达管加淡色 halo */
   pressureHalo?: boolean;
+  /** 界面语言（管路默认名显示用） */
+  lang?: "zh" | "en";
 }
 
 /** 蒸汽锅炉底部排废：阀门打开后，锅炉底部至排出口整段按蒸汽显示。 */
@@ -92,7 +101,7 @@ function PipeViewImpl({
   chainGlow, chainStamp, lintMsg, onLintClick, funcChain,
   flowRefMap, onPipeBodyMouseDown, onVertexMouseDown, onContextMenu, onRemoveVertex, onLabelDoubleClick,
   issues, onFluidIssueClick,
-  flowFactor, pressureHalo,
+  flowFactor, pressureHalo, lang,
 }: PipeViewProps) {
   const pts = pipePolyline(pipe, nodes);
   if (!pts || pts.length < 2) return null;
@@ -171,7 +180,7 @@ function PipeViewImpl({
         )}
         {/* 管路文字标签（双击就地编辑） */}
         {showPipeLabels && pipe.label && <text x={mid.pt.x} y={labelY} textAnchor="middle" fontSize={11} fill={disabled ? "#8a9ba8" : "var(--text)"} fontFamily="system-ui, sans-serif" fontWeight={500} stroke="#ffffff" strokeWidth={3} paintOrder="stroke" style={{ cursor: "text" }} data-ui="1" onDoubleClick={(e) => { e.stopPropagation(); onLabelDoubleClick(pipe.id, mid.pt.x, labelY, pipe.label); }}>
-            {`${pipe.label}${pipe.nominalDiameter ? " · " + pipe.nominalDiameter : ""}`}
+            {`${pipeDisplayLabel(pipe.label, lang ?? "zh")}${pipe.nominalDiameter ? " · " + pipe.nominalDiameter : ""}`}
           </text>}
         {/* 结构问题即时 lint 红点（标签右侧，编辑时实时提示） */}
         {lintMsg && (

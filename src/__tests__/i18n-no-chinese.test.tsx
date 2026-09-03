@@ -54,6 +54,8 @@ function enMiniDiagram(): Diagram {
 describe("英文模式主要面板无中文残留", () => {
   it("PasswordGate 英文无中文", () => {
     const { container } = renderEn(<PasswordGate onPass={() => undefined} />);
+    // 语言切换按钮显示目标语言「中」，属有意设计
+    container.querySelector(".gate-lang")?.remove();
     expectNoChinese(container, "PasswordGate");
   });
 

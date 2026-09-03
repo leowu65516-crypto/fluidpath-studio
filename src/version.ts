@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.23.0";
+export const APP_VERSION = "1.24.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.24.0",
+    date: "2026-09-03",
+    highlights: [
+      "网页登录改为当日动态密码：六位 = 反转两位年 + 反转两位月 + 反转两位日（按本地时区，跨零点自动更换；例 2026-06-20 → 626002）；登录页右上角可直接切换中/EN",
+      "英文界面导出物去中文：管路默认标签渲染为 Pipe N（数据不变），新建管路按界面语言命名",
+    ],
+  },
   {
     version: "1.23.0",
     date: "2026-09-02",

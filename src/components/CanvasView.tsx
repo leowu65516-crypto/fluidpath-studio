@@ -1283,6 +1283,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                 onFluidIssueClick={handleFluidIssueClick}
                 flowFactor={flowFactors.get(p.id)}
                 pressureHalo={!!pressureSet?.has(p.id)}
+                lang={lang}
               />
             );
           })}</g>

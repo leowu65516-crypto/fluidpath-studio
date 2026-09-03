@@ -1389,7 +1389,7 @@ export function createPipe(fromPortId: string, toPortId: string) {
   }
   const pipe: Pipe = {
     id: uid("pipe"),
-    label: `管路 ${state.diagram.pipes.length + 1}`,
+    label: `${sysLang() === "en" ? "Pipe" : "管路"} ${state.diagram.pipes.length + 1}`,
     fromPortId,
     toPortId,
     points: [],

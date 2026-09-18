@@ -16,8 +16,8 @@ describe("离线文件夹版验证（本地已构建时）", () => {
   d("JS 是 IIFE 格式（无 import/export 顶层）", () => {
     const jsFile = fs.readdirSync("dist/assets").find(f => f.endsWith(".js"))!;
     const js = fs.readFileSync(path.join("dist/assets", jsFile), "utf8");
-    // 无顶层 import/export
-    expect(js.includes("export ")).toBe(false);
+    // 无顶层 import/export（文本内容可能合法地包含英文单词 export）
+    expect(/(^|[;\n])\s*(?:import|export)\s/.test(js)).toBe(false);
     // 以 IIFE 开头
     expect(js.trimStart().startsWith("(function")).toBe(true);
     // 用 new Function 语法检查

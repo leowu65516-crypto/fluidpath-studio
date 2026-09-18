@@ -163,6 +163,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
             ), "canvas")}
             {group(t("文字与状态"), (
               <>
+                <label className="exp-row"><span>{t("包含故障高亮")}</span><input type="checkbox" checked={!!opts.includeDiagnostics} onChange={e => patch({ includeDiagnostics: e.target.checked })} /></label>
                 <div className="exp-row">
                   <label>{t("文字增强")}</label>
                   <div className="seg">

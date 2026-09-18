@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { GUIDE } from "../guide";
+import { GUIDE, GUIDE_EN } from "../guide";
+import { useT } from "../i18n";
 
 export function HelpPanel({ onClose }: { onClose: () => void }) {
+  const { lang } = useT();
   const [active, setActive] = useState(GUIDE[0].id);
   const section = GUIDE.find((s) => s.id === active) ?? GUIDE[0];
+  const localized = lang === "en" ? (GUIDE_EN[section.id] ?? section) : section;
 
   return (
     <div className="help-overlay" onClick={onClose}>
@@ -24,18 +27,18 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
                 onClick={() => setActive(s.id)}
               >
                 <span className="help-nav-icon">{s.icon}</span>
-                <span>{s.title}</span>
+                <span>{lang === "en" ? (GUIDE_EN[s.id]?.title ?? s.title) : s.title}</span>
               </button>
             ))}
           </div>
         </div>
         <div className="help-content">
           <div className="help-content-head">
-            <h2>{section.icon} {section.title}</h2>
-            <button className="help-close" onClick={onClose} aria-label="关闭">✕</button>
+            <h2>{localized.icon} {localized.title}</h2>
+            <button className="help-close" onClick={onClose} aria-label={lang === "en" ? "Close" : "关闭"}>✕</button>
           </div>
           <div className="help-scroll">
-            {section.blocks.map((b, i) => {
+            {localized.blocks.map((b, i) => {
               if (b.type === "list") {
                 return <ul key={i}>{b.items?.map((it, j) => <li key={j}>{it}</li>)}</ul>;
               }

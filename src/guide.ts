@@ -7,6 +7,8 @@ export interface GuideBlock {
   type: "p" | "list" | "tip";
   text?: string;
   items?: string[];
+  textEn?: string;
+  itemsEn?: string[];
 }
 
 export interface GuideSection {
@@ -14,6 +16,7 @@ export interface GuideSection {
   icon: string;
   title: string;
   blocks: GuideBlock[];
+  titleEn?: string;
 }
 
 export const GUIDE: GuideSection[] = [
@@ -30,6 +33,9 @@ export const GUIDE: GuideSection[] = [
         "示例讲解：工具栏「演示」选择内置场景，按步骤高亮讲解液路工作过程。",
         "三态工作模式：工具栏右侧「✏️ 编辑 / 🎬 演示 / ✓ 验收」一键切换工作现场——编辑画图、演示投屏（侧栏自动收起）、验收跑矩阵。",
         "机型包：工具栏「📦 导入/导出机型包」——把图纸、验收案例和说明一次打包成单个 .fluidpack.json，对方导入即可打开完整工作现场（图打开、验收就绪、演示可用），适合向同事或厂商交付机型资料。",
+        "自动保存：打开同路径自动保存后，桌面版每分钟写入原 JSON 路径的备份副本；浏览器版会下载备份，不会覆盖原文件。",
+        "中英文：点工具栏「EN / 中」立即切换界面和指南语言；当前图纸名称、元件标签和用户自定义文本保持原样。",
+        "完整闭环：先确认结构，再切换演示讲解，最后在验收模式运行全部案例；失败管段应修图或修规则，不能用教学强制流动代替工程状态。",
       ]},
       { type: "tip", text: "第一次使用建议先插入「☕ 咖啡机水路」模板，再点「演示」看一遍完整萃取流程。" },
     ],
@@ -166,3 +172,123 @@ export const GUIDE: GuideSection[] = [
     ],
   },
 ];
+
+/** English display copy is kept separate from the source-language guide so the
+ * tutorial can follow the active UI language without mutating persisted data. */
+export const GUIDE_EN: Record<string, GuideSection> = {
+  quickstart: {
+    id: "quickstart", icon: "🚀", title: "Quick start", titleEn: "Quick start",
+    blocks: [
+      { type: "p", text: "FluidPath Studio is a liquid-path teaching workspace for drawing, inspecting, presenting and validating equipment circuits. It models qualitative flow; it is not a CFD solver or a substitute for machine commissioning." },
+      { type: "list", items: [
+        "Open or create: use New for a blank drawing, or Open JSON to load an existing project.",
+        "Build the topology: drag a component from the library, then drag one port to another. Keep tees explicit; a crossing line is not a connection.",
+        "Set the state: turn pumps on/off and choose valve paths. These are engineering states, separate from teaching-only display overrides.",
+        "Present: open Presentation, choose a matching scenario, and step through the highlighted flow. Missing optional hardware should not be invented.",
+        "Save conditions: use Conditions to capture named pump/valve combinations for repeatable demonstrations and troubleshooting.",
+        "Validate: select critical pipes as Must flow or Must stop, save the case, then Run all. A failure is evidence to inspect the drawing or rule.",
+        "Simulate faults: use Fault codes or the Inspector to inject a seized pump, stuck valve, blocked pipe or custom signal threshold.",
+        "Export and share: export PNG/SVG/PDF/JSON, a Markdown diagnosis report, or a machine pack containing the drawing, scenarios and validations.",
+        "Auto-save: desktop same-folder auto-save writes a backup copy every minute; browser mode downloads a backup and never silently overwrites the source.",
+        "Language: use EN / 中 in the toolbar. The UI and guide change immediately; user-authored drawing labels remain unchanged.",
+        "Recommended loop: inspect structure -> present a scenario -> run validation -> export the evidence. Do not use force-flow/force-stop to make an engineering case pass.",
+      ]},
+      { type: "tip", text: "For a first run, open a known JSON, fit the canvas, inspect the pump-to-outlet path, run the saved validations, then switch to Presentation." },
+    ],
+  },
+  library: {
+    id: "library", icon: "🧰", title: "Component library", titleEn: "Component library",
+    blocks: [
+      { type: "p", text: "The library groups containers, power, controls, process parts, connectors, outlets, sensors and notes. Each component has stable identity and named ports." },
+      { type: "list", items: [
+        "Drag an item to the canvas or double-click it to add it.",
+        "Search by the displayed name; collapse groups when the canvas needs more room.",
+        "Use the Inspector to edit labels, ports, state, faults and presentation properties.",
+      ]},
+      { type: "tip", text: "Choose a real component type before editing its appearance: geometry is not a substitute for port semantics." },
+    ],
+  },
+  canvas: {
+    id: "canvas", icon: "🖱️", title: "Canvas operations", titleEn: "Canvas operations",
+    blocks: [{ type: "list", items: [
+      "Pan with Space/middle/right drag; zoom with the wheel, +/- or Fit.",
+      "Click to select, Shift-click to add, or drag a selection box for multiple objects.",
+      "Move, resize and rotate nodes; snapping and alignment guides are controlled in Project settings.",
+      "Use multi-select actions to align, distribute, mirror or batch-edit objects.",
+      "Use the minimap to navigate large drawings.",
+    ]}, { type: "tip", text: "Stable IDs and port endpoints carry the engineering meaning; screen position only affects presentation." }],
+  },
+  pipes: {
+    id: "pipes", icon: "🔗", title: "Pipe editing", titleEn: "Pipe editing",
+    blocks: [
+      { type: "p", text: "Pipes express a connection between two ports and carry medium, direction, diameter and visual flow properties." },
+      { type: "list", items: [
+        "Drag port-to-port to create a pipe; use a tee for a branch. One port cannot be occupied twice.",
+        "The router avoids components. Add or move waypoints when the drawing needs a deliberate route.",
+        "Drag endpoint handles to reconnect a pipe; record intentional reconnections in the drawing change log.",
+        "Edit medium, material, diameter, color, direction, speed and particle density in the Inspector.",
+        "Bridge crossings make non-connections visible; they do not change topology.",
+      ]},
+      { type: "tip", text: "A visual line is not proof of flow. Use state and validation to check whether the engineering path is actually open." },
+    ],
+  },
+  "fluid-check": {
+    id: "fluid-check", icon: "🧪", title: "Medium and diagnostics", titleEn: "Medium and diagnostics",
+    blocks: [
+      { type: "p", text: "Diagnostics combine topology, port semantics, medium hints, pump/valve state and fault state. They are qualitative engineering checks, not measured pressure or temperature." },
+      { type: "list", items: [
+        "Orange warnings identify medium conflicts or outlet conditions that need review.",
+        "Circuit diagnostics checks isolated components, duplicate port connections, medium conflicts and faults.",
+        "Particle density and pressure-domain shading are visual aids; they never override engineering state.",
+        "The status bar summarizes structural errors and operating-condition hints.",
+      ]},
+      { type: "tip", text: "When a result looks wrong, inspect the stop-cause chain and the relevant ports before changing colors or animation." },
+    ],
+  },
+  demo: {
+    id: "demo", icon: "🎬", title: "Presentation mode", titleEn: "Presentation mode",
+    blocks: [
+      { type: "p", text: "Presentation mode turns a saved scenario into a guided explanation. It highlights the active components and pipes while locking topology edits." },
+      { type: "list", items: [
+        "Open Presentation and choose a scenario supported by the current drawing; unavailable optional scenarios are hidden.",
+        "Use Previous/Next to explain each step. Pump and valve states are restored when the presentation ends.",
+        "Small teaching adjustments may be saved to a step, but they must not be confused with engineering overrides.",
+        "Create a custom presentation from named Conditions when the machine needs a local procedure.",
+      ]},
+      { type: "tip", text: "Presentation is for explaining a known state. Use Validation when the goal is to prove a rule across states." },
+    ],
+  },
+  fault: {
+    id: "fault", icon: "🔧", title: "Fault simulation", titleEn: "Fault simulation",
+    blocks: [
+      { type: "p", text: "Inject faults to train diagnosis: a seized pump, stuck valve, blocked pipe or a custom fault code with sensor thresholds and detection conditions." },
+      { type: "list", items: [
+        "Pump seized: the pump does not provide drive and its connected path stops according to the model.",
+        "Valve stuck open/closed: the commanded state no longer matches the effective state.",
+        "Pipe blocked: only the blocked segment is marked unavailable unless the topology propagates the stop.",
+        "Fault codes can highlight related components and pipes and can be exported with the diagnostic report.",
+      ]},
+      { type: "tip", text: "Use a named fault case plus a validation case so a training result is repeatable and reviewable." },
+    ],
+  },
+  export: {
+    id: "export", icon: "📤", title: "Export and share", titleEn: "Export and share",
+    blocks: [{ type: "list", items: [
+      "PNG/JPG for images; SVG for scalable vector output; PDF for printable documents.",
+      "JSON preserves the editable drawing; a machine pack bundles drawing, scenarios, validations and metadata.",
+      "BOM exports the component list; diagnosis/validation exports Markdown with causes, outlets, pass/fail and failed pipes.",
+      "Share codes let another FluidPath workspace open the drawing without changing the source file.",
+      "Export cleanup controls component labels, pipe labels, medium labels, color and status overlays.",
+    ]}, { type: "tip", text: "Run validation before exporting evidence so the report records the actual result instead of a manually staged animation." }],
+  },
+  shortcuts: {
+    id: "shortcuts", icon: "⌨️", title: "Shortcuts", titleEn: "Shortcuts",
+    blocks: [{ type: "list", items: [
+      "Ctrl/Cmd+Z and Ctrl/Cmd+Y: undo and redo.",
+      "Ctrl/Cmd+D: duplicate; Ctrl/Cmd+C/V: copy and paste.",
+      "Ctrl/Cmd+G and Ctrl/Cmd+Shift+G: group and ungroup.",
+      "Ctrl/Cmd+F: search; ?: shortcut help; Delete/Backspace: remove selection.",
+      "Ctrl/Cmd+E: quick export; arrow keys nudge; Shift+arrow nudges by 10px.",
+    ]}, { type: "tip", text: "Use the toolbar Shortcuts panel to review or customize bindings." }],
+  },
+};

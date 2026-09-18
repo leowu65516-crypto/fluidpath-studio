@@ -1,3 +1,5 @@
+import { useT } from "../i18n";
+
 export interface WelcomeAction {
   id: string;
   icon: string;
@@ -12,12 +14,13 @@ export function WelcomePanel({
   onClose: () => void;
   onAction: (id: string) => void;
 }) {
+  const { t } = useT();
   const actions: WelcomeAction[] = [
-    { id: "new", icon: "🆕", title: "新建空白", desc: "从零开始绘制液路图" },
-    { id: "semi", icon: "☕", title: "半自动咖啡机", desc: "双锅炉 + OPV + 冲煮头实战模板" },
-    { id: "full", icon: "🍵", title: "全自动商用咖啡机", desc: "定量供水 + 双锅炉 + 奶路" },
-    { id: "open", icon: "📂", title: "打开 JSON", desc: "导入已有工程文件" },
-    { id: "help", icon: "📖", title: "使用指南", desc: "分章节教学指引" },
+    { id: "new", icon: "🆕", title: t("新建空白"), desc: t("从零开始绘制液路图") },
+    { id: "semi", icon: "☕", title: t("半自动咖啡机"), desc: t("双锅炉 + OPV + 冲煮头实战模板") },
+    { id: "full", icon: "🍵", title: t("全自动商用咖啡机"), desc: t("定量供水 + 双锅炉 + 奶路") },
+    { id: "open", icon: "📂", title: t("打开 JSON"), desc: t("导入已有工程文件") },
+    { id: "help", icon: "📖", title: t("使用指南"), desc: t("分章节教学指引") },
   ];
 
   return (
@@ -31,8 +34,8 @@ export function WelcomePanel({
             <circle cx="36" cy="30" r="5" fill="#ffffff" />
           </svg>
           <h1>FluidPath Studio</h1>
-          <p>液路动态示意图 · 教学工作台</p>
-          <p className="welcome-sub">绘制 · 仿真 · 讲解商用咖啡机等设备的液路原理</p>
+          <p>{t("液路动态示意图 · 教学工作台")}</p>
+          <p className="welcome-sub">{t("绘制 · 仿真 · 讲解商用咖啡机等设备的液路原理")}</p>
         </div>
 
         <div className="welcome-actions">
@@ -47,7 +50,7 @@ export function WelcomePanel({
           ))}
         </div>
 
-        <button className="welcome-skip" onClick={onClose}>直接进入工作台 →</button>
+        <button className="welcome-skip" onClick={onClose}>{t("直接进入工作台 →")}</button>
       </div>
     </div>
   );

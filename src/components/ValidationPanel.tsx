@@ -13,6 +13,7 @@ export function ValidationPanel({ onClose }: { onClose: () => void }) {
   const [mustFlow, setMustFlow] = useState<string[]>([]);
   const [mustStop, setMustStop] = useState<string[]>([]);
   const [results, setResults] = useState<ValidationResult[] | null>(null);
+  const [validatedDiagram, setValidatedDiagram] = useState(diagram);
   const selectedPipeIds = ui.selection.pipes;
   const cases = listValidationCases();
   const pipeName = useMemo(() => new Map(diagram.pipes.map((p) => [p.id, p.label || p.id])), [diagram.pipes]);
@@ -41,6 +42,7 @@ export function ValidationPanel({ onClose }: { onClose: () => void }) {
   const run = () => {
     const next = runValidationCases(diagram);
     setResults(next);
+    setValidatedDiagram(diagram);
     const failed = next.filter((r) => !r.passed).length;
     toast(failed ? t("{n} 个验收工况失败，请检查红色管路").replace("{n}", String(failed)) : t("全部 {n} 个验收工况通过").replace("{n}", String(next.length)));
   };
@@ -81,11 +83,12 @@ export function ValidationPanel({ onClose }: { onClose: () => void }) {
       {!cases.length && <div className="cond-empty">{t("新图纸没有验收标准。先摆好泵阀状态，选中关键管路，再建立案例。")}</div>}
       <div className="validation-list">
         {cases.map((c) => {
-          const result = results?.find((r) => r.caseId === c.id);
+          const result = validatedDiagram === diagram ? results?.find((r) => r.caseId === c.id) : undefined;
           return <div className={`validation-case${result ? result.passed ? " pass" : " fail" : ""}`} key={c.id}>
             <div><b>{result ? result.passed ? "✓" : "✕" : "○"} {c.name}</b><small>{t("{n} 应流 · {m} 应停").replace("{n}", String(c.mustFlowPipeIds.length)).replace("{m}", String(c.mustStopPipeIds.length))}</small></div>
             <button className="btn ghost sq" title={t("删除")} onClick={() => deleteValidationCase(c.id)}>×</button>
-            {result?.failures.map((f) => <button key={`${f.pipeId}-${f.expected}`} className="validation-failure" onClick={() => focusElement(f.pipeId)}>{f.label}：{t("应流")}，{t("实际")}{f.actual === "flow" ? t("流") : t("停")}</button>)}
+            {result?.issues.map(issue => <div role="alert" key={issue}>{result.status}: {issue}</div>)}
+            {result?.failures.map((f) => <button key={`${f.pipeId}-${f.expected}`} className="validation-failure" disabled={f.actual === "missing"} onClick={() => focusElement(f.pipeId)}>{f.label}：{t(f.expected === "flow" ? "应流" : "应停")}，{f.actual === "missing" ? t("引用不存在，未运行") : `${t("实际")}${t(f.actual === "flow" ? "流" : "停")}`}</button>)}
           </div>;
         })}
       </div>

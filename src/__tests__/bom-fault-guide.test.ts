@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildBom } from "../bom";
-import { GUIDE } from "../guide";
+import { GUIDE, GUIDE_EN } from "../guide";
 import { pipeEffectiveDisabled, setCachedPipes } from "../geometry";
 import { createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "../sample";
 import { diagnoseDiagram } from "../diagnostics";
@@ -53,6 +53,17 @@ describe("使用指南", () => {
     for (const s of GUIDE) {
       expect(s.title.length).toBeGreaterThan(0);
       expect(s.blocks.length).toBeGreaterThan(0);
+    }
+  });
+  it("英文指南覆盖全部章节，快速开始覆盖完整闭环", () => {
+    expect(Object.keys(GUIDE_EN)).toEqual(expect.arrayContaining(GUIDE.map((s) => s.id)));
+    const quick = GUIDE_EN.quickstart.blocks.flatMap((b) => b.items ?? [b.text ?? ""]).join(" ");
+    for (const term of ["Open JSON", "Presentation", "Conditions", "Validate", "Fault", "Export", "Auto-save", "Language"]) {
+      expect(quick).toContain(term);
+    }
+    for (const section of GUIDE) {
+      expect(GUIDE_EN[section.id].title.length).toBeGreaterThan(0);
+      expect(GUIDE_EN[section.id].blocks.length).toBeGreaterThan(0);
     }
   });
 });

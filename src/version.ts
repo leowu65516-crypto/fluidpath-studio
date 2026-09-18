@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.24.0";
+export const APP_VERSION = "1.25.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,23 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.25.1",
+    date: "2026-09-18",
+    highlights: [
+      "使用指南和快速开始跟随当前中英文界面即时切换，补齐从打开图纸到演示、工况、验收、故障模拟、导出和自动保存的完整教学闭环",
+      "欢迎页按钮、说明和指南关闭按钮接入 i18n，避免英文模式残留中文入口文案",
+    ],
+  },
+  {
+    version: "1.25.0",
+    date: "2026-09-18",
+    highlights: [
+      "按 FluidPath 协议 v0.2 建立诊断配置层：自定义故障码、信号阈值/保持时间、质量与滞回、回路高亮、教学注入、确认/复位和 Markdown 报告",
+      "新增 AI 绘图结构化操作协议：白名单操作、图纸指纹、预览校验、原子应用、重复请求保护和可撤销变更",
+      "验收结果增加 PASS/FAIL/INVALID 三态，缺失管段和非法断言不再被误判为停流；旧图纸导入增加显式迁移与版本边界检查",
+    ],
+  },
   {
     version: "1.24.0",
     date: "2026-09-03",

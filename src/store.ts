@@ -20,6 +20,7 @@ import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsTo
 import { snapshotStates, applyStates, diffStateIds, type PresetState } from "./presets";
 import { toast } from "./toast";
 import type { FixAction } from "./advice";
+import { resetDiagnosticSession, syncDiagnosticDiagram } from "./fault-codes/session";
 
 /** 当前 UI 语言（由 LangProvider 同步到 html lang；供数据层 toast 双语） */
 function sysLang(): "zh" | "en" {
@@ -66,6 +67,7 @@ export function useAppState(): AppState {
 }
 
 function setState(next: AppState) {
+  if (next.diagram !== state.diagram) syncDiagnosticDiagram(state.diagram, next.diagram);
   state = next;
   emit();
   if (next.ui.dirty) _scheduleAutosave(next.diagram);
@@ -222,9 +224,9 @@ export function redo() {
 
 /** 修改 diagram。history=true 时先入栈快照（离散操作）；拖动等连续操作应在开始时手动 pushHistory 一次 */
 export function updateDiagram(mutator: (draft: Diagram) => void, history = true) {
-  if (history) pushHistory();
   const draft = structuredClone(state.diagram);
   mutator(draft);
+  if (history) pushHistory();
   setState({
     ...state,
     diagram: draft,
@@ -233,6 +235,7 @@ export function updateDiagram(mutator: (draft: Diagram) => void, history = true)
 }
 
 export function loadDiagram(diagram: Diagram) {
+  resetDiagnosticSession();
   past = [];
   future = [];
   scenarioSnapshot = null;

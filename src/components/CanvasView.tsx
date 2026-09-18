@@ -22,6 +22,9 @@ import {
 import { NodeSymbol, spoutTips, defOf, nodeCanvasLabel } from "../symbols";
 import { MiniMap } from "./MiniMap";
 import { PipeView } from "./PipeView";
+import { FaultHighlightOverlay } from "./FaultHighlightOverlay";
+import { useDiagnosticView } from "../fault-codes/session";
+import { resolveFaultTargets } from "../fault-codes/profile";
 import { useT } from "../i18n";
 import { ContextMenu } from "./ContextMenu";
 import { focusElement, blinkElements, showChainPath, overrideScenarioNode } from "../store";
@@ -84,6 +87,7 @@ export interface CanvasHandle {
 
 export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SVGSVGElement | null> }) {
   const app = useAppState();
+  const diagnosticView = useDiagnosticView();
   const { t, lang } = useT();
   const { diagram, ui } = app;
   const blinkIds = new Set(ui.blink?.ids ?? []);
@@ -1201,6 +1205,16 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   const layers = diagram.settings.layers ?? [];
   const visibleLayers = new Set(layers.filter((l) => l.visible).map((l) => l.id));
   const visibleNodeIds = new Set(diagram.nodes.filter((n) => !n.layerId || visibleLayers.has(n.layerId)).map((n) => n.id));
+  if (diagnosticView.revealHidden && diagram.settings.diagnosticProfile) {
+    const profile = diagram.settings.diagnosticProfile;
+    for (const fault of profile.diagnostics.filter(f => diagnosticView.ids.includes(f.id))) {
+      const targets = resolveFaultTargets(diagram, profile, fault);
+      targets.nodes.forEach(id => visibleNodeIds.add(id));
+      for (const pipe of diagram.pipes.filter(p => targets.pipes.includes(p.id))) {
+        for (const node of diagram.nodes) if (node.ports.some(p => p.id === pipe.fromPortId || p.id === pipe.toPortId)) visibleNodeIds.add(node.id);
+      }
+    }
+  }
   const visiblePipeIds = new Set(diagram.pipes.filter((p) => {
     // 管路只要两端任一端点所在的节点可见即可
     const fromNode = p.fromPortId ? diagram.nodes.find((n) => n.ports.some((pt) => pt.id === p.fromPortId)) : null;
@@ -1288,6 +1302,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             );
           })}</g>
           <g>{diagram.nodes.filter((n) => visibleNodeIds.has(n.id)).map(renderNode)}</g>
+          <FaultHighlightOverlay diagram={diagram} visibleNodes={visibleNodeIds} visiblePipes={visiblePipeIds} />
           {/* 标注节点引线 + 目标点手柄（与节点分开渲染以避免 transform 干扰） */}
           {diagram.nodes.filter((n) => visibleNodeIds.has(n.id) && n.type === "annotation" && n.pointerTarget).map((n) => {
             const t = n.pointerTarget!;

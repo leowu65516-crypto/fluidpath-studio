@@ -26,7 +26,7 @@ process.stdin.on("end", () => {
     appVersion: APP_VERSION,
     total: results.length,
     passed,
-    results: results.map((r) => ({ name: r.name, passed: r.passed, checked: r.checked, failures: r.failures })),
+    results: results.map((r) => ({ name: r.name, passed: r.passed, status: r.status, issues: r.issues, checked: r.checked, failures: r.failures })),
     report,
   }));
 });

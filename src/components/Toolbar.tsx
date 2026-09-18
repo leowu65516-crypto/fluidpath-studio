@@ -35,7 +35,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenValidation }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenValidation?: () => void }) {
+export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenValidation, onOpenFaultCodes, onOpenAi }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenValidation?: () => void; onOpenFaultCodes?: () => void; onOpenAi?: () => void }) {
   const { diagram, ui } = useAppState();
   const { t, lang, setLang } = useT();
   const mode = ui.mode ?? "edit";
@@ -406,6 +406,10 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" onClick={onOpenValidation} title={t("定义并运行图纸工况验收")}>
         <Icon d="M5 12l4 4L19 6" />{t("验收")}
       </button>
+      <button className="tb-btn" onClick={onOpenFaultCodes} title={t("故障码与关联水路")}>
+        <Icon d="M12 3L2 21h20L12 3zM12 9v5M12 17h.01" />{t("故障代码")}
+      </button>
+      <button className="tb-btn" onClick={onOpenAi} title={t("结构化指令预览与应用")}>{t("AI 绘图")}</button>
       {condOpen && <ConditionPanel onClose={() => setCondOpen(false)} />}
       <div className="layer-wrap" ref={layerRef}>
         <button className={`tb-btn${layerOpen ? " active" : ""}`} onClick={() => setLayerOpen((v) => !v)} title={t("图层管理")}>

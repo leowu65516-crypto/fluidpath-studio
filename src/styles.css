@@ -1633,6 +1633,51 @@ body[data-theme="dark"] .welcome-overlay {
 
 /* ==== 图纸工况验收 ==== */
 .validation-panel { width: 350px; flex: 0 0 350px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+
+/* Diagnostic definitions persist in the drawing; this panel/overlay never recolors its objects. */
+.fault-panel { width: 390px; flex: 0 0 390px; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--border); color: var(--text); font-size: 12px; }
+.fault-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.fault-header strong { font-size: 16px; display: block; }
+.fault-header span { display: block; font-size: 11px; margin-top: 4px; opacity: .65; overflow-wrap: anywhere; }
+.fault-scroll { padding: 12px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+.fault-intro { line-height: 1.7; margin: 0 0 12px; }
+.fault-hint { display: block; opacity: .7; line-height: 1.6; }
+.fault-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin: 12px 0; overflow-wrap: anywhere; }
+.fault-card summary { cursor: pointer; font-weight: 600; padding: 3px 0; }
+.fault-card p { line-height: 1.6; }
+.fault-card small { display: block; line-height: 1.6; opacity: .75; }
+.fault-form { display: grid; gap: 10px; padding-top: 10px; }
+.fault-form label, .fault-signal label { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fault-panel input:not([type=checkbox]):not([type=color]), .fault-panel select, .fault-panel textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 7px 8px; font: inherit; color: inherit; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
+.fault-panel textarea { resize: vertical; min-height: 65px; }
+.fault-panel input[type=color] { width: 38px; height: 28px; border: 0; padding: 0; background: transparent; }
+.fault-panel .btn { white-space: normal; height: auto; min-height: 30px; line-height: 1.4; padding: 6px 9px; }
+.fault-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fault-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0; }
+.fault-error { padding: 10px; margin: 10px 0; background: #fff1e9; color: #952e1e; border: 1px solid #e6b197; border-radius: 6px; overflow-wrap: anywhere; }
+.fault-search { margin: 8px 0; }
+.fault-code-list { max-height: 210px; overflow-y: auto; }
+.fault-code-item { display: flex; align-items: center; gap: 8px; margin: 3px 0; padding: 4px 8px; border: 1px solid transparent; border-radius: 6px; }
+.fault-code-item.selected { border-color: #bd965c; background: #d9770610; }
+.fault-code-item button { flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; color: inherit; cursor: pointer; padding: 6px 0; }
+.fault-code-item b, .fault-code-item span { display: block; overflow-wrap: anywhere; }
+.fault-code-item span { margin-top: 3px; font-size: 11px; }
+.fault-check { display: flex; align-items: center; gap: 6px; margin: 7px 0; }
+.fault-section-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fault-badge { font-size: 11px; border-radius: 20px; padding: 4px 8px; border: 1px solid var(--border); }
+.fault-rule-summary { font-size: 10px; line-height: 1.6; white-space: pre-wrap; max-height: 150px; overflow-y: auto; }
+.fault-panel .fault-json { min-height: 260px; font-family: ui-monospace, monospace; font-size: 11px; }
+.fault-signal { display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; margin: 12px 0; }
+.fault-simulator output { font-size: 24px; font-variant-numeric: tabular-nums; }
+.fault-runtime { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.fault-active-dot { color: #c74a21; }
+.ai-plan-preview { width: 100%; height: 185px; background: #f4f7fb; border: 1px solid #dbe3eb; border-radius: 8px; }
+.ai-drawing-panel ol { padding-left: 20px; line-height: 1.8; overflow-wrap: anywhere; }
+@keyframes fault-breathe { 0%, 100% { opacity: .4; } 50% { opacity: .95; } }
+.fault-overlay-breathe { animation: fault-breathe 2.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .fault-overlay-breathe { animation: none; } }
+@media (max-width: 900px) { .fault-panel { width: min(360px, 55vw); flex-basis: min(360px, 55vw); } }
+@media (max-width: 600px) { .fault-panel { position: absolute; right: 0; top: 112px; bottom: 28px; width: min(390px, 90vw); z-index: 45; box-shadow: -6px 0 24px #0002; } }
 .validation-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
 .validation-head h2 { margin: 0; font-size: 16px; }
 .validation-help { padding: 10px 16px; margin: 0; font-size: 12px; line-height: 1.55; color: var(--text-dim); background: #eef7ff; }

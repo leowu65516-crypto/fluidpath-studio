@@ -176,14 +176,16 @@ export function buildDiagnosisReport(diagram: Diagram, lang: Lang = "zh", includ
       lines.push(L(lang, "本图纸未定义验收案例。", "No validation cases defined for this drawing."));
     } else {
       for (const r of validationResults) {
-        lines.push(`### ${r.name} — ${r.passed ? `✅ ${L(lang, "通过", "PASS")}` : `❌ ${L(lang, "失败", "FAIL")}`}（${r.checked} ${L(lang, "项", "checks")}）`);
+        lines.push(`### ${r.name} — ${r.status}（${r.checked} ${L(lang, "项", "checks")}）`);
         lines.push("");
+        for (const issue of r.issues) lines.push(`- ${issue}`);
+        if (r.issues.length) lines.push("");
         if (!r.passed && r.failures.length > 0) {
           lines.push(`| ${L(lang, "管路", "Pipe")} | ${L(lang, "期望", "Expected")} | ${L(lang, "实际", "Actual")} |`);
           lines.push("|---|---|---|");
           for (const f of r.failures) {
             const exp = f.expected === "flow" ? L(lang, "流动", "flow") : L(lang, "停流", "stop");
-            const act = f.actual === "flow" ? L(lang, "流动", "flow") : L(lang, "停流", "stop");
+            const act = f.actual === "missing" ? L(lang, "引用不存在，未运行", "Missing reference; not evaluated") : f.actual === "flow" ? L(lang, "流动", "flow") : L(lang, "停流", "stop");
             lines.push(`| ${f.label.split("|").join("\\|")} | ${exp} | ${act} |`);
           }
         }

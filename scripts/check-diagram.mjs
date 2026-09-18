@@ -67,17 +67,19 @@ try {
   console.log(`应用版本: ${out.appVersion}`);
   console.log(`验收案例: ${out.total} 个，通过 ${out.passed} 个`);
   for (const r of out.results) {
-    const mark = r.passed ? "✅ PASS" : "❌ FAIL";
+    const mark = r.passed ? "✅ PASS" : `❌ ${r.status}`;
     console.log(`  ${mark}  ${r.name}（检查 ${r.checked} 项）`);
+    for (const issue of r.issues) console.log(`        - ${issue}`);
     for (const f of r.failures) {
-      console.log(`        - ${f.label}: 期望${f.expected === "flow" ? "流" : "停"}，实际${f.actual === "flow" ? "流" : "停"}`);
+      console.log(`        - ${f.label}: 期望${f.expected === "flow" ? "流" : "停"}，${f.actual === "missing" ? "引用不存在，未运行" : `实际${f.actual === "flow" ? "流" : "停"}`}`);
     }
   }
   if (out.report) {
     writeFileSync(resolve(reportOut), out.report, "utf8");
     console.log(`报告已写入: ${resolve(reportOut)}`);
   }
-  process.exit(out.passed === out.total ? 0 : 1);
+  if (!out.total) console.log("NOT_RUN：没有匹配的验收案例，不能视为通过");
+  process.exit(out.total > 0 && out.passed === out.total ? 0 : 1);
 } catch {
   console.error("运行失败:", res.stderr || res.stdout);
   process.exit(2);

@@ -1,3 +1,5 @@
+import type { DiagnosticProfile } from "./fault-codes/types";
+
 export type PortPosition = "top" | "right" | "bottom" | "left";
 export type PortDirection = "in" | "out" | "bidirectional";
 
@@ -201,6 +203,10 @@ export const MATERIAL_PRESETS: MaterialPreset[] = [
 ];
 
 export interface DiagramSettings {
+  /** Successfully applied AI request IDs; retained on round-trip for idempotency. */
+  aiAppliedRequestIds?: string[];
+  /** Optional, independently versioned diagnostic module; simulation/selection stays in memory. */
+  diagnosticProfile?: DiagnosticProfile;
   showGrid: boolean;
   background: string;
   globalAnimationPlaying: boolean;

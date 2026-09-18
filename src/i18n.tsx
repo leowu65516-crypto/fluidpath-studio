@@ -1,10 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { FAULT_TRANSLATIONS } from "./fault-codes/i18n";
 
 export type Lang = "zh" | "en";
 
 /** 英文翻译表：key 为中文原文，value 为英文 */
 const EN: Record<string, string> = {
+  ...FAULT_TRANSLATIONS,
   // 工具栏
   "新建": "New",
   "新窗口": "New window",
@@ -93,6 +95,18 @@ const EN: Record<string, string> = {
   "第二步：选中关键管路，标为应流或应停": "Step 2: select key pipes and mark them must-flow or must-stop",
   "第三步：保存案例并运行全部验收": "Step 3: save the case and run all validations",
   "验证在内存副本中运行，不会改变当前画布。": "Validation runs on an in-memory copy and never changes this canvas.",
+  "新建空白": "Blank drawing",
+  "从零开始绘制液路图": "Draw a liquid path from scratch",
+  "半自动咖啡机": "Semi-automatic coffee machine",
+  "双锅炉 + OPV + 冲煮头实战模板": "Dual boiler + OPV + group head template",
+  "全自动商用咖啡机": "Fully automatic commercial machine",
+  "定量供水 + 双锅炉 + 奶路": "Dosed supply + dual boiler + milk circuit",
+  "导入已有工程文件": "Load an existing project",
+  "分章节教学指引": "A chaptered learning guide",
+  "液路动态示意图 · 教学工作台": "Liquid-path diagram · teaching workspace",
+  "绘制 · 仿真 · 讲解商用咖啡机等设备的液路原理": "Draw · simulate · explain the liquid paths of coffee machines and other equipment",
+  "直接进入工作台 →": "Enter workspace →",
+  "液路教学工作台": "Liquid-path teaching workspace",
 
   // 元件库
   "元件库": "Library",

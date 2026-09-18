@@ -13,6 +13,9 @@ import { HelpPanel } from "./components/HelpPanel";
 import { WelcomePanel } from "./components/WelcomePanel";
 import { AdvicePanel } from "./components/AdvicePanel";
 import { ValidationPanel } from "./components/ValidationPanel";
+import { FaultCodePanel } from "./components/FaultCodePanel";
+import { AiDrawingPanel } from "./components/AiDrawingPanel";
+import { selectFaultCodes, setSimulationRunning } from "./fault-codes/session";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, useAppState } from "./store";
@@ -42,6 +45,8 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [showFaultCodes, setShowFaultCodes] = useState(false);
+  const [showAi, setShowAi] = useState(false);
   const [gateOk, setGateOk] = useState(() => !shouldGate() || gateAuthed());
   // 状态栏诊断徽章点击 → 打开回路诊断面板
   useEffect(() => {
@@ -258,11 +263,11 @@ export default function App() {
               : "🔒 " + t("验收中 · 拓扑已锁定，可摆工况跑验收，切回编辑可修改")}
           </div>
         ) : null}
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={() => setShowHelp(true)} onOpenAdvice={() => { setShowValidation(false); setShowAdvice((v) => !v); }} onOpenValidation={() => { setShowAdvice(false); setShowValidation((v) => !v); }} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={() => setShowHelp(true)} onOpenAi={() => { setShowFaultCodes(false); setShowAdvice(false); setShowValidation(false); setShowAi(v => !v); }} onOpenFaultCodes={() => { setShowAi(false); setShowAdvice(false); setShowValidation(false); setShowFaultCodes(v => !v); }} onOpenAdvice={() => { setShowAi(false); setShowFaultCodes(false); setShowValidation(false); setShowAdvice((v) => !v); }} onOpenValidation={() => { setShowAi(false); setShowFaultCodes(false); setShowAdvice(false); setShowValidation((v) => !v); }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <CanvasView svgRefOut={svgRef} />
-          {showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : showValidation ? <ValidationPanel onClose={() => setShowValidation(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
+          {showAi ? <AiDrawingPanel onClose={() => setShowAi(false)} /> : showFaultCodes ? <FaultCodePanel onClose={() => { setShowFaultCodes(false); selectFaultCodes([]); setSimulationRunning(false); }} /> : showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : showValidation ? <ValidationPanel onClose={() => setShowValidation(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
         </div>
         <StatusBar />
       </div>

@@ -4,6 +4,7 @@ import { createNode } from "./symbols";
 import { buildLegendNodes } from "./legend";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { toast } from "./toast";
+import { parseDiagnosticProfile } from "./fault-codes/profile";
 
 /** 一键分享：压缩 diagram 为 Base64 URL 片段 */
 export function compressDiagram(diagram: Diagram): string {
@@ -104,6 +105,8 @@ function contentBBox(diagram: Diagram) {
 
 /** 导出选项：全部只作用于导出物，画布零污染（延续「验收在副本运行」的哲学） */
 export interface ExportOptions {
+  /** Static diagnostic overlays are opt-in and never modify fluid colors. */
+  includeDiagnostics?: boolean;
   format: "png" | "jpg" | "svg" | "pdf" | "gif";
   /** 背景：white=纯白 / canvas=画布背景色 / transparent=透明（jpg 不支持） */
   background: "white" | "canvas" | "transparent";
@@ -138,6 +141,7 @@ export interface ExportOptions {
 }
 
 export const EXPORT_DEFAULTS: Omit<ExportOptions, "format" | "lang"> = {
+  includeDiagnostics: false,
   background: "white",
   scale: 2,
   padding: 24,
@@ -503,6 +507,18 @@ function backgroundColorOf(diagram: Diagram, opts: ExportOptions): string {
 }
 
 /** 组装导出 SVG：预览与落盘共用同一管线（数据副本 + 附加节点 + DOM 后处理 + 主题色） */
+export function prepareDiagnosticExport(clone: SVGSVGElement, opts: ExportOptions) {
+  for (const overlay of clone.querySelectorAll("[data-fault-overlay]")) {
+    if (!opts.includeDiagnostics) { overlay.remove(); continue; }
+    overlay.removeAttribute("data-ui");
+    overlay.querySelectorAll(".fault-overlay-breathe").forEach(el => el.removeAttribute("class"));
+    if (opts.selectionOnly && opts.selection) {
+      const selected = new Set([...opts.selection.nodes, ...opts.selection.pipes]);
+      overlay.querySelectorAll("[data-fault-target]").forEach(el => { if (!selected.has(el.getAttribute("data-fault-target")!)) el.remove(); });
+    }
+  }
+}
+
 export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opts: ExportOptions): { svg: string; w: number; h: number } {
   const { diagram: exDiagram, extra } = prepareExportDiagram(diagram, opts);
   const bbox = bboxWith(extra, exDiagram);
@@ -512,6 +528,7 @@ export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram
   const w = bbox.w + pad * 2;
   const h = bbox.h + pad * 2;
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
+  prepareDiagnosticExport(clone, opts);
   clone.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
   const world = clone.querySelector("[data-world='1']");
   if (world) world.removeAttribute("transform");
@@ -592,6 +609,7 @@ export async function exportGifWithOptions(
 
   const { clone } = (() => {
     const c = svgEl.cloneNode(true) as SVGSVGElement;
+    prepareDiagnosticExport(c, opts);
     c.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
     const world = c.querySelector("[data-world='1']");
     if (world) world.removeAttribute("transform");
@@ -679,7 +697,7 @@ export async function exportGifWithOptions(
 }
 
 export function exportJSON(diagram: Diagram) {
-  const out = { ...diagram, _version: 2, _exportedAt: new Date().toISOString() };
+  const out = { ...diagram, _version: 3, _exportedAt: new Date().toISOString() };
   const json = JSON.stringify(out, null, 2);
   download(`${diagram.name || "fluidpath"}.json`, new Blob([json], { type: "application/json" }));
 }
@@ -703,6 +721,8 @@ function isOldFormatNode(n: any): boolean {
 
 /** 迁移旧版节点：{ position:{x,y}, size:{w,h}, style:{fill,stroke} } → 扁平字段 */
 function migrateNode(n: any): void {
+  if (!n || typeof n !== "object" || Array.isArray(n)) return;
+  if (n.type === undefined && typeof n.kind === "string") { n.type = n.kind; delete n.kind; }
   if (n.position && typeof n.position === "object") {
     if (n.x === undefined) n.x = n.position.x ?? 0;
     if (n.y === undefined) n.y = n.position.y ?? 0;
@@ -722,6 +742,7 @@ function migrateNode(n: any): void {
 
 /** 迁移旧版管路：{ connection:{from,to}, style:{...}, flow:{...} } → 扁平字段 */
 function migratePipe(p: any): void {
+  if (!p || typeof p !== "object" || Array.isArray(p)) return;
   if (p.connection && typeof p.connection === "object") {
     if (p.fromPortId === undefined) p.fromPortId = p.connection.from ?? undefined;
     if (p.toPortId === undefined) p.toPortId = p.connection.to ?? undefined;
@@ -760,6 +781,11 @@ function migratePipe(p: any): void {
 
 export function parseDiagramJSON(text: string): Diagram {
   const data = JSON.parse(text);
+  // Recognize the envelope before migration; old nested coordinates are valid migration input.
+  if (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.nodes) && Array.isArray(data.pipes)) {
+    migrateDiagramToCurrent(data);
+    data.nodes.filter(isOldFormatNode).forEach(migrateNode);
+  }
   // 轻量 schema 校验：给出可理解的错误信息，而不是让字段缺失静默传播
   const errors = validateDiagramShape(data);
   if (errors.length > 0) {
@@ -783,6 +809,7 @@ export function parseDiagramJSON(text: string): Diagram {
   if (!data.settings.layers || !data.settings.layers.length) {
     data.settings.layers = [{ id: "layer_default", name: "默认层", visible: true }];
   }
+  if (data.settings.diagnosticProfile !== undefined) data.settings.diagnosticProfile = parseDiagnosticProfile(data.settings.diagnosticProfile);
   return data as Diagram;
 }
 
@@ -862,6 +889,9 @@ export const DIAGRAM_MIGRATIONS: DiagramMigration[] = [
  */
 export function migrateDiagramToCurrent(d: Record<string, unknown>): string[] {
   const applied: string[] = [];
+  if (d._version !== undefined && (typeof d._version !== "number" || !Number.isInteger(d._version) || d._version < 1 || d._version > 3)) {
+    throw new Error("图纸版本不受支持，请升级应用 / Unsupported diagram version; update the app");
+  }
   let v = typeof d._version === "number" ? d._version : 1;
   const CURRENT = 3;
   while (v < CURRENT) {

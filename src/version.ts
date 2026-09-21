@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.25.1";
+export const APP_VERSION = "1.26.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.26.0",
+    date: "2026-09-21",
+    highlights: [
+      "顶栏移除 AI 绘图入口，保留图纸协议与已保存的结构化数据，不再占用日常操作空间",
+      "新增故障工作模式：右栏可按故障码配置整体关联范围、1/2/3 等排查步骤、可疑回路闪烁颜色、采样信号和自由传感器线索；全部随图纸 JSON 保存与导出",
+      "修复流量计在递归停流兜底中未被视为直通元件的边界问题，新增停泵后流量计下游必须停流的回归测试",
+    ],
+  },
   {
     version: "1.25.1",
     date: "2026-09-18",

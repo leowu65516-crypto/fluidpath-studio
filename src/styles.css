@@ -1671,11 +1671,29 @@ body[data-theme="dark"] .welcome-overlay {
 .fault-simulator output { font-size: 24px; font-variant-numeric: tabular-nums; }
 .fault-runtime { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
 .fault-active-dot { color: #c74a21; }
+.fault-step { margin: 10px 0; padding: 9px; border: 1px solid var(--border); border-left: 3px solid transparent; border-radius: 6px; background: color-mix(in srgb, var(--panel) 92%, #d97706 8%); }
+.fault-step.active { border-left-color: #c84a2f; box-shadow: inset 0 0 0 1px #c84a2f2e; }
+.fault-step-head { display: flex; align-items: center; gap: 8px; }
+.fault-step-select { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 3px 0; color: inherit; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.fault-step-select b { flex: 0 0 21px; height: 21px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #8b5c23; font-size: 11px; }
+.fault-step-select span { overflow-wrap: anywhere; font-weight: 600; }
+.fault-step-order { display: flex; gap: 3px; }
+.fault-step-order .btn { min-width: 25px; padding: 3px; }
+.fault-step-scope { display: flex; justify-content: space-between; gap: 8px; margin-top: 9px; font-size: 11px; }
+.fault-step-scope span { opacity: .72; }
+.fault-step-animation { display: inline-flex; align-items: center; gap: 5px; }
+.fault-step-animation select { width: auto; }
+.fault-step-sensors { margin-top: 10px; }
+.fault-step-sensors summary { cursor: pointer; font-weight: 600; }
+.fault-step-sensors > label { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.fault-signal-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; margin: 8px 0; }
 .ai-plan-preview { width: 100%; height: 185px; background: #f4f7fb; border: 1px solid #dbe3eb; border-radius: 8px; }
 .ai-drawing-panel ol { padding-left: 20px; line-height: 1.8; overflow-wrap: anywhere; }
 @keyframes fault-breathe { 0%, 100% { opacity: .4; } 50% { opacity: .95; } }
 .fault-overlay-breathe { animation: fault-breathe 2.8s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .fault-overlay-breathe { animation: none; } }
+@keyframes fault-flash { 0%, 100% { opacity: .24; } 49% { opacity: 1; } 52% { opacity: .24; } 58% { opacity: .9; } }
+.fault-overlay-flash { animation: fault-flash 1.2s steps(2, end) infinite; }
+@media (prefers-reduced-motion: reduce) { .fault-overlay-breathe, .fault-overlay-flash { animation: none; } }
 @media (max-width: 900px) { .fault-panel { width: min(360px, 55vw); flex-basis: min(360px, 55vw); } }
 @media (max-width: 600px) { .fault-panel { position: absolute; right: 0; top: 112px; bottom: 28px; width: min(390px, 90vw); z-index: 45; box-shadow: -6px 0 24px #0002; } }
 .validation-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }

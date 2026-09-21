@@ -35,6 +35,20 @@ export interface HighlightGroup {
   nodeIds: string[];
   pipeIds: string[];
 }
+export type FaultHighlightAnimation = "none" | "breathe" | "flash";
+/**
+ * A user-authored investigation checkpoint. It may describe a pipe/component
+ * scope, signal evidence, or both. It never drives the simulated machine.
+ */
+export interface TroubleshootingStep {
+  id: string;
+  label: LocalizedText;
+  instruction?: LocalizedText;
+  sensorIds: string[];
+  sensorNote?: LocalizedText;
+  highlightBinding?: { groupId: string };
+  presentation?: { color: string; animation: FaultHighlightAnimation };
+}
 export interface FaultCode {
   id: string;
   code: string;
@@ -43,13 +57,15 @@ export interface FaultCode {
   definitionStatus: "userDeclared" | "illustrative";
   detection?: DetectionRule;
   highlightBindings: { groupId: string; meaning: "inspectionScope" | "observedAt" | "affectedCircuit" }[];
-  presentation: { style: "outline"; color: string; animation: "none" | "breathe" };
+  presentation: { style: "outline"; color: string; animation: FaultHighlightAnimation };
+  /** Ordered, configurable checks used by Fault mode. */
+  troubleshooting?: TroubleshootingStep[];
   controlActions: never[];
   rootCauseStatus: "notDetermined";
 }
 export interface DiagnosticProfile {
   format: "fluidpath.diagnostic-profile";
-  version: "0.1-draft";
+  version: "0.1-draft" | "0.2-draft";
   namespace: string;
   source: { kind: "userDeclared" | "illustrative"; appliesToRealMachine: boolean };
   diagramBinding?: { sourceFile: string; sourceSha256: string };

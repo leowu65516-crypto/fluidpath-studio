@@ -315,8 +315,8 @@ export interface UIState {
   selection: Selection;
   mouseWorld: Pt;
   dirty: boolean;
-  /** 三态工作模式：编辑 edit / 演示 present / 验收 verify（面板显隐由 App 联动） */
-  mode?: "edit" | "present" | "verify";
+  /** 工作模式：编辑 / 演示 / 验收 / 故障排查（面板显隐由 App 联动） */
+  mode?: "edit" | "present" | "verify" | "fault";
   clipboard?: { nodes: DiagramNode[]; pipes: Pipe[] } | null;
   /** 样式刷模式是否开启 */
   styleBrush?: boolean;

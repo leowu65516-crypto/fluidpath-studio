@@ -35,7 +35,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenValidation, onOpenFaultCodes, onOpenAi }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenValidation?: () => void; onOpenFaultCodes?: () => void; onOpenAi?: () => void }) {
+export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenValidation }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenValidation?: () => void }) {
   const { diagram, ui } = useAppState();
   const { t, lang, setLang } = useT();
   const mode = ui.mode ?? "edit";
@@ -406,10 +406,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" onClick={onOpenValidation} title={t("定义并运行图纸工况验收")}>
         <Icon d="M5 12l4 4L19 6" />{t("验收")}
       </button>
-      <button className="tb-btn" onClick={onOpenFaultCodes} title={t("故障码与关联水路")}>
-        <Icon d="M12 3L2 21h20L12 3zM12 9v5M12 17h.01" />{t("故障代码")}
-      </button>
-      <button className="tb-btn" onClick={onOpenAi} title={t("结构化指令预览与应用")}>{t("AI 绘图")}</button>
       {condOpen && <ConditionPanel onClose={() => setCondOpen(false)} />}
       <div className="layer-wrap" ref={layerRef}>
         <button className={`tb-btn${layerOpen ? " active" : ""}`} onClick={() => setLayerOpen((v) => !v)} title={t("图层管理")}>
@@ -418,11 +414,12 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         {layerOpen && <LayerPanel onClose={() => setLayerOpen(false)} />}
       </div>
       <div className="tb-sep" />
-      {/* 三态工作模式：编辑 / 演示 / 验收 */}
+      {/* 工作模式：编辑 / 演示 / 验收 / 故障排查 */}
       <div className="tb-mode seg" role="group" aria-label={t("工作模式")}>
         <button className={mode === "edit" ? "on" : ""} title={t("编辑模式：画图、接线、属性编辑")} onClick={() => setWorkMode("edit")}>✏️ {t("编辑")}</button>
         <button className={mode === "present" ? "on" : ""} title={t("演示模式：收起面板，按场景步骤讲解")} onClick={() => setWorkMode("present")}>🎬 {t("演示")}</button>
         <button className={mode === "verify" ? "on" : ""} title={t("验收模式：工况快照与验收矩阵")} onClick={() => setWorkMode("verify")}>✓ {t("验收")}</button>
+        <button data-testid="mode-fault" className={mode === "fault" ? "on" : ""} title={t("故障模式：拓扑已锁定；可配置代码、关联排查范围并模拟信号")} onClick={() => setWorkMode("fault")}>⚠ {t("故障")}</button>
       </div>
       <div className="tb-sep" />
       <button className="tb-btn" data-testid="lang-toggle" onClick={() => setLang(lang === "zh" ? "en" : "zh")} title="中 / EN">

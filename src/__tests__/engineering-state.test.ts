@@ -57,4 +57,23 @@ describe("工程状态与教学显示状态分离", () => {
       expect(pipeEffectiveDisabled(pipe!, d.nodes), `${label} 应按画面状态停流`).toBe(true);
     }
   });
+
+  it("递归兜底判定也会穿过流量计：停泵时流量计后的出口管必须停流", () => {
+    const d = parseDiagramJSON(JSON.stringify({
+      nodes: [
+        { id: "in", type: "inlet", label: "in", x: 0, y: 0, w: 10, h: 10, ports: [{ id: "in-out", position: "right", direction: "out" }] },
+        { id: "pump", type: "pump", label: "pump", x: 30, y: 0, w: 10, h: 10, pumpOn: false, ports: [{ id: "pump-in", position: "left", direction: "in" }, { id: "pump-out", position: "right", direction: "out" }] },
+        { id: "meter", type: "flowMeter", label: "meter", x: 60, y: 0, w: 10, h: 10, ports: [{ id: "meter-in", position: "left", direction: "in" }, { id: "meter-out", position: "right", direction: "out" }] },
+        { id: "out", type: "outlet", label: "out", x: 90, y: 0, w: 10, h: 10, ports: [{ id: "out-in", position: "left", direction: "in" }] },
+      ],
+      pipes: [
+        { id: "p1", label: "inlet", fromPortId: "in-out", toPortId: "pump-in" },
+        { id: "p2", label: "pump to meter", fromPortId: "pump-out", toPortId: "meter-in" },
+        { id: "p3", label: "meter to outlet", fromPortId: "meter-out", toPortId: "out-in" },
+      ],
+    }));
+    // Exercise the recursive fallback rather than the pre-computed cache.
+    setCachedPipes([], []); setCachedPipes(d.pipes);
+    expect(pipeEngineeringDisabled(d.pipes[2], d.nodes)).toBe(true);
+  });
 });

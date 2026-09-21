@@ -9,6 +9,7 @@ export interface DiagnosticSession {
   injectedIds: string[];
   revealHidden: boolean;
   animation: boolean;
+  activeStepByFault: Record<string, number>;
   nowMs: number;
   running: boolean;
   profile: DiagnosticProfile | null;
@@ -16,7 +17,7 @@ export interface DiagnosticSession {
   results: Record<string, FaultRuntime>;
   events: DiagnosticEvent[];
 }
-const fresh = (): DiagnosticSession => ({ selectedIds: [], injectedIds: [], revealHidden: false, animation: true, nowMs: 0, running: false, profile: null, values: {}, results: {}, events: [] });
+const fresh = (): DiagnosticSession => ({ selectedIds: [], injectedIds: [], revealHidden: false, animation: true, activeStepByFault: {}, nowMs: 0, running: false, profile: null, values: {}, results: {}, events: [] });
 let state = fresh();
 const listeners = new Set<() => void>();
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -27,16 +28,26 @@ export const diagnosticSession = {
 };
 export const useDiagnosticSession = () => useSyncExternalStore(diagnosticSession.subscribe, diagnosticSession.get);
 let viewKey = "";
-let viewSnapshot = { ids: [] as string[], revealHidden: false, animation: true };
+let viewSnapshot = { ids: [] as string[], revealHidden: false, animation: true, activeStepByFault: {} as Record<string, number> };
 /** Canvas subscribes only to overlay changes, not 10 Hz clock/sample updates. */
 function getViewSnapshot() {
   const ids = [...new Set([...state.selectedIds, ...state.injectedIds, ...Object.keys(state.results).filter(id => state.results[id].alarmState !== "clear")])];
-  const key = JSON.stringify([ids, state.revealHidden, state.animation]);
-  if (key !== viewKey) { viewKey = key; viewSnapshot = { ids, revealHidden: state.revealHidden, animation: state.animation }; }
+  const activeStepByFault = Object.fromEntries(Object.entries(state.activeStepByFault).filter(([id]) => ids.includes(id)));
+  const key = JSON.stringify([ids, state.revealHidden, state.animation, activeStepByFault]);
+  if (key !== viewKey) { viewKey = key; viewSnapshot = { ids, revealHidden: state.revealHidden, animation: state.animation, activeStepByFault }; }
   return viewSnapshot;
 }
 export const useDiagnosticView = () => useSyncExternalStore(diagnosticSession.subscribe, getViewSnapshot);
-export function selectFaultCodes(ids: string[]) { state = { ...state, selectedIds: [...new Set(ids)], revealHidden: false }; emit(); }
+export function selectFaultCodes(ids: string[]) {
+  const selectedIds = [...new Set(ids)];
+  state = { ...state, selectedIds, revealHidden: false, activeStepByFault: Object.fromEntries(Object.entries(state.activeStepByFault).filter(([id]) => selectedIds.includes(id))) };
+  emit();
+}
+export function selectFaultStep(faultId: string, index: number) {
+  if (!state.selectedIds.includes(faultId)) return;
+  state = { ...state, activeStepByFault: { ...state.activeStepByFault, [faultId]: Math.max(0, Math.floor(index)) } };
+  emit();
+}
 export function setDiagnosticView(patch: Partial<Pick<DiagnosticSession, "revealHidden" | "animation">>) { state = { ...state, ...patch }; emit(); }
 export function resetDiagnosticSession() {
   if (timer) clearInterval(timer); timer = null;

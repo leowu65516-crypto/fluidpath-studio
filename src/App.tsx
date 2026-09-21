@@ -14,11 +14,10 @@ import { WelcomePanel } from "./components/WelcomePanel";
 import { AdvicePanel } from "./components/AdvicePanel";
 import { ValidationPanel } from "./components/ValidationPanel";
 import { FaultCodePanel } from "./components/FaultCodePanel";
-import { AiDrawingPanel } from "./components/AiDrawingPanel";
 import { selectFaultCodes, setSimulationRunning } from "./fault-codes/session";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
-import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, useAppState } from "./store";
+import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, setWorkMode, useAppState } from "./store";
 import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave } from "./store";
 import type { AutosaveVersion } from "./store";
@@ -45,8 +44,6 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
-  const [showFaultCodes, setShowFaultCodes] = useState(false);
-  const [showAi, setShowAi] = useState(false);
   const [gateOk, setGateOk] = useState(() => !shouldGate() || gateAuthed());
   // 状态栏诊断徽章点击 → 打开回路诊断面板
   useEffect(() => {
@@ -98,7 +95,7 @@ export default function App() {
     } catch { /* ignore */ }
     return { library: false, inspector: false, toolbar: false };
   });
-  // ===== 三态工作模式联动（edit / present / verify）=====
+  // ===== 工作模式联动（edit / present / verify / fault）=====
   const mode = appState.ui.mode ?? "edit";
   const modeRef = useRef(mode);
   useEffect(() => {
@@ -114,6 +111,12 @@ export default function App() {
       setCollapsed((c) => ({ ...c, library: true, inspector: false, toolbar: false }));
       setShowAdvice(false);
       setShowValidation(true);
+      setShowScenario(false);
+      if (hasActiveScenario()) exitScenario();
+    } else if (m === "fault") {
+      setCollapsed((c) => ({ ...c, library: true, inspector: false, toolbar: false }));
+      setShowAdvice(false);
+      setShowValidation(false);
       setShowScenario(false);
       if (hasActiveScenario()) exitScenario();
     } else {
@@ -175,7 +178,7 @@ export default function App() {
       const canEdit = (store.get().ui.mode ?? "edit") === "edit";
       if (!canEdit && (hit("undo") || hit("redo") || hit("duplicate") || hit("group") || hit("ungroup") || hit("copy") || hit("paste") || hit("delete"))) {
         e.preventDefault();
-        toast(t("演示/验收模式下已锁定编辑，切回「✏️ 编辑」可修改"));
+        toast(t((store.get().ui.mode ?? "edit") === "fault" ? "故障模式下已锁定拓扑编辑，切回「✏️ 编辑」可修改" : "演示/验收模式下已锁定编辑，切回「✏️ 编辑」可修改"));
         return;
       }
       if (hit("undo")) { e.preventDefault(); undo(); return; }
@@ -256,18 +259,20 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className="app">
-        {mode === "present" || mode === "verify" ? (
+        {mode === "present" || mode === "verify" || mode === "fault" ? (
           <div className="mode-banner" data-ui="1">
             {mode === "present"
               ? "🎬 " + t("演示中 · 拓扑已锁定，可拨阀/微调，切回编辑可修改")
-              : "🔒 " + t("验收中 · 拓扑已锁定，可摆工况跑验收，切回编辑可修改")}
+              : mode === "verify"
+                ? "🔒 " + t("验收中 · 拓扑已锁定，可摆工况跑验收，切回编辑可修改")
+                : "⚠ " + t("故障模式：拓扑已锁定；可配置代码、关联排查范围并模拟信号")}
           </div>
         ) : null}
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={() => setShowHelp(true)} onOpenAi={() => { setShowFaultCodes(false); setShowAdvice(false); setShowValidation(false); setShowAi(v => !v); }} onOpenFaultCodes={() => { setShowAi(false); setShowAdvice(false); setShowValidation(false); setShowFaultCodes(v => !v); }} onOpenAdvice={() => { setShowAi(false); setShowFaultCodes(false); setShowValidation(false); setShowAdvice((v) => !v); }} onOpenValidation={() => { setShowAi(false); setShowFaultCodes(false); setShowAdvice(false); setShowValidation((v) => !v); }} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={() => setShowHelp(true)} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowValidation(false); setShowAdvice((v) => !v); } }} onOpenValidation={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowValidation(true), 0); } else { setShowAdvice(false); setShowValidation((v) => !v); } }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <CanvasView svgRefOut={svgRef} />
-          {showAi ? <AiDrawingPanel onClose={() => setShowAi(false)} /> : showFaultCodes ? <FaultCodePanel onClose={() => { setShowFaultCodes(false); selectFaultCodes([]); setSimulationRunning(false); }} /> : showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : showValidation ? <ValidationPanel onClose={() => setShowValidation(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
+          {mode === "fault" ? <FaultCodePanel onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }} /> : showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : showValidation ? <ValidationPanel onClose={() => setShowValidation(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
         </div>
         <StatusBar />
       </div>

@@ -1,11 +1,14 @@
 import { store, updateDiagram } from "../store";
 import { uid } from "../types";
-import type { DiagnosticProfile, FaultCode } from "./types";
+import type { DiagnosticProfile, FaultCode, HighlightGroup, TroubleshootingStep } from "./types";
 import { EMPTY_PROFILE, bindSelection, detachProfileTargets, parseDiagnosticProfile } from "./profile";
 
 export function editDiagnosticProfile(edit: (draft: DiagnosticProfile) => void) {
-  if ((store.get().ui.mode ?? "edit") !== "edit") throw new Error("Switch to Edit mode to change definitions");
+  const mode = store.get().ui.mode ?? "edit";
+  if (mode === "present" || mode === "verify") throw new Error("Switch to Edit or Fault mode to change definitions");
   const profile = structuredClone(store.get().diagram.settings.diagnosticProfile ?? EMPTY_PROFILE);
+  // v0.2 adds non-executable, ordered troubleshooting steps. Existing v0.1 files remain importable.
+  if (profile.version === "0.1-draft") profile.version = "0.2-draft";
   edit(profile);
   const validated = parseDiagnosticProfile(profile);
   updateDiagram(d => { d.settings.diagnosticProfile = validated; });
@@ -20,6 +23,7 @@ export function createFaultCode(code: string, title: string, lang: "zh" | "en") 
       id, code: code.trim(), label, definitionStatus: "userDeclared", rootCauseStatus: "notDetermined", controlActions: [],
       highlightBindings: [{ groupId, meaning: "inspectionScope" }],
       presentation: { style: "outline", color: "#d97706", animation: "none" },
+      troubleshooting: [],
     });
   });
   return id;
@@ -37,8 +41,8 @@ export function deleteFaultCode(id: string) {
   editDiagnosticProfile(p => {
     const removed = p.diagnostics.find(f => f.id === id);
     p.diagnostics = p.diagnostics.filter(f => f.id !== id);
-    const used = new Set(p.diagnostics.flatMap(f => f.highlightBindings.map(b => b.groupId)));
-    const orphaned = new Set(removed?.highlightBindings.map(b => b.groupId).filter(g => !used.has(g)));
+    const used = referencedGroupIds(p);
+    const orphaned = new Set([...(removed?.highlightBindings.map(b => b.groupId) ?? []), ...(removed?.troubleshooting?.flatMap(step => step.highlightBinding ? [step.highlightBinding.groupId] : []) ?? [])].filter(g => !used.has(g)));
     p.highlightGroups = p.highlightGroups.filter(g => !orphaned.has(g.id));
   });
 }
@@ -59,8 +63,86 @@ export function bindFaultSelection(id: string, mode: "replace" | "add" | "remove
     p.highlightGroups.push(bindSelection(merged, selection, mode));
     const previous = new Set(fault.highlightBindings.map(b => b.groupId));
     fault.highlightBindings = [{ groupId, meaning: "inspectionScope" }];
-    const used = new Set(p.diagnostics.flatMap(f => f.highlightBindings.map(b => b.groupId)));
+    const used = referencedGroupIds(p);
     p.highlightGroups = p.highlightGroups.filter(g => !previous.has(g.id) || used.has(g.id));
+  });
+}
+
+function referencedGroupIds(profile: DiagnosticProfile) {
+  return new Set(profile.diagnostics.flatMap(f => [
+    ...f.highlightBindings.map(binding => binding.groupId),
+    ...(f.troubleshooting ?? []).flatMap(step => step.highlightBinding ? [step.highlightBinding.groupId] : []),
+  ]));
+}
+
+export function addTroubleshootingStep(faultId: string, lang: "zh" | "en") {
+  const stepId = uid("faultStep");
+  editDiagnosticProfile(profile => {
+    const fault = profile.diagnostics.find(f => f.id === faultId);
+    if (!fault) throw new Error("Fault code no longer exists");
+    const stepNumber = (fault.troubleshooting?.length ?? 0) + 1;
+    const step: TroubleshootingStep = {
+      id: stepId,
+      label: { zh: lang === "zh" ? `排查步骤 ${stepNumber}` : "", en: lang === "en" ? `Check ${stepNumber}` : "" },
+      sensorIds: [],
+      presentation: { color: "#c84a2f", animation: "flash" },
+    };
+    fault.troubleshooting = [...(fault.troubleshooting ?? []), step];
+  });
+  return stepId;
+}
+
+export function patchTroubleshootingStep(faultId: string, stepId: string, patch: Partial<TroubleshootingStep>) {
+  editDiagnosticProfile(profile => {
+    const fault = profile.diagnostics.find(f => f.id === faultId);
+    const index = fault?.troubleshooting?.findIndex(step => step.id === stepId) ?? -1;
+    if (!fault || index < 0) throw new Error("Troubleshooting step no longer exists");
+    fault.troubleshooting![index] = { ...fault.troubleshooting![index], ...patch, id: stepId };
+  });
+}
+
+export function deleteTroubleshootingStep(faultId: string, stepId: string) {
+  editDiagnosticProfile(profile => {
+    const fault = profile.diagnostics.find(f => f.id === faultId);
+    if (!fault) throw new Error("Fault code no longer exists");
+    const removed = fault.troubleshooting?.find(step => step.id === stepId);
+    fault.troubleshooting = (fault.troubleshooting ?? []).filter(step => step.id !== stepId);
+    const groupId = removed?.highlightBinding?.groupId;
+    if (groupId && !referencedGroupIds(profile).has(groupId)) profile.highlightGroups = profile.highlightGroups.filter(group => group.id !== groupId);
+  });
+}
+
+export function moveTroubleshootingStep(faultId: string, stepId: string, direction: -1 | 1) {
+  editDiagnosticProfile(profile => {
+    const fault = profile.diagnostics.find(f => f.id === faultId);
+    const index = fault?.troubleshooting?.findIndex(step => step.id === stepId) ?? -1;
+    if (!fault || index < 0) throw new Error("Troubleshooting step no longer exists");
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= fault.troubleshooting!.length) return;
+    [fault.troubleshooting![index], fault.troubleshooting![nextIndex]] = [fault.troubleshooting![nextIndex], fault.troubleshooting![index]];
+  });
+}
+
+export function bindTroubleshootingStepSelection(faultId: string, stepId: string, mode: "replace" | "add" | "remove") {
+  const selection = store.get().ui.selection;
+  if (!selection.nodes.length && !selection.pipes.length) throw new Error("Select components or pipes on the canvas first");
+  editDiagnosticProfile(profile => {
+    const fault = profile.diagnostics.find(f => f.id === faultId);
+    const step = fault?.troubleshooting?.find(item => item.id === stepId);
+    if (!fault || !step) throw new Error("Troubleshooting step no longer exists");
+    const oldGroup = step.highlightBinding ? profile.highlightGroups.find(group => group.id === step.highlightBinding!.groupId) : undefined;
+    const groupId = uid("stepCircuit");
+    const base: HighlightGroup = {
+      id: groupId,
+      label: step.label,
+      resolution: "explicit",
+      nodeIds: oldGroup?.nodeIds ?? [],
+      pipeIds: oldGroup?.pipeIds ?? [],
+    };
+    profile.highlightGroups.push(bindSelection(base, selection, mode));
+    const previous = step.highlightBinding?.groupId;
+    step.highlightBinding = { groupId };
+    if (previous && !referencedGroupIds(profile).has(previous)) profile.highlightGroups = profile.highlightGroups.filter(group => group.id !== previous);
   });
 }
 

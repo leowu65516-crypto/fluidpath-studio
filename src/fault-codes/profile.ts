@@ -2,7 +2,7 @@ import type { Diagram, Selection } from "../types";
 import type { Condition, DiagnosticProfile, FaultCode, HighlightGroup, SignalDefinition } from "./types";
 
 export const EMPTY_PROFILE: DiagnosticProfile = {
-  format: "fluidpath.diagnostic-profile", version: "0.1-draft", namespace: "user.local",
+  format: "fluidpath.diagnostic-profile", version: "0.2-draft", namespace: "user.local",
   source: { kind: "userDeclared", appliesToRealMachine: false },
   signalDefinitions: [], highlightGroups: [], diagnostics: [],
 };
@@ -58,7 +58,7 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
   const o = object(raw, "profile");
   keys(o, ["format", "version", "namespace", "source", "diagramBinding", "signalDefinitions", "highlightGroups", "diagnostics"], "profile");
   enumeration(o.format, ["fluidpath.diagnostic-profile"], "format");
-  enumeration(o.version, ["0.1-draft"], "version"); str(o.namespace, "namespace", 160);
+  enumeration(o.version, ["0.1-draft", "0.2-draft"], "version"); str(o.namespace, "namespace", 160);
   const source = object(o.source, "source"); keys(source, ["kind", "appliesToRealMachine"], "source");
   enumeration(source.kind, ["userDeclared", "illustrative"], "source.kind");
   if (typeof source.appliesToRealMachine !== "boolean") fail("source.appliesToRealMachine", "expected boolean");
@@ -118,7 +118,7 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
   const ids = new Set<string>(), codes = new Set<string>();
   for (const [i, value] of list(o.diagnostics, "diagnostics", 500).entries()) {
     const p = `diagnostics[${i}]`, f = object(value, p);
-    keys(f, ["id", "code", "label", "description", "definitionStatus", "detection", "highlightBindings", "presentation", "controlActions", "rootCauseStatus"], p);
+    keys(f, ["id", "code", "label", "description", "definitionStatus", "detection", "highlightBindings", "presentation", "troubleshooting", "controlActions", "rootCauseStatus"], p);
     str(f.id, `${p}.id`, 160); str(f.code, `${p}.code`, 120);
     if (ids.has(f.id) || codes.has(f.code)) fail(p, "duplicate fault ID/code in namespace"); ids.add(f.id); codes.add(f.code);
     textPair(f.label, `${p}.label`); if (f.description !== undefined) textPair(f.description, `${p}.description`);
@@ -130,8 +130,30 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
       if (!groups.has(binding.groupId as string)) fail(p, "unknown highlight group");
       enumeration(binding.meaning, ["inspectionScope", "observedAt", "affectedCircuit"], p);
     }
+    if (f.troubleshooting !== undefined && o.version !== "0.2-draft") fail(`${p}.troubleshooting`, "requires diagnostic profile 0.2-draft");
+    const stepIds = new Set<string>();
+    for (const [stepIndex, stepValue] of list(f.troubleshooting ?? [], `${p}.troubleshooting`, 100).entries()) {
+      const stepPath = `${p}.troubleshooting[${stepIndex}]`, step = object(stepValue, stepPath);
+      keys(step, ["id", "label", "instruction", "sensorIds", "sensorNote", "highlightBinding", "presentation"], stepPath);
+      str(step.id, `${stepPath}.id`, 160); if (stepIds.has(step.id)) fail(stepPath, "duplicate step ID"); stepIds.add(step.id);
+      textPair(step.label, `${stepPath}.label`);
+      if (step.instruction !== undefined) textPair(step.instruction, `${stepPath}.instruction`);
+      idList(step.sensorIds, `${stepPath}.sensorIds`);
+      for (const signalId of step.sensorIds as string[]) if (!signals.has(signalId)) fail(`${stepPath}.sensorIds`, "unknown signal");
+      if (step.sensorNote !== undefined) textPair(step.sensorNote, `${stepPath}.sensorNote`);
+      if (step.highlightBinding !== undefined) {
+        const binding = object(step.highlightBinding, `${stepPath}.highlightBinding`); keys(binding, ["groupId"], `${stepPath}.highlightBinding`);
+        str(binding.groupId, `${stepPath}.highlightBinding.groupId`, 160);
+        if (!groups.has(binding.groupId)) fail(`${stepPath}.highlightBinding`, "unknown highlight group");
+      }
+      if (step.presentation !== undefined) {
+        const stepStyle = object(step.presentation, `${stepPath}.presentation`); keys(stepStyle, ["color", "animation"], `${stepPath}.presentation`);
+        if (typeof stepStyle.color !== "string" || !/^#[a-f0-9]{6}$/i.test(stepStyle.color)) fail(`${stepPath}.presentation.color`, "invalid color");
+        enumeration(stepStyle.animation, ["none", "breathe", "flash"], `${stepPath}.presentation.animation`);
+      }
+    }
     const style = object(f.presentation, `${p}.presentation`); keys(style, ["style", "color", "animation"], p);
-    enumeration(style.style, ["outline"], p); enumeration(style.animation, ["none", "breathe"], p);
+    enumeration(style.style, ["outline"], p); enumeration(style.animation, ["none", "breathe", "flash"], p);
     if (typeof style.color !== "string" || !/^#[a-f0-9]{6}$/i.test(style.color)) fail(p, "invalid color");
     if (f.detection !== undefined) {
       const r = object(f.detection, `${p}.detection`);
@@ -152,14 +174,21 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
 }
 
 export function resolveFaultTargets(diagram: Diagram, profile: DiagnosticProfile, fault: FaultCode) {
+  const nodeIds = new Set<string>(), pipeIds = new Set<string>(), missing = new Set<string>();
+  for (const binding of fault.highlightBindings) {
+    const targets = resolveHighlightGroupTargets(diagram, profile, binding.groupId);
+    targets.nodes.forEach(id => nodeIds.add(id)); targets.pipes.forEach(id => pipeIds.add(id)); targets.missing.forEach(id => missing.add(id));
+  }
+  return { nodes: [...nodeIds], pipes: [...pipeIds], missing: [...missing] };
+}
+
+export function resolveHighlightGroupTargets(diagram: Diagram, profile: DiagnosticProfile, groupId: string) {
   const nodeIds = new Set(diagram.nodes.map(n => n.id)), pipeIds = new Set(diagram.pipes.map(p => p.id));
   const nodes = new Set<string>(), pipes = new Set<string>(), missing = new Set<string>();
-  for (const binding of fault.highlightBindings) {
-    const group = profile.highlightGroups.find(g => g.id === binding.groupId);
-    if (!group) { missing.add(binding.groupId); continue; }
-    for (const id of group.nodeIds) (nodeIds.has(id) ? nodes : missing).add(id);
-    for (const id of group.pipeIds) (pipeIds.has(id) ? pipes : missing).add(id);
-  }
+  const group = profile.highlightGroups.find(g => g.id === groupId);
+  if (!group) { missing.add(groupId); return { nodes: [], pipes: [], missing: [...missing] }; }
+  for (const id of group.nodeIds) (nodeIds.has(id) ? nodes : missing).add(id);
+  for (const id of group.pipeIds) (pipeIds.has(id) ? pipes : missing).add(id);
   return { nodes: [...nodes], pipes: [...pipes], missing: [...missing] };
 }
 

@@ -2,8 +2,8 @@ import { beforeEach, afterEach, describe, expect, it } from "vitest";
 import { EMPTY_PROFILE, parseDiagnosticProfile, resolveFaultTargets, detachProfileTargets, convertValue } from "../fault-codes/profile";
 import { emptyRuntime, evaluateCondition, stepFault } from "../fault-codes/runtime";
 import type { DiagnosticProfile, Observation } from "../fault-codes/types";
-import { resetDiagnosticSession, prepareDiagnosticSimulation, setSimulationValue, advanceDiagnostics, diagnosticSession, acknowledgeFault, resetFault, selectFaultCodes, toggleInjectedFault } from "../fault-codes/session";
-import { createFaultCode, bindFaultSelection, patchFaultCode, importFaultCatalog } from "../fault-codes/actions";
+import { resetDiagnosticSession, prepareDiagnosticSimulation, setSimulationValue, advanceDiagnostics, diagnosticSession, acknowledgeFault, resetFault, selectFaultCodes, selectFaultStep, toggleInjectedFault } from "../fault-codes/session";
+import { addTroubleshootingStep, bindTroubleshootingStepSelection, createFaultCode, bindFaultSelection, patchFaultCode, importFaultCatalog, patchTroubleshootingStep } from "../fault-codes/actions";
 import { loadDiagram, store, setSelection, undo, redo, deleteSelection, patchNode, setWorkMode } from "../store";
 import { parseDiagramJSON } from "../export";
 import { buildMachinePack, parseMachinePack } from "../machinePack";
@@ -66,6 +66,21 @@ describe("strict portable diagnostic definitions", () => {
     const p = fixture(); p.highlightGroups[0].pipeIds.push("deleted");
     const targets = resolveFaultTargets(store.get().diagram, p, p.diagnostics[0]);
     expect(targets.pipes).toEqual(["pipe_ms7k87u8l8re4p"]); expect(targets.missing).toEqual(["deleted"]);
+  });
+  it("accepts ordered troubleshooting steps only in v0.2, with explicit target and signal references", () => {
+    const p = fixture();
+    p.version = "0.2-draft";
+    p.diagnostics[0].troubleshooting = [{
+      id: "step-1", label: { zh: "检查供水", en: "Check supply" }, instruction: { zh: "检查进水", en: "Check inlet" },
+      sensorIds: ["flow"], sensorNote: { zh: "流量应稳定", en: "Flow should be stable" },
+      highlightBinding: { groupId: "supply" }, presentation: { color: "#c84a2f", animation: "flash" },
+    }];
+    expect(parseDiagnosticProfile(p).diagnostics[0].troubleshooting).toEqual(p.diagnostics[0].troubleshooting);
+    p.version = "0.1-draft";
+    expect(() => parseDiagnosticProfile(p)).toThrow(/0.2/);
+    p.version = "0.2-draft";
+    p.diagnostics[0].troubleshooting![0].sensorIds = ["missing-signal"];
+    expect(() => parseDiagnosticProfile(p)).toThrow(/unknown signal/);
   });
 });
 
@@ -154,6 +169,21 @@ describe("editing and runtime isolation", () => {
     expect(store.get().diagram.settings.diagnosticProfile).toEqual(before);
     setWorkMode("present"); expect(() => patchFaultCode(id, { code: "E02" })).toThrow(/Edit/);
     selectFaultCodes([id]); expect(diagnosticSession.get().selectedIds).toEqual([id]);
+  });
+  it("Fault mode persists ordered diagnosis steps and lets the operator select a flashing scope", () => {
+    const id = createFaultCode("E02", "Supply", "en");
+    setWorkMode("fault");
+    const stepId = addTroubleshootingStep(id, "en");
+    const node = store.get().diagram.nodes[0], pipe = store.get().diagram.pipes[0];
+    setSelection({ nodes: [node.id], pipes: [pipe.id] });
+    bindTroubleshootingStepSelection(id, stepId, "replace");
+    patchTroubleshootingStep(id, stepId, { sensorNote: { zh: "", en: "Read the inlet sensor" } });
+    const fault = store.get().diagram.settings.diagnosticProfile!.diagnostics.find(item => item.id === id)!;
+    expect(fault.troubleshooting?.[0].highlightBinding).toBeTruthy();
+    selectFaultCodes([id]); selectFaultStep(id, 0);
+    expect(diagnosticSession.get().activeStepByFault[id]).toBe(0);
+    setWorkMode("present");
+    expect(() => addTroubleshootingStep(id, "en")).toThrow(/Edit or Fault/);
   });
   it("catalog import explicitly detaches targets and reports lookup/NOT_RUN honestly", () => {
     importFaultCatalog(JSON.stringify(fixture()));

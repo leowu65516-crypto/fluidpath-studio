@@ -39,9 +39,25 @@ app.whenReady().then(async () => {
     }))()
   `);
 
+  const faultMode = await win.webContents.executeJavaScript(`
+    (() => {
+      const button = document.querySelector('[data-testid="mode-fault"]');
+      if (!button) return Promise.resolve({ foundModeButton: false, active: false, panel: false, aiTopbarButtons: -1 });
+      button.click();
+      return new Promise((resolve) => setTimeout(() => resolve({
+        foundModeButton: true,
+        active: button.classList.contains('on'),
+        panel: !!document.querySelector('.fault-panel'),
+        aiTopbarButtons: [...document.querySelectorAll('.toolbar button')].filter((node) => node.textContent.includes('AI')).length,
+      }), 120));
+    })()
+  `);
+
   console.log("SMOKE_RESULT " + JSON.stringify(result));
+  console.log("SMOKE_FAULT_MODE " + JSON.stringify(faultMode));
   console.log("SMOKE_CONSOLE_ERRORS " + JSON.stringify(consoleErrors));
 
-  const ok = result.rootChildren > 0 && result.hasApp && result.hasCanvas;
+  const ok = result.rootChildren > 0 && result.hasApp && result.hasCanvas
+    && faultMode.foundModeButton && faultMode.active && faultMode.panel && faultMode.aiTopbarButtons === 0;
   app.exit(ok ? 0 : 1);
 });

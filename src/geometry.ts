@@ -692,7 +692,7 @@ function pipeEffectiveDisabledRecursive(
     // 它们自身的停流通过上方专门分支 + 泵/阀的「上游依赖」逻辑处理。
     const passThrough = new Set(["shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "elbow",
       "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "pump", "milkPump", "airPump",
-      "solenoid2", "solenoid3", "pulseAirValve", "pressureRegulator",
+      "solenoid2", "solenoid3", "pulseAirValve", "pressureRegulator", "flowMeter",
       "tank", "boiler", "hotWaterBoiler", "steamBoiler", "brewChamber"]);
     if (!passThrough.has(n.type)) return false;
 

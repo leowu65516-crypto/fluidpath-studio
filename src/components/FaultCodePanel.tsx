@@ -2,15 +2,61 @@ import { useEffect, useRef, useState } from "react";
 import { useAppState, setUI } from "../store";
 import { nodeBBox, pipePolyline, polylineBBox } from "../geometry";
 import { useT } from "../i18n";
-import { createFaultCode, patchFaultCode, deleteFaultCode, bindFaultSelection, editDiagnosticProfile, importFaultCatalog } from "../fault-codes/actions";
-import { EMPTY_PROFILE, MAX_PROFILE_BYTES, parseDiagnosticProfile, resolveFaultTargets } from "../fault-codes/profile";
-import { useDiagnosticSession, selectFaultCodes, setDiagnosticView, prepareDiagnosticSimulation, setSimulationRunning, advanceDiagnostics, setSimulationValue, acknowledgeFault, resetFault, toggleInjectedFault, diagnosticSession } from "../fault-codes/session";
-import type { DiagnosticProfile, FaultCode, Observation } from "../fault-codes/types";
+import { createFaultCode, patchFaultCode, deleteFaultCode, bindFaultSelection, editDiagnosticProfile, importFaultCatalog, addTroubleshootingStep, patchTroubleshootingStep, deleteTroubleshootingStep, moveTroubleshootingStep, bindTroubleshootingStepSelection } from "../fault-codes/actions";
+import { EMPTY_PROFILE, MAX_PROFILE_BYTES, parseDiagnosticProfile, resolveFaultTargets, resolveHighlightGroupTargets } from "../fault-codes/profile";
+import { useDiagnosticSession, selectFaultCodes, selectFaultStep, setDiagnosticView, prepareDiagnosticSimulation, setSimulationRunning, advanceDiagnostics, setSimulationValue, acknowledgeFault, resetFault, toggleInjectedFault, diagnosticSession } from "../fault-codes/session";
+import type { DiagnosticProfile, FaultCode, Observation, TroubleshootingStep } from "../fault-codes/types";
 import { buildFaultReport, downloadText } from "../fault-codes/report";
 import { FaultRuleEditor } from "./FaultRuleEditor";
 import { FaultSignalInput } from "./FaultSignalInput";
 
 const STATUS: Record<string, string> = { notApplicable: "不适用或宽限中", normal: "正常", pending: "等待持续条件", triggered: "已触发", unknown: "无法判断", invalid: "规则无效", clear: "无活动报警", active: "活动报警", recoveredAwaitingReset: "已恢复，等待复位" };
+
+function TroubleshootingStepEditor({
+  diagram, profile, fault, step, index, activeIndex, lang, canEdit, selection, run, onSelect,
+}: {
+  diagram: ReturnType<typeof useAppState>["diagram"]; profile: DiagnosticProfile; fault: FaultCode; step: TroubleshootingStep; index: number; activeIndex: number;
+  lang: "zh" | "en"; canEdit: boolean; selection: { nodes: string[]; pipes: string[] }; run: (fn: () => void) => void; onSelect: (index: number) => void;
+}) {
+  const { t } = useT();
+  const targets = step.highlightBinding ? resolveHighlightGroupTargets(diagram, profile, step.highlightBinding.groupId) : { nodes: [], pipes: [], missing: [] };
+  const label = step.label[lang] || step.label.zh || step.label.en || `${t("步骤")} ${index + 1}`;
+  const patchText = (field: "label" | "instruction" | "sensorNote", value: string) => {
+    const previous = step[field] ?? { zh: "", en: "" };
+    run(() => patchTroubleshootingStep(fault.id, step.id, { [field]: { ...previous, [lang]: value } }));
+  };
+  const setSignal = (signalId: string, checked: boolean) => run(() => patchTroubleshootingStep(fault.id, step.id, {
+    sensorIds: checked ? [...new Set([...step.sensorIds, signalId])] : step.sensorIds.filter(id => id !== signalId),
+  }));
+  const hasSelection = selection.nodes.length + selection.pipes.length > 0;
+  return <section className={`fault-step${activeIndex === index ? " active" : ""}`} data-fault-step-editor={step.id}>
+    <div className="fault-step-head">
+      <button className="fault-step-select" onClick={() => onSelect(index)} aria-pressed={activeIndex === index}><b>{index + 1}</b><span>{label}</span></button>
+      <div className="fault-step-order">
+        <button className="btn ghost sq" disabled={!canEdit || index === 0} title={t("上移")} onClick={() => run(() => moveTroubleshootingStep(fault.id, step.id, -1))}>↑</button>
+        <button className="btn ghost sq" disabled={!canEdit || index === (fault.troubleshooting?.length ?? 0) - 1} title={t("下移")} onClick={() => run(() => moveTroubleshootingStep(fault.id, step.id, 1))}>↓</button>
+        <button className="btn ghost sq" disabled={!canEdit} title={t("删除步骤")} onClick={() => run(() => deleteTroubleshootingStep(fault.id, step.id))}>×</button>
+      </div>
+    </div>
+    <div className="fault-form">
+      <label>{t("步骤名称")}<input key={`${step.id}-label-${lang}-${step.label[lang]}`} defaultValue={step.label[lang]} disabled={!canEdit} onBlur={e => { if (e.target.value !== step.label[lang]) patchText("label", e.target.value); }} /></label>
+      <label>{t("排查动作")}<textarea key={`${step.id}-instruction-${lang}-${step.instruction?.[lang] ?? ""}`} defaultValue={step.instruction?.[lang] ?? ""} disabled={!canEdit} onBlur={e => { if (e.target.value !== (step.instruction?.[lang] ?? "")) patchText("instruction", e.target.value); }} /></label>
+    </div>
+    <div className="fault-step-scope"><b>{t("当前步骤关联")}</b><span>{t("元件")} {targets.nodes.length} · {t("管段")} {targets.pipes.length}</span></div>
+    <small>{t("画布选择")}: {selection.nodes.length} + {selection.pipes.length}</small>
+    <div className="fault-actions">{(["replace", "add", "remove"] as const).map((mode, actionIndex) => <button key={mode} className="btn" disabled={!canEdit || !hasSelection} onClick={() => run(() => bindTroubleshootingStepSelection(fault.id, step.id, mode))}>{t(["替换为当前选择", "追加当前选择", "移除当前选择"][actionIndex])}</button>)}</div>
+    {!targets.nodes.length && !targets.pipes.length && <p className="fault-hint">{t("此步骤可只记录传感器或文字线索；关联画布对象后会闪烁定位。")}</p>}
+    {!!targets.missing.length && <div className="fault-error" role="alert">{t("关联对象被删除，请重新绑定。")}</div>}
+    <div className="fault-actions">
+      <label className="fault-check">{t("步骤颜色")}<input type="color" disabled={!canEdit} value={step.presentation?.color ?? fault.presentation.color} onChange={e => run(() => patchTroubleshootingStep(fault.id, step.id, { presentation: { color: e.target.value, animation: step.presentation?.animation ?? "flash" } }))} /></label>
+      <label className="fault-step-animation">{t("高亮方式")}<select disabled={!canEdit} value={step.presentation?.animation ?? "flash"} onChange={e => run(() => patchTroubleshootingStep(fault.id, step.id, { presentation: { color: step.presentation?.color ?? fault.presentation.color, animation: e.target.value as "none" | "breathe" | "flash" } }))}><option value="flash">{t("闪烁")}</option><option value="breathe">{t("缓慢呼吸")}</option><option value="none">{t("静态")}</option></select></label>
+    </div>
+    <details className="fault-step-sensors"><summary>{t("传感器线索")} ({step.sensorIds.length})</summary>
+      {profile.signalDefinitions.length ? <div className="fault-signal-list">{profile.signalDefinitions.map(signal => <label className="fault-check" key={signal.id}><input type="checkbox" disabled={!canEdit} checked={step.sensorIds.includes(signal.id)} onChange={e => setSignal(signal.id, e.target.checked)} />{signal.label[lang] || signal.label.zh || signal.label.en || signal.id}{signal.unit ? ` (${signal.unit})` : ""}</label>)}</div> : <p className="fault-hint">{t("尚未定义可采样信号；仍可记录自由线索。")}</p>}
+      <label>{t("自由传感器/检查线索")}<textarea key={`${step.id}-sensor-note-${lang}-${step.sensorNote?.[lang] ?? ""}`} defaultValue={step.sensorNote?.[lang] ?? ""} disabled={!canEdit} onBlur={e => { if (e.target.value !== (step.sensorNote?.[lang] ?? "")) patchText("sensorNote", e.target.value); }} /></label>
+    </details>
+  </section>;
+}
 
 export function FaultCodePanel({ onClose }: { onClose: () => void }) {
   const { diagram, ui } = useAppState();
@@ -24,15 +70,18 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
   const [pendingImport, setPendingImport] = useState<DiagnosticProfile | null>(null);
   const [advanced, setAdvanced] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const canEdit = (ui.mode ?? "edit") === "edit";
+  const canEdit = !["present", "verify"].includes(ui.mode ?? "edit");
   const targets = active ? resolveFaultTargets(diagram, profile, active) : null;
   const result = active ? session.results[active.id] : undefined;
+  const steps = active?.troubleshooting ?? [];
+  const activeStepIndex = active ? Math.min(session.activeStepByFault[active.id] ?? 0, Math.max(0, steps.length - 1)) : 0;
   useEffect(() => () => { setSimulationRunning(false); }, []);
   const run = (fn: () => void) => { try { fn(); setError(""); } catch (e) { setError((e as Error).message); } };
   const label = (f: FaultCode) => f.label[lang] || f.label.zh || f.label.en || f.code;
   function select(fault: FaultCode, additive = false) {
     setActiveId(fault.id);
     selectFaultCodes(additive ? session.selectedIds.includes(fault.id) ? session.selectedIds.filter(id => id !== fault.id) : [...session.selectedIds, fault.id] : [fault.id]);
+    if (!additive && fault.troubleshooting?.length) selectFaultStep(fault.id, 0);
   }
   function focusTargets() {
     if (!targets) return;
@@ -52,7 +101,7 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
     <header className="fault-header"><div><strong>{t("故障代码")}</strong><span>{profile.namespace}</span></div><button className="btn ghost sq" onClick={onClose} aria-label={t("关闭故障代码")}>×</button></header>
     <div className="fault-scroll">
       <p className="fault-intro">{t("选择代码查看关联水路；高亮不改变泵阀、介质或工程流动。")}</p>
-      {!canEdit && <p className="fault-hint">{t("先在编辑模式配置代码；演示和验收模式可查阅、模拟。")}</p>}
+      {!canEdit && <p className="fault-hint">{t("先在编辑或故障模式配置代码；演示和验收模式可查阅、模拟。")}</p>}
       {error && <div className="fault-error" role="alert">{t("配置错误")}: {error}</div>}
       <div className="fault-actions">
         <button className="btn" disabled={!profile.diagnostics.length} onClick={() => downloadText(`${diagram.name}-fault-codes.json`, JSON.stringify(profile, null, 2), "application/json")}>{t("导出代码库")}</button>
@@ -102,6 +151,12 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
           <div className="fault-actions"><label className="fault-check">{t("高亮颜色")}<input type="color" disabled={!canEdit} value={active.presentation.color} onChange={e => run(() => patchFaultCode(active.id, { presentation: { ...active.presentation, color: e.target.value } }))} /></label><label className="fault-check"><input type="checkbox" disabled={!canEdit} checked={active.presentation.animation === "breathe"} onChange={e => run(() => patchFaultCode(active.id, { presentation: { ...active.presentation, animation: e.target.checked ? "breathe" : "none" } }))} />{t("缓慢呼吸")}</label></div>
           <label className="fault-check"><input type="checkbox" checked={!session.animation} onChange={e => setDiagnosticView({ animation: !e.target.checked })} />{t("关闭高亮动画")}</label>
           <small>{t("仅表示相关排查范围，不代表已经确认故障根因。")}</small>
+        </section>
+        <section className="fault-card">
+          <div className="fault-section-title"><strong>{t("排查步骤")}</strong><span className="fault-badge">{steps.length ? `${t("步骤")} ${activeStepIndex + 1} / ${steps.length}` : t("未配置")}</span></div>
+          <p className="fault-hint">{t("每一步独立配置可疑管路、元件与传感器线索；选中步骤时，该范围会以设定颜色闪烁。")}</p>
+          {steps.map((step, index) => <TroubleshootingStepEditor key={step.id} diagram={diagram} profile={profile} fault={active} step={step} index={index} activeIndex={activeStepIndex} lang={lang} canEdit={canEdit} selection={ui.selection} run={run} onSelect={nextIndex => selectFaultStep(active.id, nextIndex)} />)}
+          <div className="fault-actions"><button className="btn" disabled={!canEdit} onClick={() => run(() => { const stepId = addTroubleshootingStep(active.id, lang); const next = (active.troubleshooting?.length ?? 0); selectFaultStep(active.id, next); return stepId; })}>{t("新增步骤")}</button>{steps.length > 0 && <button className="btn ghost" onClick={() => selectFaultStep(active.id, activeStepIndex)}>{t("定位当前步骤")}</button>}</div>
         </section>
         <section className="fault-card"><strong>{t("检测规则")}</strong>
           {active.detection ? <pre className="fault-rule-summary">{JSON.stringify(active.detection, null, 2)}</pre> : <p className="fault-hint">{t("仅查阅，无自动检测规则")}</p>}

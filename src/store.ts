@@ -646,8 +646,8 @@ export function setGlobalFlowScale(scale: number) {
   }, false);
 }
 
-/** 三态工作模式：编辑 edit / 演示 present / 验收 verify（面板联动在 App 层） */
-export function setWorkMode(mode: "edit" | "present" | "verify") {
+/** 工作模式：编辑 edit / 演示 present / 验收 verify / 故障排查 fault（面板联动在 App 层） */
+export function setWorkMode(mode: "edit" | "present" | "verify" | "fault") {
   setUI({ mode });
 }
 

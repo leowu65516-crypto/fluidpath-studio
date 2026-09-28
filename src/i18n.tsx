@@ -133,6 +133,8 @@ const EN: Record<string, string> = {
   "高度": "Height",
   "旋转角度": "Rotation",
   "讲解置灰": "Dim for demo",
+  "工程禁用": "Engineering disabled",
+  "画布淡化": "Dim canvas only",
   "出液口": "Spout",
   "形状": "Shape",
   "矩形": "Rect",

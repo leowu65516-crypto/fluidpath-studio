@@ -45,6 +45,14 @@ describe("AI operation compiler and atomic application", () => {
     const d = store.get().diagram, request = await aiExample(d); request.targetSchemaVersion = 4;
     await expect(compileAiOperations(JSON.stringify(request), d)).rejects.toThrow(/schema/);
   });
+  it("rejects duplicate component labels instead of guessing identity", async () => {
+    const d = store.get().diagram, request = await aiExample(d);
+    (request as unknown as { operations: unknown[] }).operations = [
+      { op: "addComponent", tempId: "one", type: "inlet", label: "同名" },
+      { op: "addComponent", tempId: "two", type: "outlet", label: "同名" },
+    ];
+    await expect(compileAiOperations(JSON.stringify(request), d)).rejects.toThrow(/Duplicate component label/);
+  });
   it("preview does not grant authority to modify in a locked work mode", async () => {
     const d = store.get().diagram, plan = await compileAiOperations(JSON.stringify(await aiExample(d)), d);
     setWorkMode("verify"); await expect(applyAiPlan(plan)).rejects.toThrow(/Edit/);

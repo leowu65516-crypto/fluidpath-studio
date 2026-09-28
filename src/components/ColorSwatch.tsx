@@ -10,9 +10,9 @@ export function ColorSwatch({ value, presets, onChange }: Props) {
   const normalized = (value.length === 9 ? value.slice(0, 7) : value).toLowerCase();
   return (
     <div className="color-swatch-row">
-      {presets.map((c) => (
-        <button
-          key={c}
+        {presets.map((c, index) => (
+          <button
+          key={`${c}-${index}`}
           type="button"
           className={`color-swatch${normalized === c.toLowerCase() ? " active" : ""}`}
           style={{ background: c }}

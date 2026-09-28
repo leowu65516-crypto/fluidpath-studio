@@ -85,8 +85,10 @@ export interface DiagramNode {
   dispensing?: boolean;
   /** 组 ID：同组节点选中时联动、一起移动 */
   groupId?: string;
-  /** 置灰（讲解聚焦用）：节点淡化，相连管路停止流动 */
+  /** 工程禁用：参与液路判定；不是画布淡化。 */
   disabled?: boolean;
+  /** 仅画布显示淡化，不改变工程状态、验收结果或导出。 */
+  displayDisabled?: boolean;
   /** 两通电磁阀状态：开 / 关 */
   valveState?: "open" | "closed";
   /** 三通电磁阀导通路径：A=右侧出口 / B=底部出口 / off=关闭 */
@@ -141,6 +143,10 @@ export interface Pipe {
   showArrow: boolean;
   /** 介质类型（决定默认液体颜色） */
   fluidType?: FluidType;
+  /** AI/协议声明的介质；仅为声明，不等同于已解析的工程介质。 */
+  declaredMedium?: FluidType;
+  /** 引擎已解析的介质；缺失表示当前没有可证明的解析结果。 */
+  resolvedMedium?: FluidType;
   /** 管材（决定默认管壁颜色/透明度） */
   material?: PipeMaterial;
   /** 管壁透明度（透明硅胶管 < 1） */
@@ -149,8 +155,10 @@ export interface Pipe {
   routing?: "orthogonal" | "curved";
   /** 直角折线模式的拐角圆角半径（px），0 为直角 */
   cornerRadius?: number;
-  /** 置灰（讲解聚焦用）：管路淡化并停止流动，其他管路保持正常 */
+  /** 工程禁用：参与液路判定并使管路停流。 */
   disabled?: boolean;
+  /** 仅画布显示淡化，不改变工程状态、验收结果或导出。 */
+  displayDisabled?: boolean;
   /** 故障模拟（教学用）：管路堵塞 */
   fault?: "pipeBlocked";
   /** 讲解画面覆盖：只改变动画显示，不改变工程有效状态或工程导出。 */

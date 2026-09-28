@@ -3,7 +3,10 @@ import { FLUID_PRESETS, uid } from "../types";
 import { NODE_DEFS, createNode } from "../symbols";
 import { EMPTY_PROFILE, parseDiagnosticProfile } from "../fault-codes/profile";
 
-/** First implementation: bounded operations on existing v3 diagrams, not a v4 solver. */
+/** Safe, bounded editor for v3 diagrams; this is not the complete v4 semantic protocol or a fluid solver. */
+export const AI_PROTOCOL_VERSION = "0.2-draft" as const;
+export const AI_TARGET_SCHEMA_VERSION: number = 3;
+export const AI_CATALOG_VERSION = "fluidpath-legacy-catalog/1" as const;
 export const AI_TYPES: NodeType[] = ["inlet", "outlet", "pump", "milkPump", "airPump", "solenoid2", "solenoid3", "pulseAirValve", "checkValve", "safetyValve", "flowMeter", "pressureGauge", "metalFilter", "hotWaterBoiler", "steamBoiler", "brewChamber", "coffeeOutlet", "hotWaterOutlet", "hotWaterWand", "steamWand", "milkOutlet", "tank", "tee", "teeF", "shape"];
 export interface AiPlan {
   requestId: string;
@@ -42,7 +45,7 @@ export async function compileAiOperations(json: string, current: Diagram): Promi
   if (json.length > 250_000) throw new Error("AI request exceeds 250 KB");
   const request = obj(JSON.parse(json));
   keys(request, ["protocol", "protocolVersion", "targetSchemaVersion", "catalogVersion", "requestId", "base", "intent", "operations"]);
-  if (request.protocol !== "fluidpath.ai-operations" || request.protocolVersion !== "0.2-draft" || request.targetSchemaVersion !== 3 || request.catalogVersion !== "fluidpath-legacy-catalog/1") throw new Error("Unsupported protocol, diagram schema or catalog version");
+  if (request.protocol !== "fluidpath.ai-operations" || request.protocolVersion !== AI_PROTOCOL_VERSION || request.targetSchemaVersion !== AI_TARGET_SCHEMA_VERSION || request.catalogVersion !== AI_CATALOG_VERSION) throw new Error("Unsupported protocol, diagram schema or catalog version");
   const requestId = text(request.requestId, "requestId");
   if (current.settings.aiAppliedRequestIds?.includes(requestId)) throw new Error("This request was already applied");
   const base = obj(request.base); keys(base, ["diagramSha256"]);
@@ -77,7 +80,9 @@ export async function compileAiOperations(json: string, current: Diagram): Promi
         const layout = op.layout === undefined ? { column: addedNodes.length % 5, row: Math.floor(addedNodes.length / 5) } : obj(op.layout);
         keys(layout, ["column", "row"]);
         for (const dimension of ["column", "row"]) if (typeof layout[dimension] !== "number" || !Number.isInteger(layout[dimension]) || (layout[dimension] as number) < 0 || (layout[dimension] as number) > 40) throw new Error("Layout requires column/row from 0 to 40");
-        const node = createNode(op.type as NodeType, left + (layout.column as number) * 240, 120 + (layout.row as number) * 260, op.label === undefined ? undefined : text(op.label, "label"));
+        const label = op.label === undefined ? undefined : text(op.label, "label");
+        if (label && diagram.nodes.some((n) => n.label.trim().toLowerCase() === label.trim().toLowerCase())) throw new Error("Duplicate component label");
+        const node = createNode(op.type as NodeType, left + (layout.column as number) * 240, 120 + (layout.row as number) * 260, label);
         if (diagram.nodes.some(n => n.x === node.x && n.y === node.y)) throw new Error("Overlapping layout cells");
         nodeMap.set(tempId, node.id); diagram.nodes.push(node); addedNodes.push(node.id); changes.push(`+ ${node.label} (${node.type})`);
       } else if (op.op === "connectPorts") {
@@ -89,12 +94,14 @@ export async function compileAiOperations(json: string, current: Diagram): Promi
         if (from.port.direction === "in" || to.port.direction === "out") throw new Error("Declared connection contradicts port capability; no implicit direction override");
         const medium = FLUID_PRESETS.find(f => f.key === op.declaredMedium);
         if (!medium) throw new Error("Declare a registered medium; do not infer one from color");
-        const pipe: Pipe = { id: uid("pipe"), label: `Pipe ${diagram.pipes.length + 1}`, fromPortId: from.port.id, toPortId: to.port.id, points: [], nominalDiameter: "", visualDiameter: 10, wallColor: "#5b6b7d", fluidColor: medium.color, fluidOpacity: .92, direction: "forward", flowSpeed: 1.2, particleDensity: "medium", animated: true, showArrow: true, fluidType: medium.key, material: "custom", wallOpacity: 1, routing: "orthogonal" };
+        const pipe: Pipe = { id: uid("pipe"), label: `Pipe ${diagram.pipes.length + 1}`, fromPortId: from.port.id, toPortId: to.port.id, points: [], nominalDiameter: "", visualDiameter: 10, wallColor: "#5b6b7d", fluidColor: medium.color, fluidOpacity: .92, direction: "forward", flowSpeed: 1.2, particleDensity: "medium", animated: true, showArrow: true, fluidType: medium.key, declaredMedium: medium.key, material: "custom", wallOpacity: 1, routing: "orthogonal" };
         diagram.pipes.push(pipe); pipeMap.set(tempId, pipe.id); addedPipes.push(pipe.id); occupied.add(from.port.id); occupied.add(to.port.id);
         changes.push(`+ ${from.node.label} → ${to.node.label} (${medium.key})`);
       } else if (op.op === "setComponentProperty") {
         keys(op, ["op", "component", "label"]);
-        const node = nodeAt(op.component); node.label = text(op.label, "label"); changes.push(`label: ${node.id} → ${node.label}`);
+        const node = nodeAt(op.component), nextLabel = text(op.label, "label");
+        if (diagram.nodes.some((n) => n.id !== node.id && n.label.trim().toLowerCase() === nextLabel.trim().toLowerCase())) throw new Error("Duplicate component label");
+        node.label = nextLabel; changes.push(`label: ${node.id} → ${node.label}`);
       } else if (op.op === "setOperatingCondition") {
         keys(op, ["op", "component", "state"]);
         const node = nodeAt(op.component), state = obj(op.state); keys(state, ["pumpOn", "valveState", "valvePath"]);
@@ -127,8 +134,8 @@ export async function compileAiOperations(json: string, current: Diagram): Promi
 
 export async function aiExample(diagram: Diagram) {
   return {
-    protocol: "fluidpath.ai-operations", protocolVersion: "0.2-draft", targetSchemaVersion: 3,
-    catalogVersion: "fluidpath-legacy-catalog/1", requestId: uid("request"), base: { diagramSha256: await diagramFingerprint(diagram) },
+    protocol: "fluidpath.ai-operations", protocolVersion: AI_PROTOCOL_VERSION, targetSchemaVersion: AI_TARGET_SCHEMA_VERSION,
+    catalogVersion: AI_CATALOG_VERSION, requestId: uid("request"), base: { diagramSha256: await diagramFingerprint(diagram) },
     intent: "Add a simple supply circuit with an editable inspection code",
     operations: [
       { op: "addComponent", tempId: "supply", type: "inlet" },

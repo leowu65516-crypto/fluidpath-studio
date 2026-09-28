@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkPipeFluid, checkDiagramFluid } from "../fluidRules";
+import { checkPipeFluid, checkDiagramFluid, explainPipeFluid } from "../fluidRules";
 import type { DiagramNode, Diagram, Pipe, Port, FluidType } from "../types";
 import msy2 from "../../MSY2.json";
 
@@ -7,7 +7,7 @@ function port(id: string, position: Port["position"], direction?: Port["directio
   return { id, nodeId: "", position, direction };
 }
 
-function node(type: DiagramNode["type"], id: string, ports: Port[], label = type): DiagramNode {
+function node(type: DiagramNode["type"], id: string, ports: Port[], label: string = type): DiagramNode {
   return { id, type, label, x: 0, y: 0, width: 100, height: 100, rotation: 0, fill: "#fff", stroke: "#000", ports: ports.map((p) => ({ ...p, nodeId: id })) };
 }
 
@@ -22,6 +22,19 @@ function pipe(ft: FluidType, from?: string, to?: string): Pipe {
 }
 
 describe("液路介质物理常识规则", () => {
+  it("只给出定性混合解释，不伪造温度或比例", () => {
+    const a = node("tee", "a", [port("a1", "right"), port("a2", "left")], "汇流");
+    const b = node("inlet", "b", [port("b1", "right", "out")], "冷水源");
+    const c = node("hotWaterBoiler", "c", [port("c1", "bottom", "in")], "锅炉");
+    const p1 = { ...pipe("coldWater", "b1", "a1"), id: "p1", label: "冷水" };
+    const p2 = { ...pipe("hotWater", "c1", "a2"), id: "p2", label: "热水" };
+    const output = { ...pipe("coldWater", "a1", "c1"), id: "p3", label: "汇流后" };
+    const result = explainPipeFluid(output, { id: "d", name: "d", nodes: [a, b, c], pipes: [p1, p2, output], settings: {} as never });
+    expect(result.status).toBe("QUALITATIVE_MIXED");
+    expect(result.explanation).toMatch(/未知|unknown/i);
+    expect(result.explanation).not.toMatch(/°C|比例为\s*\d/);
+  });
+
   it("热水锅炉进水不允许蒸汽/牛奶/热水（只允许冷水）", () => {
     const boiler = node("hotWaterBoiler", "hb", [port("hb_b", "bottom", "in")]);
     for (const bad of ["steam", "milk", "hotWater"] as FluidType[]) {

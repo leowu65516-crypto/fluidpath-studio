@@ -1032,7 +1032,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           onMouseEnter={() => setHoverNode(node.id)}
           onMouseLeave={() => setHoverNode((h) => (h === node.id ? null : h))}
         >
-          <g onMouseDown={(e) => onNodeMouseDown(e, node)} onContextMenu={(e) => openContextMenu(e, "node", node.id)} style={{ cursor: "move", opacity: node.disabled ? 0.4 : nodeDim ? 0.35 : 1 }}>
+          <g onMouseDown={(e) => onNodeMouseDown(e, node)} onContextMenu={(e) => openContextMenu(e, "node", node.id)} style={{ cursor: "move", opacity: (node.displayDisabled || node.disabled) ? 0.4 : nodeDim ? 0.35 : 1 }}>
             <rect data-ui="1" x={-4} y={-4} width={node.width + 8} height={node.height + 8} fill="transparent" stroke={selected ? "#2f7fd6" : "transparent"} strokeWidth={1.6} strokeDasharray={selected ? "5 4" : undefined} rx={6} />
             {node.groupId && (selected || hoverNode === node.id) && (
               <g data-ui="1" pointerEvents="none">

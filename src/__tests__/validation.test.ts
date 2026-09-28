@@ -45,4 +45,13 @@ describe("图纸工况验收", () => {
     expect(result.passed).toBe(false);
     expect(result.failures[0]).toMatchObject({ pipeId: p.id, expected: "flow", actual: "stop" });
   });
+
+  it("验收结果绑定图纸、引擎和规则版本，并标记停流-only 覆盖不完整", () => {
+    const d = parseDiagramJSON(JSON.stringify(bcmtsRaw));
+    const result = runValidationCases(d)[0];
+    expect(result.status).toBe("PASS");
+    expect(result.confidence).toBe("partial");
+    expect(result.binding).toMatchObject({ diagramId: d.id, schemaVersion: 3, engineVersion: expect.any(String), ruleVersion: expect.any(String) });
+    expect(result.issues).toContain("NO_POSITIVE_FLOW_ASSERTION: 仅验证停流断言，不能证明整机工况正确");
+  });
 });

@@ -100,7 +100,7 @@ delete diagram.settings.scenarioOverrides;
 delete diagram.settings.customScenarios;
 diagram.settings.workingCopyOf=sourcePath;
 diagram.settings.workingCopyStartedAt=new Date().toISOString();
-Object.assign(diagram.settings,{appVersion:"1.25.0",background:"#f3f7fb",backgroundType:"dot",showNodeLabels:true,showPipeLabels:false,showFluidLabels:false,nodeLabelFontSize:18,pressureShading:false});
+Object.assign(diagram.settings,{appVersion:"1.27.0",background:"#f3f7fb",backgroundType:"dot",showNodeLabels:true,showPipeLabels:false,showFluidLabels:false,nodeLabelFontSize:18,pressureShading:false});
 applyStates(diagram,brew);
 const generatedText=JSON.stringify({...diagram,_version:3,_exportedAt:new Date().toISOString()},null,2)+"\n";
 const checked=parseDiagramJSON(generatedText);
@@ -151,11 +151,11 @@ assert.equal(passThroughControl.status,"PASS","Re-check flow-meter traversal dia
 const engineDiagnosis={sourceSupplyRepro,passThroughControl,explanation:"原图相同断供工况也失败。geometry.ts 的供液递归 passThrough 集合缺少 flowMeter，停流依赖在流量计处中断。仅在隔离的诊断副本中把 flowMeter 换成 filter 后 A04 通过；交付图纸仍保留真正的 flowMeter，未修改引擎。"};
 const unresolved=[
   {code:"FLUSH_VALVE_DEFINITION_UNRESOLVED",nodeId:ni(62),message:"保留原图两进一出冲泡冲洗阀及端口；未提供其真实阀位通路表。冲洗/咖啡后排废的精确功能未认证；本轮测试令该阀 off。"},
-  {code:"QUALITATIVE_ENGINE_ONLY",message:"验收是 Studio 1.25.0 定性流动模型，不能证明实机温度、流量、余压、双向行为或所有工况。"},
+  {code:"QUALITATIVE_ENGINE_ONLY",message:"验收是 Studio 1.27.0 定性流动模型，不能证明实机温度、流量、余压、双向行为或所有工况。"},
   {code:"INHERITED_PARAMETERS",message:"DN25、动画速度等继承原图，不作为经确认的实物参数。美式水出口 custom 声明未被改成虚构温度/比例。"},
   {code:"LEGACY_SHAPE_DRAIN",nodeId:ni(31),message:"公共排废接口沿用原图两端 shape 的当前引擎通过行为，尚未升级到 v4 显式元件定义。"},
 ];
-const manifest={format:"fluidpath.derivation-manifest",version:1,protocolReference:"FluidPath-图纸规范与AI绘图协议-v0.2.md",source:{path:sourcePath,sha256:expectedHash,diagramId:source.id},output:{name:diagram.name,diagramId:diagram.id,schema:3,appVersion:"1.25.0",sha256:sha(generatedText)},intent:"从 Smart Y BCTMS 派生无蒸汽锅炉、无奶泵及专属支路的 Smart Y BCT；保留咖啡、热水杆、美式水、公共排废。",execution:"受控本地派生器；不是当前 AI 面板对 remove/reconnect 指令的端到端认证。",removedNodes:source.nodes.filter(n=>!keep.has(n.id)).map(n=>({id:n.id,type:n.type,label:n.label})),removedPipes:source.pipes.filter(p=>!diagram.pipes.some(q=>q.id===p.id)).map(p=>({id:p.id,from:p.fromPortId,to:p.toPortId})),edits,renamedNodes:[{id:ni(18),before:source.nodes[18].label,after:node(18).label},{id:ni(1),before:source.nodes[1].label,after:node(1).label}],retainedIdMapping:diagram.nodes.map(n=>({sourceNodeId:n.id,outputNodeId:n.id})),archivedSourceCases:source.settings.validationCases,archivedSourceOverrides:source.settings.scenarioOverrides,unresolved,results,structure};
+const manifest={format:"fluidpath.derivation-manifest",version:1,protocolReference:"FluidPath-图纸规范与AI绘图协议-v0.2.md",source:{path:sourcePath,sha256:expectedHash,diagramId:source.id},output:{name:diagram.name,diagramId:diagram.id,schema:3,appVersion:"1.27.0",sha256:sha(generatedText)},intent:"从 Smart Y BCTMS 派生无蒸汽锅炉、无奶泵及专属支路的 Smart Y BCT；保留咖啡、热水杆、美式水、公共排废。",execution:"受控本地派生器；不是当前 AI 面板对 remove/reconnect 指令的端到端认证。",removedNodes:source.nodes.filter(n=>!keep.has(n.id)).map(n=>({id:n.id,type:n.type,label:n.label})),removedPipes:source.pipes.filter(p=>!diagram.pipes.some(q=>q.id===p.id)).map(p=>({id:p.id,from:p.fromPortId,to:p.toPortId})),edits,renamedNodes:[{id:ni(18),before:source.nodes[18].label,after:node(18).label},{id:ni(1),before:source.nodes[1].label,after:node(1).label}],retainedIdMapping:diagram.nodes.map(n=>({sourceNodeId:n.id,outputNodeId:n.id})),archivedSourceCases:source.settings.validationCases,archivedSourceOverrides:source.settings.scenarioOverrides,unresolved,results,structure};
 mkdirSync(outputDir,{recursive:true});
 writeFileSync(join(outputDir,"Smart Y BCT.json"),generatedText);
 writeFileSync(join(outputDir,"Smart Y BCT-变更与验收.json"),JSON.stringify({...manifest,removedPresentationOverrides,engineDiagnosis},null,2)+"\n");

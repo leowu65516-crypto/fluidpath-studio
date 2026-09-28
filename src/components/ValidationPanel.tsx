@@ -84,11 +84,11 @@ export function ValidationPanel({ onClose }: { onClose: () => void }) {
       <div className="validation-list">
         {cases.map((c) => {
           const result = validatedDiagram === diagram ? results?.find((r) => r.caseId === c.id) : undefined;
-          return <div className={`validation-case${result ? result.passed ? " pass" : " fail" : ""}`} key={c.id}>
-            <div><b>{result ? result.passed ? "✓" : "✕" : "○"} {c.name}</b><small>{t("{n} 应流 · {m} 应停").replace("{n}", String(c.mustFlowPipeIds.length)).replace("{m}", String(c.mustStopPipeIds.length))}</small></div>
+          return <div className={`validation-case${result ? result.status === "PASS" ? " pass" : result.status === "UNKNOWN" || result.status === "NOT_RUN" ? " unknown" : " fail" : ""}`} key={c.id}>
+            <div><b>{result ? result.status === "PASS" ? "✓" : result.status === "UNKNOWN" || result.status === "NOT_RUN" ? "?" : "✕" : "○"} {c.name}</b><small>{t("{n} 应流 · {m} 应停").replace("{n}", String(c.mustFlowPipeIds.length)).replace("{m}", String(c.mustStopPipeIds.length))}{result ? ` · ${result.status} · ${result.confidence}` : ""}</small></div>
             <button className="btn ghost sq" title={t("删除")} onClick={() => deleteValidationCase(c.id)}>×</button>
             {result?.issues.map(issue => <div role="alert" key={issue}>{result.status}: {issue}</div>)}
-            {result?.failures.map((f) => <button key={`${f.pipeId}-${f.expected}`} className="validation-failure" disabled={f.actual === "missing"} onClick={() => focusElement(f.pipeId)}>{f.label}：{t(f.expected === "flow" ? "应流" : "应停")}，{f.actual === "missing" ? t("引用不存在，未运行") : `${t("实际")}${t(f.actual === "flow" ? "流" : "停")}`}</button>)}
+            {result?.failures.map((f) => <button key={`${f.pipeId}-${f.expected}`} className="validation-failure" disabled={f.actual === "missing" || f.actual === "unknown"} onClick={() => focusElement(f.pipeId)}>{f.label}：{t(f.expected === "flow" ? "应流" : "应停")}，{f.actual === "missing" ? t("引用不存在，未运行") : f.actual === "unknown" ? t("未知，无法判断") : `${t("实际")}${t(f.actual === "flow" ? "流" : "停")}`}</button>)}
           </div>;
         })}
       </div>

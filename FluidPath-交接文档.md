@@ -1,7 +1,7 @@
 # FluidPath Studio & CAYE 全自动咖啡机 · 完全参考手册
 
 > 本文档是理解 **FluidPath Studio 应用** 与 **CAYE 咖啡机图纸（`/Users/leo/Desktop/BCMTS.json`）** 的第一参考：应用架构、技术栈、流体仿真引擎原理、咖啡机整机原理（做咖啡 / 热牛奶 / 蒸汽 / 热水 / 清洗 / 排废），以及操作与维护纪律。
-> 最后更新：2026-08-18
+> 最后更新：2026-09-29。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
 
 ---
 
@@ -9,10 +9,10 @@
 
 **FluidPath Studio** 是一个液路动态示意图编辑器（教学/演示用途），用于绘制全自动咖啡机的水路、奶路、蒸汽、排废系统，并**实时仿真"停流 / 流动"状态**：改阀位、开泵关泵，画面上的管路立即对应变化。
 
-- 项目路径：`/Users/leo/Documents/测试`（注意：**中文路径**）
+- 项目路径：`/Users/leo/Documents/Fluidpath studio`
 - **已 git 初始化**（2026-08-18 起，每个版本一个 commit，历史可回退）；改前仍建议 `cp` 备份到 `/tmp`
 - 技术栈：Electron（主进程 CJS）+ React 18 + TypeScript（strict）+ Vite 5 + Vitest（jsdom）
-- 打包：electron-builder（未签名，arm64）；当前产物 `release/FluidPath Studio-1.11.0-arm64.dmg`
+- 打包：electron-builder（未签名，arm64）；当前产物以 `release/` 中的最新版本为准
 - **网页版（已上线）**：https://leowu65516-crypto.github.io/fluidpath-studio/ （密码门固定密码 800866，见 §9）
 - Node 路径：`/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin`（**每条命令都要先 `export PATH=.../bin:$PATH`**）
 
@@ -25,7 +25,7 @@
 | `src/geometry.ts` | **核心**：流体仿真引擎（停流传播 + 需求域），见 §3 |
 | `src/store.ts` | 状态管理（`useSyncExternalStore`）、撤销/重做、场景演示状态机（角色自适应+快照还原） |
 | `src/export.ts` | `parseDiagramJSON`（加载图纸）、SVG/PNG/JPG/PDF 导出、分享链接 |
-| `src/scenarios.ts` | 内置场景演示：冲泡咖啡 / 热牛奶（角色匹配定义 + `resolveScenarioRoles`） |
+| `src/scenarios.ts` | 内置场景演示：冲泡咖啡 / 热牛奶 / 美式咖啡 / 热水杆 / 牛奶清洗 / 排废（角色匹配定义 + `resolveScenarioRoles`） |
 | `src/knowledge.ts` | 元件教学知识库（选中元件时右侧面板显示作用/原理/注意点） |
 | `src/advice.ts` | **回路诊断唯一数据源**：分层建议（结构/工况）+ 停流因果链 + 一键修复动作 |
 | `src/diagnostics.ts` | 诊断报告的只读派生视图（状态栏徽章计数，只统计结构问题） |
@@ -35,10 +35,11 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 55 个测试文件 / 330 用例，见 §6 |
+| `src/__tests__/` | 57 个测试文件 / 382 通过 + 4 跳过（共 386），见 §6 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
 | `BCTMS.json`（项目根） | 另一台机型 BCTMS 快照（62/70，供 flow-isolation 测试） |
+| `MSY2.json`（项目根） | Smart Y 结构与介质检查快照（62/71） |
 
 ### 备份清单
 
@@ -70,7 +71,7 @@
 ### 2.3 状态与交互（src/store.ts）
 
 - 单一 store + `useSyncExternalStore`；`updateDiagram(mutator)` 支持撤销/重做（history 栈）。
-- **场景演示（角色自适应）**：`src/scenarios.ts` 只保留「冲泡咖啡」「热牛奶」两个场景（半自动/全自动已删除）。场景步骤引用**元件角色**（waterPump / brewV3 / milkPump / cleanV3…），由 `resolveScenarioRoles(diagram)` 按「类型 + 标签关键词」在**当前加载的图纸**中实时解析元件——换机型 JSON 演示自动跟随，缺元件的机器（如无奶泵）对应场景禁用并提示。步骤编排：冲泡咖啡 3 步（供水启动→热水进冲泡缸→萃取冲泡）；热牛奶 2 步（供水+蒸汽锅炉补水→奶泵与蒸汽加热两路齐开出热奶）。
+- **场景演示（角色自适应）**：`src/scenarios.ts` 当前提供「冲泡咖啡」「热牛奶」「美式咖啡」「热水杆」「牛奶清洗」「排废」六个内置场景（半自动/全自动已删除）。场景步骤引用**元件角色**（waterPump / brewV3 / milkPump / cleanV3…），由 `resolveScenarioRoles(diagram)` 按「类型 + 标签关键词」在**当前加载的图纸**中实时解析元件；缺少对应元件的机器（如无奶泵）会自动隐藏不适用场景，不会虚构元件。完整步骤与可用性规则以 `src/scenarios.ts` 为准。
 - 演示机制（store.ts `enterScenario`/`exitScenario`）：
   1. 首次进入**快照**当前图纸，并把所有泵/阀复位到中性基线（泵停、两通关、三通 off）——演示不被图纸存档阀位干扰；
   2. 按步骤累积应用阀/泵状态；
@@ -328,12 +329,12 @@ pipeEffectiveDisabled(pipe) 依次短路：
 
 ## 5. 操作手册
 
-### 5.1 常用命令（项目目录 `/Users/leo/Documents/测试`）
+### 5.1 常用命令（项目目录 `/Users/leo/Documents/Fluidpath studio`）
 
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npx vitest run                   # 全量测试（当前 330 个，55 文件）
+npm run check                    # tsc + 全量测试（当前 382 通过 + 4 跳过，57 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -399,7 +400,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：55 文件 / 330 用例全绿，tsc 无错误。**
+**当前全量：57 文件 / 382 用例通过、4 个跳过（共 386），tsc 无错误。**
 
 ---
 

@@ -465,8 +465,11 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <input type="number" step={15} value={node.rotation} onChange={(e) => patchNode(node.id, { rotation: Number(e.target.value) || 0 })} />
                 <button className="btn sq" title={t("旋转 90°")} onClick={() => patchNode(node.id, { rotation: (node.rotation + 90) % 360 })}>⟳90°</button>
               </Row>
-              <Row label={t("讲解置灰")}>
+              <Row label={t("工程禁用")}>
                 <input type="checkbox" checked={!!node.disabled} onChange={(e) => patchNode(node.id, { disabled: e.target.checked })} />
+              </Row>
+              <Row label={t("画布淡化")}>
+                <input type="checkbox" checked={!!node.displayDisabled} onChange={(e) => patchNode(node.id, { displayDisabled: e.target.checked })} />
               </Row>
               {node.type === "shape" && (
                 <div className="insp-tip">{t("选中后拖动四角手柄可直接调整大小与比例")}</div>
@@ -801,8 +804,11 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <Row label={t("流向箭头")}>
                 <input type="checkbox" checked={pipe.showArrow} onChange={(e) => patchPipe(pipe.id, { showArrow: e.target.checked })} />
               </Row>
-              <Row label={t("讲解置灰")}>
+              <Row label={t("工程禁用")}>
                 <input type="checkbox" checked={!!pipe.disabled} onChange={(e) => patchPipe(pipe.id, { disabled: e.target.checked })} />
+              </Row>
+              <Row label={t("画布淡化")}>
+                <input type="checkbox" checked={!!pipe.displayDisabled} onChange={(e) => patchPipe(pipe.id, { displayDisabled: e.target.checked })} />
               </Row>
               <Row label={t("🔧 故障模拟")}>
                 <input type="checkbox" checked={pipe.fault === "pipeBlocked"} onChange={(e) => patchPipe(pipe.id, { fault: e.target.checked ? "pipeBlocked" : undefined })} />
@@ -840,7 +846,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             </Row>
             <Row label={t("画布背景")}>
               <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-                {["#ffffff", "#f3f7fb", "#eef2f7", "#f5f2eb", "#eff6f0", "#f8f1f4"].map((color) => <button key={color} title={color} onClick={() => updateDiagram((d) => { d.settings.background = color; }, false)} style={{ width: 19, height: 19, borderRadius: 3, border: `2px solid ${diagram.settings.background === color ? "var(--accent)" : "var(--border)"}`, background: color, cursor: "pointer" }} />)}
+                {["#ffffff", "#f3f7fb", "#eef2f7", "#f5f2eb", "#eff6f0", "#f8f1f4"].map((color, index) => <button key={`${color}-${index}`} title={color} onClick={() => updateDiagram((d) => { d.settings.background = color; }, false)} style={{ width: 19, height: 19, borderRadius: 3, border: `2px solid ${diagram.settings.background === color ? "var(--accent)" : "var(--border)"}`, background: color, cursor: "pointer" }} />)}
                 <input type="color" value={diagram.settings.background} onChange={(e) => updateDiagram((d) => { d.settings.background = e.target.value; }, false)} />
               </div>
             </Row>

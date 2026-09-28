@@ -1299,16 +1299,22 @@ export function restoreDiagram(diagram: Diagram) {
   });
 }
 
-/** 置灰 / 取消置灰当前选中元素：节点淡化、相连管路停止流动（讲解聚焦） */
+/** 置灰 / 取消置灰当前选中元素：只改变画布显示，不改变工程液路状态。 */
 export function setSelectionDisabled(disabled: boolean) {
   const sel = state.ui.selection;
   if (!sel.nodes.length && !sel.pipes.length) return;
   updateDiagram((d) => {
     d.nodes.forEach((n) => {
-      if (sel.nodes.includes(n.id)) n.disabled = disabled;
+      if (sel.nodes.includes(n.id)) {
+        if (disabled) n.displayDisabled = true;
+        else delete n.displayDisabled;
+      }
     });
     d.pipes.forEach((p) => {
-      if (sel.pipes.includes(p.id)) p.disabled = disabled;
+      if (sel.pipes.includes(p.id)) {
+        if (disabled) p.displayDisabled = true;
+        else delete p.displayDisabled;
+      }
     });
   });
 }

@@ -200,6 +200,16 @@ export function findPort(nodes: DiagramNode[], portId: string): PortRef | null {
 let _cachedPipes: Pipe[] = [];
 let _cachedDisabled = new Set<string>();
 let _demand = new Set<string>();
+export interface EnginePerfStats {
+  lastMs: number;
+  maxMs: number;
+  samples: number;
+  over16ms: number;
+  pipes: number;
+  nodes: number;
+}
+let _enginePerf: EnginePerfStats = { lastMs: 0, maxMs: 0, samples: 0, over16ms: 0, pipes: 0, nodes: 0 };
+export function getEnginePerfStats(): EnginePerfStats { return { ..._enginePerf }; }
 export function setCachedPipes(pipes: Pipe[], nodes?: DiagramNode[]) {
   _cachedPipes = pipes;
   if (nodes) {
@@ -209,6 +219,14 @@ export function setCachedPipes(pipes: Pipe[], nodes?: DiagramNode[]) {
     _demand = computeDemandPipes(pipes, nodes);
     if (typeof performance !== "undefined") {
       const dt = performance.now() - t0;
+      _enginePerf = {
+        lastMs: dt,
+        maxMs: Math.max(_enginePerf.maxMs, dt),
+        samples: _enginePerf.samples + 1,
+        over16ms: _enginePerf.over16ms + (dt > 16 ? 1 : 0),
+        pipes: pipes.length,
+        nodes: nodes.length,
+      };
       try {
         if ((window as unknown as { fluidpathEnginePerf?: boolean }).fluidpathEnginePerf) {
           performance.mark("fluidpath:setCachedPipes");

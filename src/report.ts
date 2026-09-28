@@ -16,6 +16,7 @@ import { collectAdvice } from "./advice";
 import { runValidationCases, type ValidationResult } from "./validation";
 import { pipeEngineeringDisabled } from "./geometry";
 import { APP_VERSION } from "./version";
+import { explainDiagramFluid } from "./fluidRules";
 
 const L = (lang: Lang, zh: string, en: string): string => (lang === "zh" ? zh : en);
 
@@ -62,6 +63,7 @@ export function buildDiagnosisReport(diagram: Diagram, lang: Lang = "zh", includ
   // 泵/锅炉
   const pumps = diagram.nodes.filter((n) => n.type === "pump" || n.type === "milkPump" || n.type === "airPump");
   const boilers = diagram.nodes.filter((n) => n.type === "hotWaterBoiler" || n.type === "steamBoiler");
+  const fluidAssessments = explainDiagramFluid(diagram, lang).filter((assessment) => assessment.status !== "DECLARED");
 
   // 验收
   const validationResults = includeValidation ? runValidationCases(diagram) : null;
@@ -74,6 +76,9 @@ export function buildDiagnosisReport(diagram: Diagram, lang: Lang = "zh", includ
   lines.push(`# ${L(lang, "FluidPath 诊断报告", "FluidPath Diagnosis Report")} · ${diagram.name || L(lang, "未命名图纸", "Untitled")}`);
   lines.push("");
   lines.push(`- ${L(lang, "应用版本", "App version")}: ${APP_VERSION}`);
+  lines.push(`- ${L(lang, "图纸 Schema", "Diagram schema")}: v${validationResults?.[0]?.binding.schemaVersion ?? 3}`);
+  lines.push(`- ${L(lang, "验收引擎", "Validation engine")}: ${validationResults?.[0]?.binding.engineVersion ?? "flow-engine/1"}`);
+  lines.push(`- ${L(lang, "验收规则", "Validation rules")}: ${validationResults?.[0]?.binding.ruleVersion ?? "validation/2"}`);
   lines.push(`- ${L(lang, "导出时间", "Exported at")}: ${new Date().toLocaleString(zh ? "zh-CN" : "en-US")}`);
   lines.push(`- ${L(lang, "图纸规模", "Size")}: ${fmtn(diagram.nodes.length)} ${L(lang, "节点", "nodes")} · ${fmtn(diagram.pipes.length)} ${L(lang, "管路", "pipes")}`);
   lines.push("");
@@ -83,7 +88,7 @@ export function buildDiagnosisReport(diagram: Diagram, lang: Lang = "zh", includ
   lines.push(`- ${L(lang, "结构问题", "Structure issues")}: ${fmtn(structure.length)}（${L(lang, "错误", "errors")} ${errs} / ${L(lang, "警告", "warnings")} ${warns} / ${L(lang, "提示", "infos")} ${infos}）`);
   lines.push(`- ${L(lang, "工况提示", "State notices")}: ${fmtn(state.length)}`);
   if (includeValidation) {
-    lines.push(`- ${L(lang, "验收", "Validation")}: ${vPass}/${vTotal} ${L(lang, "通过", "passed")}`);
+    lines.push(`- ${L(lang, "验收", "Validation")}: ${vPass}/${vTotal} ${L(lang, "断言通过", "assertions passed")}；${L(lang, "请区分 PASS、FAIL、INVALID、UNKNOWN、NOT_RUN", "PASS, FAIL, INVALID, UNKNOWN and NOT_RUN remain distinct")}`);
   }
   lines.push("");
 
@@ -168,16 +173,29 @@ export function buildDiagnosisReport(diagram: Diagram, lang: Lang = "zh", includ
     lines.push("");
   }
 
+  if (fluidAssessments.length > 0) {
+    lines.push(`## ${L(lang, "介质定性解释", "Qualitative medium assessment")}`);
+    lines.push("");
+    lines.push(`| ${L(lang, "管路", "Pipe")} | ${L(lang, "状态", "Status")} | ${L(lang, "解释", "Explanation")} |`);
+    lines.push("|---|---|---|");
+    for (const assessment of fluidAssessments) {
+      lines.push(`| ${assessment.pipeId} | ${assessment.status} | ${assessment.explanation.split("|").join("\\|")} |`);
+    }
+    lines.push("");
+  }
+
   // 验收
   if (includeValidation) {
     lines.push(`## ${L(lang, "验收结果", "Validation results")}`);
     lines.push("");
     if (!validationResults || validationResults.length === 0) {
+      lines.push(`- ${L(lang, "状态", "Status")}: NOT_RUN`);
       lines.push(L(lang, "本图纸未定义验收案例。", "No validation cases defined for this drawing."));
     } else {
       for (const r of validationResults) {
-        lines.push(`### ${r.name} — ${r.status}（${r.checked} ${L(lang, "项", "checks")}）`);
+        lines.push(`### ${r.name} — ${r.status}（${r.checked} ${L(lang, "项", "checks")}；${L(lang, "覆盖", "coverage")}: ${r.confidence}）`);
         lines.push("");
+        lines.push(`- ${L(lang, "绑定", "Binding")}: diagram=${r.binding.diagramId}; schema=v${r.binding.schemaVersion}; app=${r.binding.appVersion}; engine=${r.binding.engineVersion}; rules=${r.binding.ruleVersion}`);
         for (const issue of r.issues) lines.push(`- ${issue}`);
         if (r.issues.length) lines.push("");
         if (!r.passed && r.failures.length > 0) {
@@ -185,7 +203,7 @@ export function buildDiagnosisReport(diagram: Diagram, lang: Lang = "zh", includ
           lines.push("|---|---|---|");
           for (const f of r.failures) {
             const exp = f.expected === "flow" ? L(lang, "流动", "flow") : L(lang, "停流", "stop");
-            const act = f.actual === "missing" ? L(lang, "引用不存在，未运行", "Missing reference; not evaluated") : f.actual === "flow" ? L(lang, "流动", "flow") : L(lang, "停流", "stop");
+            const act = f.actual === "missing" ? L(lang, "引用不存在，未运行", "Missing reference; not evaluated") : f.actual === "unknown" ? L(lang, "未知，无法判断", "Unknown; cannot evaluate") : f.actual === "flow" ? L(lang, "流动", "flow") : L(lang, "停流", "stop");
             lines.push(`| ${f.label.split("|").join("\\|")} | ${exp} | ${act} |`);
           }
         }

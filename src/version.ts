@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.26.0";
+export const APP_VERSION = "1.27.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.27.0",
+    date: "2026-09-29",
+    highlights: [
+      "收敛验收语义：新增 UNKNOWN/NOT_RUN、版本绑定和停流-only 覆盖提示，缺失引用保持 INVALID_REFERENCE",
+      "分离画布淡化、工程禁用和教学覆盖；工程导出与验收不再读取纯显示状态",
+      "明确 AI 为 v3 legacy 受限改图子集，增加重名保护、声明介质字段和定性混合解释；修复颜色选择器重复 key 并记录引擎性能基线",
+    ],
+  },
   {
     version: "1.26.0",
     date: "2026-09-21",

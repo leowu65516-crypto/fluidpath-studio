@@ -71,7 +71,7 @@ try {
     console.log(`  ${mark}  ${r.name}（检查 ${r.checked} 项）`);
     for (const issue of r.issues) console.log(`        - ${issue}`);
     for (const f of r.failures) {
-      console.log(`        - ${f.label}: 期望${f.expected === "flow" ? "流" : "停"}，${f.actual === "missing" ? "引用不存在，未运行" : `实际${f.actual === "flow" ? "流" : "停"}`}`);
+      console.log(`        - ${f.label}: 期望${f.expected === "flow" ? "流" : "停"}，${f.actual === "missing" ? "引用不存在，未运行" : f.actual === "unknown" ? "未知，无法判断" : `实际${f.actual === "flow" ? "流" : "停"}`}`);
     }
   }
   if (out.report) {

@@ -4,6 +4,19 @@ import { computeDisabledPipes, pipeEngineeringDisabled, pipeEffectiveDisabled, p
 import bcmtsRaw from "../../BCMTS.json";
 
 describe("工程状态与教学显示状态分离", () => {
+  it("画布淡化字段不改变工程液路判定", () => {
+    const d = parseDiagramJSON(JSON.stringify({
+      nodes: [
+        { id: "IN", type: "inlet", label: "进水", x: 0, y: 0, w: 10, h: 10, ports: [{ id: "INo", position: "right", direction: "out" }] },
+        { id: "O", type: "outlet", label: "出口", x: 100, y: 0, w: 10, h: 10, ports: [{ id: "Oi", position: "left", direction: "in" }] },
+      ],
+      pipes: [{ id: "p", label: "主路", fromPortId: "INo", toPortId: "Oi", displayDisabled: true }],
+    }));
+    setCachedPipes(d.pipes, d.nodes);
+    expect(pipeEngineeringDisabled(d.pipes[0], d.nodes)).toBe(false);
+    expect(pipeEffectiveDisabled(d.pipes[0], d.nodes)).toBe(false);
+  });
+
   it("旧版 forceStop 加载后迁移为教学覆盖，工程判定仍按真实拓扑执行", () => {
     const d = parseDiagramJSON(JSON.stringify({
       nodes: [

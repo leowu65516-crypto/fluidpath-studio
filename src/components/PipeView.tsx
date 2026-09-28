@@ -106,6 +106,7 @@ function PipeViewImpl({
   const pts = pipePolyline(pipe, nodes);
   if (!pts || pts.length < 2) return null;
   const disabled = pipeEffectiveDisabled(pipe, nodes);
+  const displayDimmed = !!pipe.displayDisabled;
   const steamDrain = isSteamDrainPipe(pipe, nodes, allPipes);
   const displayFluidType = steamDrain ? "steam" : pipe.fluidType;
   const displayFluidColor = steamDrain ? "#ef8aa0" : pipe.fluidColor;
@@ -141,14 +142,15 @@ function PipeViewImpl({
   const mid = pointAtLength(pts, len / 2);
   const arrowAngle = pipe.direction === "forward" ? mid.angle : mid.angle + 180;
   const wallOpacity = pipe.wallOpacity ?? 1;
-  const dimOpacity = scenarioDim ? 0.12 : disabled ? 0.42 : 1;
+  const dimOpacity = scenarioDim ? 0.12 : (displayDimmed || disabled) ? 0.42 : 1;
   // 停流时保留管材与介质标识，但不再绘制白色流动粒子/箭头，避免静态虚线被误读为仍在流动。
   const fluidOpacity = disabled ? Math.min(pipe.fluidOpacity, 0.16) : pipe.fluidOpacity;
   const labelY = mid.pt.y + (disabled ? 0 : -wallW * 0.7 - 4);
 
   return (
     <g key={pipe.id}>
-      {disabled && <title>已置灰（停止流动）</title>}
+      {displayDimmed && !disabled && <title>仅画布淡化（工程状态未改变）</title>}
+      {disabled && <title>工程状态停流</title>}
       {/* 演示高亮发光层 */}
       {scenarioActive && (
         <path d={d} fill="none" stroke={visibleFluidColor} strokeWidth={wallW + 8} strokeOpacity={0.35} strokeLinejoin="round" strokeLinecap="round" />

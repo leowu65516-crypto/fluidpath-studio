@@ -168,3 +168,41 @@ export function checkDiagramFluid(diagram: Diagram, lang: Lang = "zh"): Map<stri
 export function suggestedFix(issues: FluidIssue[]): FluidType | null {
   return issues[0]?.preferred ?? null;
 }
+
+export type FluidAssessmentStatus = "DECLARED" | "QUALITATIVE_MIXED" | "UNKNOWN";
+
+export interface FluidAssessment {
+  pipeId: string;
+  status: FluidAssessmentStatus;
+  sources: FluidType[];
+  sourceLabels: string[];
+  explanation: string;
+}
+
+/**
+ * Conservative explanation for a pipe's medium. It deliberately reports only
+ * declared sources and qualitative mixing; temperature, pressure and ratios
+ * remain unknown until the drawing provides the required measurements.
+ */
+export function explainPipeFluid(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"): FluidAssessment {
+  const nodeForPort = (portId?: string) => portId ? diagram.nodes.find((n) => n.ports.some((p) => p.id === portId)) : undefined;
+  const upstreamNode = pipe.direction === "reverse" ? nodeForPort(pipe.toPortId) : nodeForPort(pipe.fromPortId);
+  const sourcePipes = diagram.pipes.filter((candidate) => {
+    if (candidate.id === pipe.id || !upstreamNode) return false;
+    return upstreamNode.ports.some((port) => port.id === candidate.fromPortId || port.id === candidate.toPortId);
+  });
+  const sources = [...new Set([pipe.declaredMedium ?? pipe.fluidType, ...sourcePipes.map((p) => p.declaredMedium ?? p.fluidType)].filter((v): v is FluidType => !!v && v !== "custom"))];
+  const sourceLabels = [pipe.label || pipe.id, ...sourcePipes.map((p) => p.label || p.id)];
+  if (!sources.length) {
+    return { pipeId: pipe.id, status: "UNKNOWN", sources: [], sourceLabels, explanation: lang === "zh" ? "没有可解析的介质声明；当前结果未知。" : "No resolvable medium declaration; result is unknown." };
+  }
+  if (sources.length > 1) {
+    const names = sources.map((source) => fluidLabel(source, lang)).join(lang === "zh" ? " + " : " + ");
+    return { pipeId: pipe.id, status: "QUALITATIVE_MIXED", sources, sourceLabels, explanation: lang === "zh" ? `当前有效输入：${names}；输出介质定性为多来源混合，温度/比例未知。` : `Effective inputs: ${names}; qualitative multi-source mixture, temperature and ratio unknown.` };
+  }
+  return { pipeId: pipe.id, status: "DECLARED", sources, sourceLabels, explanation: lang === "zh" ? `来源：${sourceLabels[0]}；声明介质：${fluidLabel(sources[0], lang)}；未推导温度、压力或比例。` : `Source: ${sourceLabels[0]}; declared medium: ${fluidLabel(sources[0], lang)}; temperature, pressure and ratio are not inferred.` };
+}
+
+export function explainDiagramFluid(diagram: Diagram, lang: Lang = "zh"): FluidAssessment[] {
+  return diagram.pipes.map((pipe) => explainPipeFluid(pipe, diagram, lang));
+}

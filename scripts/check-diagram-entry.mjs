@@ -26,7 +26,8 @@ process.stdin.on("end", () => {
     appVersion: APP_VERSION,
     total: results.length,
     passed,
-    results: results.map((r) => ({ name: r.name, passed: r.passed, status: r.status, issues: r.issues, checked: r.checked, failures: r.failures })),
+    validationStatus: results.length ? (results.every((r) => r.status === "PASS") ? "PASS" : results.some((r) => r.status === "INVALID") ? "INVALID" : results.some((r) => r.status === "UNKNOWN") ? "UNKNOWN" : "FAIL") : "NOT_RUN",
+    results: results.map((r) => ({ name: r.name, passed: r.passed, status: r.status, confidence: r.confidence, binding: r.binding, issues: r.issues, checked: r.checked, failures: r.failures })),
     report,
   }));
 });

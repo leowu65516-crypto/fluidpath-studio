@@ -6,6 +6,9 @@ import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { toast } from "./toast";
 import { parseDiagnosticProfile } from "./fault-codes/profile";
 
+/** Current diagram JSON schema. Keep this single source of truth for exports, migration and reports. */
+export const CURRENT_DIAGRAM_SCHEMA_VERSION = 3;
+
 /** 一键分享：压缩 diagram 为 Base64 URL 片段 */
 export function compressDiagram(diagram: Diagram): string {
   const json = JSON.stringify(diagram);
@@ -55,7 +58,7 @@ export interface JsonSaveResult {
 export async function saveJSONFile(diagram: Diagram): Promise<JsonSaveResult> {
   const rawName = (diagram.name || "fluidpath-diagram").replace(/[\\/:*?\"<>|]/g, "_").trim() || "fluidpath-diagram";
   const filename = `${rawName.toLowerCase().endsWith(".json") ? rawName.slice(0, -5) : rawName}.json`;
-  const json = JSON.stringify({ ...diagram, _version: 3, _exportedAt: new Date().toISOString() }, null, 2);
+  const json = JSON.stringify({ ...diagram, _version: CURRENT_DIAGRAM_SCHEMA_VERSION, _exportedAt: new Date().toISOString() }, null, 2);
   const picker = (window as Window & {
     showSaveFilePicker?: (options?: {
       suggestedName?: string;
@@ -697,7 +700,7 @@ export async function exportGifWithOptions(
 }
 
 export function exportJSON(diagram: Diagram) {
-  const out = { ...diagram, _version: 3, _exportedAt: new Date().toISOString() };
+  const out = { ...diagram, _version: CURRENT_DIAGRAM_SCHEMA_VERSION, _exportedAt: new Date().toISOString() };
   const json = JSON.stringify(out, null, 2);
   download(`${diagram.name || "fluidpath"}.json`, new Blob([json], { type: "application/json" }));
 }
@@ -705,12 +708,14 @@ export function exportJSON(diagram: Diagram) {
 /** 工程图纸导出：剔除所有讲解覆盖，避免人工动画状态进入工程交付。 */
 export function exportEngineeringJSON(diagram: Diagram) {
   const out = structuredClone(diagram);
+  for (const node of out.nodes) delete node.displayDisabled;
   for (const pipe of out.pipes) {
+    delete pipe.displayDisabled;
     delete pipe.teachingOverride;
     delete pipe.forceFlow;
     delete pipe.forceStop;
   }
-  const json = JSON.stringify({ ...out, _version: 3, _exportedAt: new Date().toISOString(), _exportProfile: "engineering" }, null, 2);
+  const json = JSON.stringify({ ...out, _version: CURRENT_DIAGRAM_SCHEMA_VERSION, _exportedAt: new Date().toISOString(), _exportProfile: "engineering" }, null, 2);
   download(`${diagram.name || "fluidpath"}_工程版.json`, new Blob([json], { type: "application/json" }));
 }
 
@@ -889,11 +894,11 @@ export const DIAGRAM_MIGRATIONS: DiagramMigration[] = [
  */
 export function migrateDiagramToCurrent(d: Record<string, unknown>): string[] {
   const applied: string[] = [];
-  if (d._version !== undefined && (typeof d._version !== "number" || !Number.isInteger(d._version) || d._version < 1 || d._version > 3)) {
+  if (d._version !== undefined && (typeof d._version !== "number" || !Number.isInteger(d._version) || d._version < 1 || d._version > CURRENT_DIAGRAM_SCHEMA_VERSION)) {
     throw new Error("图纸版本不受支持，请升级应用 / Unsupported diagram version; update the app");
   }
   let v = typeof d._version === "number" ? d._version : 1;
-  const CURRENT = 3;
+  const CURRENT = CURRENT_DIAGRAM_SCHEMA_VERSION;
   while (v < CURRENT) {
     const step = DIAGRAM_MIGRATIONS.find((m) => m.from === v);
     if (!step) break;

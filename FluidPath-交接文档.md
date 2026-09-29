@@ -35,7 +35,7 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 57 个测试文件 / 382 通过 + 4 跳过（共 386），见 §6 |
+| `src/__tests__/` | 57 个测试文件 / 383 通过 + 4 跳过（共 387），见 §6 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
 | `BCTMS.json`（项目根） | 另一台机型 BCTMS 快照（62/70，供 flow-isolation 测试） |
@@ -334,7 +334,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npm run check                    # tsc + 全量测试（当前 382 通过 + 4 跳过，57 文件）
+npm run check                    # tsc + 全量测试（当前 383 通过 + 4 跳过，57 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -400,7 +400,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：57 文件 / 382 用例通过、4 个跳过（共 386），tsc 无错误。**
+**当前全量：57 文件 / 383 用例通过、4 个跳过（共 387），tsc 无错误。**
 
 ---
 

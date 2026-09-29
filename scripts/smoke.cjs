@@ -2,6 +2,7 @@
 // 验证 React 正常挂载（确认 CSP + sandbox 未破坏渲染）。
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
+const fs = require("fs");
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow({
@@ -27,6 +28,8 @@ app.whenReady().then(async () => {
 
   await win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
   await new Promise((r) => setTimeout(r, 1800));
+  await win.webContents.executeJavaScript("document.querySelector('.help-close')?.click()");
+  await new Promise((r) => setTimeout(r, 80));
 
   const result = await win.webContents.executeJavaScript(`
     (() => ({
@@ -53,11 +56,46 @@ app.whenReady().then(async () => {
     })()
   `);
 
+  // English narrow-window regression: all four work-mode buttons must remain whole and usable.
+  win.setBounds({ width: 512, height: 800 });
+  await new Promise((r) => setTimeout(r, 80));
+  const compactMode = await win.webContents.executeJavaScript(`
+    (() => {
+      const lang = document.querySelector('[data-testid="lang-toggle"]');
+      if (lang?.textContent?.trim() === 'EN') lang.click();
+      const group = document.querySelector('.tb-mode');
+      const row = group?.closest('.tb-row');
+      if (!row || !group) return { found: false };
+      row.scrollLeft = Math.max(0, Math.min(group.offsetLeft - 12, row.scrollWidth - row.clientWidth));
+      const rowRect = row.getBoundingClientRect();
+      const groupRect = group.getBoundingClientRect();
+      const buttons = [...group.querySelectorAll('button')].map((button) => {
+        const rect = button.getBoundingClientRect();
+        return { text: button.textContent.trim(), width: rect.width, scrollWidth: button.scrollWidth, clientWidth: button.clientWidth };
+      });
+      return {
+        found: true,
+        scrollLeft: row.scrollLeft,
+        row: { left: rowRect.left, right: rowRect.right, width: rowRect.width, scrollWidth: row.scrollWidth, clientWidth: row.clientWidth },
+        group: { left: groupRect.left, right: groupRect.right, width: groupRect.width, offsetLeft: group.offsetLeft },
+        groupVisible: groupRect.left >= rowRect.left - 1 && groupRect.right <= rowRect.right + 1,
+        labels: buttons.map((button) => button.text),
+        unclipped: buttons.every((button) => button.scrollWidth <= button.clientWidth),
+        buttons,
+      };
+    })()
+  `);
+  const screenshot = await win.webContents.capturePage();
+  fs.writeFileSync("/tmp/fluidpath-mode-en-512.png", screenshot.toPNG());
+
   console.log("SMOKE_RESULT " + JSON.stringify(result));
   console.log("SMOKE_FAULT_MODE " + JSON.stringify(faultMode));
+  console.log("SMOKE_ENGLISH_MODES " + JSON.stringify(compactMode));
   console.log("SMOKE_CONSOLE_ERRORS " + JSON.stringify(consoleErrors));
 
   const ok = result.rootChildren > 0 && result.hasApp && result.hasCanvas
-    && faultMode.foundModeButton && faultMode.active && faultMode.panel && faultMode.aiTopbarButtons === 0;
+    && faultMode.foundModeButton && faultMode.active && faultMode.panel && faultMode.aiTopbarButtons === 0
+    && compactMode.found && compactMode.groupVisible && compactMode.unclipped
+    && compactMode.labels.join("|") === "✏️ Edit|🎬 Demo|✓ Verify|⚠ Fault";
   app.exit(ok ? 0 : 1);
 });

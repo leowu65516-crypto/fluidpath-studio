@@ -52,7 +52,7 @@ const EN: Record<string, string> = {
   "关闭同路径自动保存": "Turn off same-folder auto-save",
   "自动保存已开启": "Auto-save enabled",
   "自动保存已关闭": "Auto-save disabled",
-  "验收": "Validate",
+  "验收": "Verify",
   "元器件文字大小": "Component label size",
   "工况验收": "Flow validation",
   "记录当前泵阀状态，并指定哪些管路必须流动或停流。验证在副本中运行，不会改动当前画布。": "Record the current pump and valve states, then define which pipes must flow or stop. Validation runs on a copy and does not change this canvas.",

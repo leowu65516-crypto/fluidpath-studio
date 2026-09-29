@@ -416,10 +416,10 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <div className="tb-sep" />
       {/* 工作模式：编辑 / 演示 / 验收 / 故障排查 */}
       <div className="tb-mode seg" role="group" aria-label={t("工作模式")}>
-        <button className={mode === "edit" ? "on" : ""} title={t("编辑模式：画图、接线、属性编辑")} onClick={() => setWorkMode("edit")}>✏️ {t("编辑")}</button>
-        <button className={mode === "present" ? "on" : ""} title={t("演示模式：收起面板，按场景步骤讲解")} onClick={() => setWorkMode("present")}>🎬 {t("演示")}</button>
-        <button className={mode === "verify" ? "on" : ""} title={t("验收模式：工况快照与验收矩阵")} onClick={() => setWorkMode("verify")}>✓ {t("验收")}</button>
-        <button data-testid="mode-fault" className={mode === "fault" ? "on" : ""} title={t("故障模式：拓扑已锁定；可配置代码、关联排查范围并模拟信号")} onClick={() => setWorkMode("fault")}>⚠ {t("故障")}</button>
+        <button aria-pressed={mode === "edit"} className={mode === "edit" ? "on" : ""} title={t("编辑模式：画图、接线、属性编辑")} onClick={() => setWorkMode("edit")}>✏️ {t("编辑")}</button>
+        <button aria-pressed={mode === "present"} className={mode === "present" ? "on" : ""} title={t("演示模式：收起面板，按场景步骤讲解")} onClick={() => setWorkMode("present")}>🎬 {t("演示")}</button>
+        <button aria-pressed={mode === "verify"} className={mode === "verify" ? "on" : ""} title={t("验收模式：工况快照与验收矩阵")} onClick={() => setWorkMode("verify")}>✓ {t("验收")}</button>
+        <button data-testid="mode-fault" aria-pressed={mode === "fault"} className={mode === "fault" ? "on" : ""} title={t("故障模式：拓扑已锁定；可配置代码、关联排查范围并模拟信号")} onClick={() => setWorkMode("fault")}>⚠ {t("故障")}</button>
       </div>
       <div className="tb-sep" />
       <button className="tb-btn" data-testid="lang-toggle" onClick={() => setLang(lang === "zh" ? "en" : "zh")} title="中 / EN">

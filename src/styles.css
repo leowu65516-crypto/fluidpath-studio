@@ -1801,18 +1801,25 @@ body[data-theme="dark"] .welcome-overlay {
 
 /* ===== 三态工作模式切换器（P1 v1.17） ===== */
 .tb-mode.seg {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 352px;
+  min-width: 352px;
+  height: 32px;
+  box-sizing: border-box;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
   margin: 0 4px;
 }
 .tb-mode.seg button {
+  min-width: 0;
   border: none;
   background: transparent;
   color: var(--text-dim);
   font-size: 12px;
-  padding: 5px 10px;
+  font-weight: 600;
+  padding: 0 6px;
   cursor: pointer;
   line-height: 1;
   white-space: nowrap;

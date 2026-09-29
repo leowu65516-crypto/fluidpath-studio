@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.27.0";
+export const APP_VERSION = "1.27.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.27.1",
+    date: "2026-09-29",
+    highlights: [
+      "修复英文工作模式切换器在窄工具栏中的裁切：Edit、Demo、Verify、Fault 固定等宽显示，并增加原生 Electron 窄窗口回归验证",
+      "补充模式切换器的 aria-pressed 状态，便于键盘与辅助技术识别当前工作模式",
+    ],
+  },
   {
     version: "1.27.0",
     date: "2026-09-29",

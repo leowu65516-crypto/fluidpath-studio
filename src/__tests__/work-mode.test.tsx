@@ -38,11 +38,20 @@ describe("工作模式", () => {
     expect(btns.length).toBe(4);
     const onCount = () => btns.filter((b) => b.classList.contains("on")).length;
     expect(onCount()).toBe(1);
+    expect(btns.filter((b) => b.getAttribute("aria-pressed") === "true")).toHaveLength(1);
     act(() => setWorkMode("present"));
     expect(onCount()).toBe(1);
     act(() => setWorkMode("fault"));
     expect(onCount()).toBe(1);
     act(() => setWorkMode("edit"));
     expect(onCount()).toBe(1);
+  });
+
+  it("英文模式使用紧凑且完整的四个模式名称", () => {
+    localStorage.setItem("fluidpath.lang", "en");
+    const svgRef = { current: null } as React.MutableRefObject<SVGSVGElement | null>;
+    const { container } = render(<LangProvider><Toolbar svgRef={svgRef} /></LangProvider>);
+    const labels = Array.from(container.querySelectorAll(".tb-mode button")).map((button) => button.textContent?.trim());
+    expect(labels).toEqual(["✏️ Edit", "🎬 Demo", "✓ Verify", "⚠ Fault"]);
   });
 });

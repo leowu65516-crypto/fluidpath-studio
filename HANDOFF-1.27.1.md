@@ -1,43 +1,31 @@
 # FluidPath Studio 1.27.1 Handoff
 
-## Objective
+## Status: PUBLISHED ✅
 
-Publish the completed FluidPath Studio 1.27.1 changes to the GitHub repository and verify the GitHub Pages deployment. Do not rewrite history or include untracked user data.
+The FluidPath Studio 1.27.1 changes were published to GitHub on 2026-09-29 and the GitHub Pages deployment was verified. This document records the final state for the next session.
 
 ## Source of truth
 
 - Repository: `https://github.com/leowu65516-crypto/fluidpath-studio.git`
 - Local repository: `/Users/leo/Documents/Fluidpath studio`
 - Branch: `main`
-- Local HEAD: `d56b06dd1d7be4124111067584c039ea0523041a`
-- Remote `origin/main` before publication: `7feea1ac219a0197a7f72d2763bc74a4dd1c90f8`
 - Application version: `1.27.1`
 
-The following local commits must be pushed, in order:
+## Publication result
 
-1. `4e16fd2 feat: tighten validation and state semantics`
-2. `d56b06d fix: keep localized work mode controls visible`
+- Remote `origin/main` after publication: `d56b06dd1d7be4124111067584c039ea0523041a` (`fix: keep localized work mode controls visible`)
+- Pushed commits (in order): `127c38d` (fault troubleshooting mode), `4e16fd2` (validation semantics), `d56b06d` (toolbar localization fix)
+- Local HEAD: `e92c98d` (`docs: add publication handoff`) — one local commit ahead of remote, not pushed
+- Untracked `outputs/` directory: left untouched, belongs to the user, not uploaded
+- `release/` artifacts (DMG etc.): gitignored, not committed
 
-Do not modify, add, or upload the untracked `outputs/` directory. It belongs to the user.
+## Verification results (completed 2026-09-29)
 
-## Delivered changes
-
-- P0/P1 reliability work: i18n completion, report export, CI, scenario/document alignment, acceptance-result semantics, state separation, AI edit safety boundaries, and validation-oriented documentation.
-- Work-mode toolbar localization fix: English `Edit`, `Demo`, `Verify`, and `Fault` controls remain visible and untruncated at a narrow width.
-- Packaged desktop application: `release/FluidPath Studio-1.27.1-arm64.dmg` (about 117 MB).
-
-## Verification already completed
-
-The local implementation was verified before the publication attempt:
-
-```sh
-npm run check
-npm run smoke
-npm run smoke:multiwindow
-npm run verify:asar
-```
-
-The test suite result was 57 test files passing, with 383 passing tests and 4 intentionally skipped tests. The narrow-English toolbar smoke check passed.
+- GitHub Actions `Check (TypeScript + Tests)`: Run 15 — **success**
+- GitHub Actions `Deploy to GitHub Pages`: Run 26 — **success**
+- Deployed bundle version constant: `1.27.1` ✅
+- English toolbar at narrow width: `✏️ Edit`, `🎬 Demo`, `✓ Verify`, `⚠ Fault` all fully visible, not truncated ✅
+- Local suite (before publication): 57 test files, 383 passing, 4 intentionally skipped; narrow-English toolbar smoke passed
 
 ## Network and credential facts
 
@@ -54,16 +42,23 @@ git -c http.proxy=http://127.0.0.1:10808 ls-remote origin refs/heads/main
 git -c http.proxy=http://127.0.0.1:10808 push origin main
 ```
 
-The previously supplied classic personal access token was rejected by GitHub. It must not be retried or retained. Create a new fine-grained personal access token scoped only to this repository with `Contents: Read and write`, then use it only through a secure credential prompt or the authenticated GitHub browser session. Never put a token into source files, Git remote URLs, commits, Markdown files, build output, or chat.
+Credential state:
 
-## Publication acceptance checks
+- Fine-grained PAT `fluidpath-push-1271b` (scoped to `fluidpath-studio` only; permissions: `Contents: Read and write` + `Workflows: Read and write`; expires 2026-10-29) is stored in the macOS Keychain via git's `osxkeychain` helper, so pushes reuse it without prompting.
+- Note: the `Workflows` permission is required because some commits modify `.github/workflows/check.yml`; a Contents-only token is rejected by GitHub.
+- All other tokens (`fluidpath-publish-1.27.1`, `fluidpath-push-1271`) have been deleted.
+- The classic PAT was rejected by GitHub and must never be retried or retained. Never put a token into source files, Git remote URLs, commits, Markdown files, build output, or chat.
 
-1. Confirm `git status --short` still contains only `?? outputs/` before pushing.
-2. Push local `main` using the local proxy.
-3. Confirm `git ls-remote origin refs/heads/main` returns `d56b06dd1d7be4124111067584c039ea0523041a`.
-4. Confirm the GitHub Actions Pages workflow finishes successfully.
-5. Open `https://leowu65516-crypto.github.io/fluidpath-studio/` and check the footer/application version is `1.27.1`.
-6. In English, check all four toolbar modes at a narrow desktop width. The labels must remain fully visible.
+## Delivered changes
+
+- P0/P1 reliability work: i18n completion, report export, CI, scenario/document alignment, acceptance-result semantics, state separation, AI edit safety boundaries, and validation-oriented documentation.
+- Work-mode toolbar localization fix: English `Edit`, `Demo`, `Verify`, and `Fault` controls remain visible and untruncated at a narrow width.
+- Packaged desktop application: `release/FluidPath Studio-1.27.1-arm64.dmg` (about 117 MB).
+
+## Open items for a future session
+
+- The local commit `e92c98d` (this handoff document) is intentionally not pushed; push it only if the repository policy wants handoff docs in history.
+- If a new DMG is built, verify the mounted app version before publication. Do not commit generated build artifacts unless the repository policy explicitly changes.
 
 ## Build commands
 
@@ -75,6 +70,3 @@ npm run smoke:multiwindow
 npm run package
 npm run verify:asar
 ```
-
-If a new DMG is built, verify the mounted app version before publication. Do not commit generated build artifacts unless the repository policy explicitly changes.
-

@@ -3,7 +3,9 @@ import type { DiagramNode, Pipe, Pt } from "../types";
 import {
   pathD,
   pathDWithHops,
+  pipeEngineeringDisabled,
   pipeEffectiveDisabled,
+  pipeTeachingOverride,
   pipePolyline,
   pointAtLength,
   polylineLength,
@@ -43,6 +45,7 @@ interface PipeViewProps {
   showFluidLabels: boolean;
   showPipeLabels: boolean;
   showFluidColors: boolean;
+  animationPlaying?: boolean;
   flowRefMap: Map<string, SVGPathElement>;
   onPipeBodyMouseDown: (e: React.MouseEvent, pipe: Pipe, pts: Pt[], selected: boolean) => void;
   onVertexMouseDown: (e: React.MouseEvent, pipe: Pipe, pts: Pt[], vIndex: number) => void;
@@ -98,6 +101,7 @@ function pipesForNode(nodeId: string, nodes: DiagramNode[], allPipes: Pipe[]): P
 function PipeViewImpl({
   pipe, index, nodes, allPipes, selected, crossHop, allPolys,
   scenarioActive, scenarioDim, blink, blinkStamp, showFluidLabels, showPipeLabels, showFluidColors,
+  animationPlaying = true,
   chainGlow, chainStamp, lintMsg, onLintClick, funcChain,
   flowRefMap, onPipeBodyMouseDown, onVertexMouseDown, onContextMenu, onRemoveVertex, onLabelDoubleClick,
   issues, onFluidIssueClick,
@@ -106,6 +110,7 @@ function PipeViewImpl({
   const pts = pipePolyline(pipe, nodes);
   if (!pts || pts.length < 2) return null;
   const disabled = pipeEffectiveDisabled(pipe, nodes);
+  const engineeringStopped = pipeTeachingOverride(pipe) ? pipeEngineeringDisabled(pipe, nodes) : disabled;
   const displayDimmed = !!pipe.displayDisabled;
   const steamDrain = isSteamDrainPipe(pipe, nodes, allPipes);
   const displayFluidType = steamDrain ? "steam" : pipe.fluidType;
@@ -146,11 +151,18 @@ function PipeViewImpl({
   // 停流时保留管材与介质标识，但不再绘制白色流动粒子/箭头，避免静态虚线被误读为仍在流动。
   const fluidOpacity = disabled ? Math.min(pipe.fluidOpacity, 0.16) : pipe.fluidOpacity;
   const labelY = mid.pt.y + (disabled ? 0 : -wallW * 0.7 - 4);
+  const en = lang === "en";
+  const stateTitle = disabled !== engineeringStopped
+    ? disabled
+      ? (en ? "Teaching display: stopped (engineering state unchanged)" : "教学显示停流（工程判定不变）")
+      : (en ? "Teaching display: flowing (engineering state remains stopped)" : "教学显示流动（工程判定仍为停流）")
+    : disabled
+      ? (en ? "Engineering flow stopped" : "工程状态停流")
+      : displayDimmed ? (en ? "Canvas dimmed only (engineering state unchanged)" : "仅画布淡化（工程状态未改变）") : null;
 
   return (
     <g key={pipe.id}>
-      {displayDimmed && !disabled && <title>仅画布淡化（工程状态未改变）</title>}
-      {disabled && <title>工程状态停流</title>}
+      {stateTitle && <title>{stateTitle}</title>}
       {/* 演示高亮发光层 */}
       {scenarioActive && (
         <path d={d} fill="none" stroke={visibleFluidColor} strokeWidth={wallW + 8} strokeOpacity={0.35} strokeLinejoin="round" strokeLinecap="round" />
@@ -174,7 +186,7 @@ function PipeViewImpl({
         <path d={d} fill="none" stroke="#7d8b99" strokeOpacity={0.55} strokeWidth={wallW + 2.4} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={pipe.wallColor} strokeOpacity={wallOpacity} strokeWidth={wallW} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={visibleFluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" />
-        {!disabled && <path ref={(el) => { if (el) flowRefMap.set(pipe.id, el); else flowRefMap.delete(pipe.id); }} data-flow={pipe.id} d={d} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={Math.max(2, fluidW * 0.42)} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />}
+        {!disabled && animationPlaying && pipe.animated && <path ref={(el) => { if (el) flowRefMap.set(pipe.id, el); else flowRefMap.delete(pipe.id); }} data-flow={pipe.id} d={d} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={Math.max(2, fluidW * 0.42)} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />}
         {!disabled && pipe.showArrow && (
           <g transform={`translate(${mid.pt.x} ${mid.pt.y}) rotate(${arrowAngle})`}>
             <path d={`M ${wallW * 0.9 + 4} 0 L ${-wallW * 0.25} ${-wallW * 0.62 - 3} L ${-wallW * 0.25} ${wallW * 0.62 + 3} Z`} fill={visibleFluidColor} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />

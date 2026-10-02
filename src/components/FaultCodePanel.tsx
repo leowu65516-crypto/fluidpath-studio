@@ -12,6 +12,13 @@ import { FaultSignalInput } from "./FaultSignalInput";
 
 const STATUS: Record<string, string> = { notApplicable: "不适用或宽限中", normal: "正常", pending: "等待持续条件", triggered: "已触发", unknown: "无法判断", invalid: "规则无效", clear: "无活动报警", active: "活动报警", recoveredAwaitingReset: "已恢复，等待复位" };
 
+/** 关联范围适配：允许放大小目标，限制极端放大，并沿用画布 20%–400% 的缩放边界。 */
+export function focusTargetViewport(left: number, top: number, right: number, bottom: number, w: number, h: number) {
+  const fit = Math.min(w / (Math.max(0, right - left) + 100), h / (Math.max(0, bottom - top) + 100));
+  const zoom = Math.min(1.8, Math.max(0.2, fit));
+  return { zoom, panX: w / 2 - (left + right) / 2 * zoom, panY: h / 2 - (top + bottom) / 2 * zoom };
+}
+
 function TroubleshootingStepEditor({
   diagram, profile, fault, step, index, activeIndex, lang, canEdit, selection, run, onSelect,
 }: {
@@ -93,8 +100,7 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
     const left = Math.min(...boxes.map(b => b.x)), top = Math.min(...boxes.map(b => b.y));
     const right = Math.max(...boxes.map(b => b.x + b.w)), bottom = Math.max(...boxes.map(b => b.y + b.h));
     const svg = document.querySelector(".main-canvas"), w = svg?.clientWidth || 800, h = svg?.clientHeight || 600;
-    const zoom = Math.min(ui.zoom, w / (right - left + 100), h / (bottom - top + 100));
-    setUI({ zoom, panX: w / 2 - (left + right) / 2 * zoom, panY: h / 2 - (top + bottom) / 2 * zoom });
+    setUI(focusTargetViewport(left, top, right, bottom, w, h));
   }
   const editText = (field: "label" | "description", language: "zh" | "en", value: string) => active && run(() => patchFaultCode(active.id, { [field]: { zh: "", en: "", ...active[field], [language]: value } }));
   return <aside className="fault-panel" aria-label={t("故障码与关联水路")} data-ui="1">

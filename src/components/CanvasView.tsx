@@ -50,6 +50,7 @@ import {
   pasteNodeStyle,
   pastePipeStyle,
   pushHistory,
+  reconnectPipeEndpoint,
   selectNode,
   selectPipe,
   setMouseWorld,
@@ -69,6 +70,7 @@ import { parseDiagramJSON } from "../export";
 import { toast } from "../toast";
 import { checkDiagramFluid, checkPipeFluid, fluidLabel, fluidColor } from "../fluidRules";
 import { computeRelativeFlow, computePressureDomain } from "../relativeFlow";
+import { connectionErrorMessage, validatePipeConnection, type ConnectionError } from "../connection";
 
 type DragState =
   | { type: "pan"; startClientX: number; startClientY: number; startPanX: number; startPanY: number }
@@ -77,7 +79,7 @@ type DragState =
   | { type: "marquee"; start: Pt }
   | { type: "connect"; fromPortId: string; fromNodeId: string }
   | { type: "port"; nodeId: string; portId: string; moved: boolean }
-  | { type: "terminal"; pipeId: string; end: "from" | "to"; exclude: string[]; moved: boolean }
+  | { type: "terminal"; pipeId: string; end: "from" | "to"; startWorld: Pt; moved: boolean }
   | { type: "resize"; nodeId: string; corner: string; start: { x: number; y: number; w: number; h: number }; startWorld: Pt; moved: boolean; startRot: number; startAngle: number }
   | { type: "annotation-target"; nodeId: string; startWorld: Pt; moved: boolean };
 
@@ -148,6 +150,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   }, [diagram, lang]);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const flowRefs = useRef(new Map<string, SVGPathElement>());
+  const flowingPipeIds = useRef(new Set<string>());
   const offsets = useRef(new Map<string, number>());
   const dragRef = useRef<DragState | null>(null);
   const spaceRef = useRef(false);
@@ -156,7 +159,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   const [hoverNode, setHoverNode] = useState<string | null>(null);
   const [hoverPort, setHoverPort] = useState<string | null>(null);
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
-  const [snapPortId, setSnapPortId] = useState<string | null>(null);
+  const [terminalPreview, setTerminalPreview] = useState<{ pipeId: string; end: "from" | "to"; point: Pt; portId?: string; error?: ConnectionError } | null>(null);
   const [, forceRender] = useState(0);
   // 右键菜单
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: Array<{ label: string; onClick?: () => void; danger?: boolean; disabled?: boolean; divider?: boolean }> } | null>(null);
@@ -177,12 +180,11 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const st = store.get();
-      setCachedPipes(st.diagram.pipes, st.diagram.nodes); // 同步管路缓存用于传播检测
       if (st.diagram.settings.globalAnimationPlaying) {
         const flowScale = st.diagram.settings.flowScale ?? 1;
         for (const pipe of st.diagram.pipes) {
           if (!pipe.animated) continue;
-          if (pipeEffectiveDisabled(pipe, st.diagram.nodes)) continue; // 置灰/阀门关断管路：冻结不流动
+          if (!flowingPipeIds.current.has(pipe.id)) continue; // 图纸变化时已算好工程/教学显示状态
           const el = flowRefs.current.get(pipe.id);
           if (!el) continue;
           const speedPx = (26 + pipe.flowSpeed * 58) * flowScale; // 流速 → 像素速度
@@ -554,22 +556,9 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
         if (d?.type !== "connect") return;
         const target = (ev.target as Element)?.closest?.("[data-port-id]");
         const toPortId = target?.getAttribute("data-port-id");
-        if (toPortId && toPortId !== d.fromPortId) {
-          // 连接前校验：端口方向冲突拦截（两进/两出），介质规则提示
+        if (toPortId) {
+          // 连接约束由 store 中的新建/重连共用校验执行；介质冲突仅作提示。
           const diag = store.get().diagram;
-          const allPorts = diag.nodes.flatMap((n) => n.ports);
-          const from = allPorts.find((p) => p.id === d.fromPortId);
-          const to = allPorts.find((p) => p.id === toPortId);
-          const fd = from?.direction ?? "bidirectional";
-          const td = to?.direction ?? "bidirectional";
-          if (fd === "in" && td === "in") {
-            toast(t("两个入口不能直连：至少一端应为出口（out）"), "error");
-            return;
-          }
-          if (fd === "out" && td === "out") {
-            toast(t("两个出口不能直连：下游应为入口（in）"), "error");
-            return;
-          }
           const pipe = createPipe(d.fromPortId, toPortId);
           // 介质冲突即时提示（不阻断，由用户决定）
           if (pipe) {
@@ -675,47 +664,38 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
     if (e.button !== 0 || spaceRef.current) return;
     e.stopPropagation();
     selectPipe(pipe.id, e.shiftKey);
-    const exclude = [pipe.fromPortId, pipe.toPortId].filter(Boolean) as string[];
-    dragRef.current = { type: "terminal", pipeId: pipe.id, end, exclude, moved: false };
+    if (!canEdit) return;
+    dragRef.current = { type: "terminal", pipeId: pipe.id, end, startWorld: screenToWorld(e.clientX, e.clientY), moved: false };
     beginWindowDrag(
       (ev) => {
         const d = dragRef.current;
         if (d?.type !== "terminal") return;
         const world = screenToWorld(ev.clientX, ev.clientY);
-        if (!d.moved) {
-          pushHistory();
-          d.moved = true;
-        }
+        if (!d.moved && Math.hypot(world.x - d.startWorld.x, world.y - d.startWorld.y) < 2) return;
+        d.moved = true;
+        const diagram = store.get().diagram;
+        const current = diagram.pipes.find((p) => p.id === d.pipeId);
+        if (!current) return;
         const tol = 16 / store.get().ui.zoom;
-        const cand = nearestPort(store.get().diagram.nodes, world, d.exclude, tol);
-        setSnapPortId(cand?.portId ?? null);
-        const pt = { x: snap(world.x), y: snap(world.y) };
-
-        updateDiagram((draft) => {
-          const p = draft.pipes.find((pp) => pp.id === d.pipeId);
-          if (!p) return;
-          if (d.end === "from") {
-            if (cand) {
-              p.fromPortId = cand.portId;
-              p.fromPoint = undefined;
-            } else {
-              p.fromPortId = undefined;
-              p.fromPoint = pt;
-            }
-          } else {
-            if (cand) {
-              p.toPortId = cand.portId;
-              p.toPoint = undefined;
-            } else {
-              p.toPortId = undefined;
-              p.toPoint = pt;
-            }
-          }
-        }, false);
+        const cand = nearestPort(diagram.nodes, world, [], tol);
+        const error = cand ? validatePipeConnection(
+          diagram,
+          d.end === "from" ? cand.portId : current.fromPortId,
+          d.end === "to" ? cand.portId : current.toPortId,
+          current.id
+        ) : null;
+        const ref = cand && !error ? findPort(diagram.nodes, cand.portId) : null;
+        setTerminalPreview({ pipeId: d.pipeId, end: d.end, point: ref ? portWorldPos(ref.node, ref.port) : { x: snap(world.x), y: snap(world.y) }, portId: cand?.portId, error: error ?? undefined });
       },
-      () => {
+      (ev) => {
+        const d = dragRef.current;
         dragRef.current = null;
-        setSnapPortId(null);
+        setTerminalPreview(null);
+        if (d?.type !== "terminal") return;
+        const world = screenToWorld(ev.clientX, ev.clientY);
+        if (!d.moved && Math.hypot(world.x - d.startWorld.x, world.y - d.startWorld.y) < 2) return;
+        const cand = nearestPort(store.get().diagram.nodes, world, [], 16 / store.get().ui.zoom);
+        reconnectPipeEndpoint(d.pipeId, d.end, cand ? { portId: cand.portId } : { point: { x: snap(world.x), y: snap(world.y) } });
       }
     );
   }
@@ -1058,7 +1038,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           {/* 端口：接头延长线 stub + 进/出口可视化区分（进口=蓝空心+内箭头 / 出口=橙实心+外箭头 / 双向=灰菱形） */}
           {node.ports.map((port) => {
             const local = { top: { x: node.width * (port.offset ?? 0.5), y: 0 }, bottom: { x: node.width * (port.offset ?? 0.5), y: node.height }, left: { x: 0, y: node.height * (port.offset ?? 0.5) }, right: { x: node.width, y: node.height * (port.offset ?? 0.5) } }[port.position];
-            const active = hoverPort === port.id || snapPortId === port.id;
+            const active = hoverPort === port.id || terminalPreview?.portId === port.id;
+            const invalidTarget = terminalPreview?.portId === port.id && !!terminalPreview.error;
             const isPipeEnd = selectedPipeEnds && (selectedPipeEnds.fromPortId === port.id || selectedPipeEnds.toPortId === port.id);
             const dir = port.direction ?? "bidirectional";
             const isIn = dir === "in", isOut = dir === "out";
@@ -1089,7 +1070,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                   <rect x={tx - 3} y={ty - 3} width={6} height={6} transform={`rotate(45 ${tx} ${ty})`} fill="#ffffff" stroke={color} strokeWidth={1.4} pointerEvents="none" />
                 )}
                 {/* 端口圆点画在 stub 末端：出口实心橙 / 进口空心蓝 / 双向空心灰 */}
-                <circle cx={tx} cy={ty} r={active ? 6 : 4.5} fill={isOut ? color : "#ffffff"} stroke={isPipeEnd ? "#ff6a00" : color} strokeWidth={isPipeEnd ? 2.6 : 1.8} pointerEvents="none" />
+                <circle cx={tx} cy={ty} r={active ? 6 : 4.5} fill={isOut ? color : "#ffffff"} stroke={invalidTarget ? "#d64545" : isPipeEnd ? "#ff6a00" : color} strokeWidth={invalidTarget ? 3 : isPipeEnd ? 2.6 : 1.8} pointerEvents="none" />
+                {invalidTarget && <title>{connectionErrorMessage(terminalPreview.error!, lang)}</title>}
                 {isPipeEnd && <circle cx={tx} cy={ty} r={9} fill="none" stroke="#ff6a00" strokeWidth={1.4} opacity={0.7} pointerEvents="none" />}
                 {/* 热区：stub 末端 + 元件边缘各一个（连线锚点仍在边缘，点末端也能起线） */}
                 <circle cx={tx} cy={ty} r={12} fill="transparent" data-port-id={port.id} style={{ cursor: "crosshair", pointerEvents: portVisible ? "all" : "none" }} onMouseDown={(e) => onPortMouseDown(e, node.id, port.id)} onMouseEnter={() => setHoverPort(port.id)} onMouseLeave={() => setHoverPort((h) => (h === port.id ? null : h))} />
@@ -1159,8 +1141,11 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
 
   // 交叉跨线：预计算所有管路折线与外轮廓半宽
   const crossHop = diagram.settings.crossoverHops !== false;
-  // 同步管路缓存到 geometry 模块（必须在渲染管路前调用，确保介质传播从第一帧生效）
-  setCachedPipes(diagram.pipes, diagram.nodes);
+  // 必须在子管路渲染前同步；图纸不变时 UI 重绘/动画帧均不重算。
+  useMemo(() => {
+    setCachedPipes(diagram.pipes, diagram.nodes);
+    flowingPipeIds.current = new Set(diagram.pipes.filter((p) => p.animated && !pipeEffectiveDisabled(p, diagram.nodes)).map((p) => p.id));
+  }, [diagram.pipes, diagram.nodes]);
   const pipePolys: Array<{ pts: Pt[]; halfW: number } | null> = diagram.pipes.map((p) => {
     const pts = pipePolyline(p, diagram.nodes);
     return pts ? { pts, halfW: (p.visualDiameter + 5 + 2.4) / 2 } : null;
@@ -1287,6 +1272,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                 showFluidLabels={diagram.settings.showFluidLabels !== false}
                 showPipeLabels={diagram.settings.showPipeLabels !== false}
                 showFluidColors={diagram.settings.showFluidColors !== false}
+                animationPlaying={!!diagram.settings.globalAnimationPlaying}
                 flowRefMap={flowRefs.current}
                 onPipeBodyMouseDown={onPipeBodyMouseDown}
                 onVertexMouseDown={onVertexMouseDown}
@@ -1340,6 +1326,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                         cy={pt.y}
                         r={11}
                         fill="transparent"
+                        data-pipe-terminal={`${pid}:${i === 0 ? "from" : "to"}`}
                         style={{ cursor: "move" }}
                         onMouseDown={(e) => onTerminalMouseDown(e, diagram.pipes.find((p) => p.id === pid)!, i === 0 ? "from" : "to")}
                       />
@@ -1354,6 +1341,15 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           {connectPreview && (
             <path data-ui="1" d={connectPreview} fill="none" stroke="#2f7fd6" strokeWidth={2.4} strokeDasharray="7 5" pointerEvents="none" />
           )}
+          {terminalPreview && (() => {
+            const pipe = diagram.pipes.find((p) => p.id === terminalPreview.pipeId);
+            if (!pipe) return null;
+            const preview = terminalPreview.end === "from"
+              ? { ...pipe, fromPortId: terminalPreview.error ? undefined : terminalPreview.portId, fromPoint: terminalPreview.point }
+              : { ...pipe, toPortId: terminalPreview.error ? undefined : terminalPreview.portId, toPoint: terminalPreview.point };
+            const pts = pipePolyline(preview, diagram.nodes);
+            return pts && <path data-ui="1" data-terminal-preview={terminalPreview.error ? "invalid" : "valid"} d={pathD(pts)} fill="none" stroke={terminalPreview.error ? "#d64545" : "#2f7fd6"} strokeWidth={2.4} strokeDasharray="7 5" pointerEvents="none" />;
+          })()}
           {/* 对齐参考线 */}
           {(guides.v.length > 0 || guides.h.length > 0) && (
             <g data-ui="1" pointerEvents="none">

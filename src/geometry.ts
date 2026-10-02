@@ -273,7 +273,7 @@ export function valve3EffectivePath(n: DiagramNode): "A" | "B" | "off" {
  *  - "push"：停转泵的出侧 / 关闭阀的下游种子——只顺流向传播；不穿越任何泵
  *    （运行中的泵是独立动力源），不逆向穿过单向元件（单向阀/锅炉/电磁阀），
  *    防止一条液路的停转淹没由其他泵供液的液路；
- *  - "both"：disabled 节点（置灰聚焦），双向。
+ *  - "both"：工程禁用的 disabled 节点，双向；画布淡化 displayDisabled 不参与。
  * 吸收端（排废/源端/储液罐）只标记不穿越；三通非激活支路隔离停流不扩散。
  */
 type FlowPhase = "suck" | "push" | "both";

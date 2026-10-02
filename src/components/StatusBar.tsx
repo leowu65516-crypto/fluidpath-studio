@@ -30,6 +30,7 @@ export function StatusBar() {
       <span className="sb-item">{selText}</span>
       <span className="sb-item">X: {Math.round(ui.mouseWorld.x)} , Y: {Math.round(ui.mouseWorld.y)}</span>
       <span className="sb-item">{t("缩放")} {Math.round(ui.zoom * 100)}%</span>
+      {!diagram.settings.globalAnimationPlaying && <span className="sb-item sb-paused" title={t("动画已暂停；不改变工程判定")}>{t("动画已暂停 · 工程流动仍按工况计算")}</span>}
       <span className="sb-spacer" />
       <span className="sb-item sb-hint" title={`Ctrl+E 快速导出 ${lastExportLabel()}`}>⌨ Ctrl+E → {lastExportLabel()}</span>
       <span className="sb-item">{t("节点")} {diagram.nodes.length} · {t("管路")} {diagram.pipes.length}</span>

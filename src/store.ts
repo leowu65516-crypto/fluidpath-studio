@@ -16,6 +16,7 @@ import type {
 import { createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagram, createMilkFoamDiagram, createCommercialMachineDiagram, createDemoMachineDiagram, createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "./sample";
 import { createNode } from "./symbols";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
+import { connectionErrorMessage, validatePipeConnection } from "./connection";
 import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsToPreset } from "./scenarios";
 import { snapshotStates, applyStates, diffStateIds, type PresetState } from "./presets";
 import { toast } from "./toast";
@@ -1385,16 +1386,10 @@ export function duplicateSelection() {
 }
 
 export function createPipe(fromPortId: string, toPortId: string) {
-  // 校验：不允许一个端口连接多条管路（必须通过三通接头分路）
-  for (const existing of state.diagram.pipes) {
-    if (existing.fromPortId === fromPortId || existing.toPortId === fromPortId) {
-      toast(L(sysLang(), "此端口已被占用，请使用三通接头（T型/Y型）进行分路。", "This port is already used — split with a tee (T/Y) fitting."), "error");
-      return;
-    }
-    if (existing.fromPortId === toPortId || existing.toPortId === toPortId) {
-      toast(L(sysLang(), "此端口已被占用，请使用三通接头（T型/Y型）进行分路。", "This port is already used — split with a tee (T/Y) fitting."), "error");
-      return;
-    }
+  const error = validatePipeConnection(state.diagram, fromPortId, toPortId);
+  if (error) {
+    toast(connectionErrorMessage(error, sysLang()), "error");
+    return;
   }
   const pipe: Pipe = {
     id: uid("pipe"),
@@ -1423,6 +1418,34 @@ export function createPipe(fromPortId: string, toPortId: string) {
   });
   setSelection({ nodes: [], pipes: [pipe.id] });
   return pipe;
+}
+
+/** 重连只在松手后提交一次；无效端口不会把现有端点意外变成游离端点。 */
+export function reconnectPipeEndpoint(pipeId: string, end: "from" | "to", target: { portId?: string; point?: Pt }): boolean {
+  const pipe = state.diagram.pipes.find((p) => p.id === pipeId);
+  if (!pipe || (!target.portId && !target.point)) return false;
+  if (target.portId && target.portId === (end === "from" ? pipe.fromPortId : pipe.toPortId)) return true;
+  if (target.portId) {
+    const fromId = end === "from" ? target.portId : pipe.fromPortId;
+    const toId = end === "to" ? target.portId : pipe.toPortId;
+    const error = validatePipeConnection(state.diagram, fromId, toId, pipeId);
+    if (error) {
+      toast(connectionErrorMessage(error, sysLang()), "error");
+      return false;
+    }
+  }
+  updateDiagram((d) => {
+    const p = d.pipes.find((item) => item.id === pipeId);
+    if (!p) return;
+    if (end === "from") {
+      p.fromPortId = target.portId;
+      p.fromPoint = target.portId ? undefined : target.point;
+    } else {
+      p.toPortId = target.portId;
+      p.toPoint = target.portId ? undefined : target.point;
+    }
+  });
+  return true;
 }
 
 export function zoomAt(clientX: number, clientY: number, factor: number, svgRect: DOMRect) {

@@ -375,7 +375,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         className="tb-btn"
         disabled={!hasSel}
         onClick={() => setSelectionDisabled(true)}
-        title={t("置灰选中")}
+        title={t("只淡化画布，不改变工程状态")}
       >
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v10" />{t("置灰选中")}
       </button>
@@ -383,7 +383,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         className="tb-btn"
         disabled={!hasSel}
         onClick={() => setSelectionDisabled(false)}
-        title={t("取消置灰")}
+        title={t("只淡化画布，不改变工程状态")}
       >
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 9l6 6M15 9l-6 6" />{t("取消置灰")}
       </button>

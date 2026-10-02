@@ -67,8 +67,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true);
+function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const { t } = useT();
   return (
     <div className="insp-section">
@@ -161,8 +161,8 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <button className="btn wide" onClick={duplicateSelection}>{t("复制节点")}</button>
             )}
             <div className="btn-row">
-              <button className="btn wide" onClick={() => setSelectionDisabled(true)}>{t("置灰选中")}</button>
-              <button className="btn wide" onClick={() => setSelectionDisabled(false)}>{t("取消置灰")}</button>
+              <button className="btn wide" title={t("只淡化画布，不改变工程状态")} onClick={() => setSelectionDisabled(true)}>{t("置灰选中")}</button>
+              <button className="btn wide" title={t("只淡化画布，不改变工程状态")} onClick={() => setSelectionDisabled(false)}>{t("取消置灰")}</button>
             </div>
             <button className="btn wide" onClick={() => window.dispatchEvent(new Event("fluidpath:open-advice"))}>🔍 {t("诊断所选范围")}</button>
             <button className="btn danger wide" onClick={deleteSelection}>{t("删除所选")}</button>
@@ -274,15 +274,18 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                     <button className="btn wide" title={t("清除手动折点，让自动走线重新计算（避开障碍）")} onClick={() => batchReroutePipes(ids)}>🔄 {t("批量重路由")}</button>
                     <button className="btn wide" title={t("将平行同向的选中管路在垂直方向等距排列")} onClick={() => distributePipes(ids)}>📐 {t("等距排列")}</button>
                   </div>
-                  <div className="btn-row" style={{ marginTop: 6 }}>
-                    <button className="btn wide" title={t("临时强制这些管路流动（忽略停流判定）")} onClick={() => setPipesForceFlow(ids, true)}>▶ {t("强制流动")}</button>
-                    <button className="btn wide" title={t("取消强制流动")} onClick={() => setPipesForceFlow(ids, false)}>↺ {t("取消流动")}</button>
-                  </div>
-                  <div className="btn-row" style={{ marginTop: 6 }}>
-                    <button className="btn wide" title={t("临时强制这些管路停止流动")} onClick={() => setPipesForceStop(ids, true)}>⏸ {t("强制停止")}</button>
-                    <button className="btn wide" title={t("取消强制停止")} onClick={() => setPipesForceStop(ids, false)}>↺ {t("取消停止")}</button>
-                  </div>
                   <div className="insp-tip">{t("此处修改将一次性应用到所有选中的管路。")}</div>
+                  <Section title={t("教学显示覆盖")} defaultOpen={false}>
+                    <div className="insp-tip teaching-warning">{t("不改变工程判定，不参与验收；仅用于讲解画面。")}</div>
+                    <div className="btn-row" style={{ marginTop: 6 }}>
+                      <button className="btn wide" disabled={ui.mode === "verify" || ui.mode === "fault"} onClick={() => setPipesForceFlow(ids, true)}>▶ {t("教学显示：流动")}</button>
+                      <button className="btn wide" disabled={ui.mode === "verify" || ui.mode === "fault"} onClick={() => setPipesForceFlow(ids, false)}>↺ {t("取消流动覆盖")}</button>
+                    </div>
+                    <div className="btn-row" style={{ marginTop: 6 }}>
+                      <button className="btn wide" disabled={ui.mode === "verify" || ui.mode === "fault"} onClick={() => setPipesForceStop(ids, true)}>⏸ {t("教学显示：停止")}</button>
+                      <button className="btn wide" disabled={ui.mode === "verify" || ui.mode === "fault"} onClick={() => setPipesForceStop(ids, false)}>↺ {t("取消停止覆盖")}</button>
+                    </div>
+                  </Section>
                 </Section>
               );
             })()}
@@ -814,16 +817,18 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <input type="checkbox" checked={pipe.fault === "pipeBlocked"} onChange={(e) => patchPipe(pipe.id, { fault: e.target.checked ? "pipeBlocked" : undefined })} />
                 <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("管路堵塞（停止流动）")}</span>
               </Row>
-              <Row label={t("教学显示覆盖")}>
-                <div className="seg">
-                  <button className={!pipeTeachingOverride(pipe) ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: undefined })}>{t("工程判定")}</button>
-                  <button className={pipeTeachingOverride(pipe) === "flow" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "flow" })}>{t("讲解流动")}</button>
-                  <button className={pipeTeachingOverride(pipe) === "stop" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "stop" })}>{t("讲解停流")}</button>
-                </div>
-              </Row>
-              {pipeTeachingOverride(pipe) && <div className="insp-tip">{t("教学覆盖只影响动画显示；诊断和工程导出仍采用工程有效状态。")}</div>}
               <Row label={t("路径")}>
                 <button className="btn" title={t("清除手动调整的路径点，恢复自动走线")} onClick={() => patchPipe(pipe.id, { points: [] })}>{t("重置走线")}</button>
+              </Row>
+            </Section>
+            <Section title={t("教学显示覆盖")} defaultOpen={false}>
+              <div className="insp-tip teaching-warning">{t("不改变工程判定，不参与验收；仅用于讲解画面。")}</div>
+              <Row label={t("教学显示覆盖")}>
+                <div className="seg">
+                  <button disabled={ui.mode === "verify" || ui.mode === "fault"} className={!pipeTeachingOverride(pipe) ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: undefined })}>{t("工程判定")}</button>
+                  <button disabled={ui.mode === "verify" || ui.mode === "fault"} className={pipeTeachingOverride(pipe) === "flow" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "flow" })}>{t("讲解流动")}</button>
+                  <button disabled={ui.mode === "verify" || ui.mode === "fault"} className={pipeTeachingOverride(pipe) === "stop" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "stop" })}>{t("讲解停流")}</button>
+                </div>
               </Row>
             </Section>
             <Section title={t("操作")}>

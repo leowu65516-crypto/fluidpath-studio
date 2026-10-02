@@ -23,6 +23,9 @@
   --node-label: #41505f;
   --card: #ffffff;
   --card-shadow: 0 1px 3px rgba(20, 32, 48, 0.06);
+  --teaching-bg: #fff8e8;
+  --teaching-border: #e0ac52;
+  --teaching-text: #7d551c;
 }
 
 /* ===== 暗色主题 ===== */
@@ -45,6 +48,9 @@ body[data-theme="dark"] {
   --node-label: #aebccb;
   --card: #24303d;
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --teaching-bg: #3c3325;
+  --teaching-border: #b9904b;
+  --teaching-text: #f0c77e;
   color-scheme: dark;
 }
 
@@ -639,6 +645,17 @@ body {
   color: var(--text-dim);
 }
 
+.insp-tip.teaching-warning {
+  background: var(--teaching-bg);
+  border-color: var(--teaching-border);
+  color: var(--teaching-text);
+}
+
+.seg button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ===== Status bar ===== */
 .statusbar {
   display: flex;
@@ -669,6 +686,13 @@ body {
 
 .sb-saved {
   color: #35894e;
+}
+
+.sb-paused {
+  color: var(--teaching-text);
+  max-width: min(32vw, 300px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sb-hint {

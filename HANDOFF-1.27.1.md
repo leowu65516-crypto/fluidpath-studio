@@ -1,10 +1,26 @@
 # FluidPath Studio 1.27.1 Handoff
 
-## 2026-10-02 local bugfix update — DRAFT / not published
+## 2026-10-02 update — PUBLISHED as 1.28.0 ✅
 
-The **first batch of six bugfixes** requested after the visual/interaction review is complete in the local `main` working copy. The user then explicitly changed the delivery scope to **local code + this handoff only**. Do not push to GitHub, trigger Pages, or claim a new release without a later request. Application version remains `1.27.1` (no release/DMG build in this update).
+The first batch of six bugfixes plus the visual-hierarchy/dark-theme refinement was published to GitHub on 2026-10-02 as application version `1.28.0`. Remote `origin/main` is now `c5126b5` (`feat: refine visual hierarchy and dark theme`).
 
-Local code commit: `b5d8e45` (`fix: validate reconnects and separate flow display states`). The current handoff update is a separate local documentation change. Existing untracked `outputs/` remains untouched and uncommitted.
+Pushed in order (previously local-only commits plus the new visual commit):
+
+1. `e92c98d docs: add publication handoff`
+2. `c0a22e1 docs: record 1.27.1 publication result and final state`
+3. `b5d8e45 fix: validate reconnects and separate flow display states`
+4. `fcea2ba docs: record local first-batch bugfix handoff`
+5. `c5126b5 feat: refine visual hierarchy and dark theme` (bumps `package.json` and `src/version.ts` to 1.28.0, adds changelog entry)
+
+Post-push verification on 2026-10-02:
+
+- `npm run check`: 58 test files passed, 2 skipped; 390 tests passed, 4 skipped.
+- `npm run build`: passed (existing >500 kB chunk advisory persists).
+- GitHub Actions `Check (TypeScript + Tests)`: **success**.
+- GitHub Actions `Deploy to GitHub Pages`: **success**.
+- Deployed bundle version constant: `1.28.0`; no `1.27.1` string remains in the deployed JS.
+- English toolbar at narrow width: `✏️ Edit`, `🎬 Demo`, `✓ Verify`, `⚠ Fault` all fully visible, not truncated; the work-mode group keeps its 352 px minimum width.
+- Untracked `outputs/` remains untouched and uncommitted. No release/DMG build was made for 1.28.0.
 
 ### What changed / 本次修复
 
@@ -25,9 +41,8 @@ Local code commit: `b5d8e45` (`fix: validate reconnects and separate flow displa
 
 ### GitHub state / 后续接手须知
 
-- **No GitHub push was performed for this bugfix.** The last locally known `origin/main` is `d56b06d`; the fresh remote state was **not verified** because direct HTTPS fetch failed (HTTP/2 framing error; HTTP/1.1 retry timed out). This local tracking ref must not be treated as a fresh remote confirmation.
-- Earlier local documentation commits `e92c98d` and `c0a22e1`, plus code commit `b5d8e45` and this handoff update, are local-only. If publication is requested later, first check the real remote head and integrate safely; do not force-push. Historical proxy guidance below is retained for that later task only.
-- No version bump, GitHub Pages deployment, or desktop release artifact was made for this update. Pre-existing Vite deprecation/bundle-size warnings and four skipped tests remain outside this first-batch scope.
+- **Publication was performed on 2026-10-02.** Remote `origin/main` is `c5126b5`. All five local commits listed above are now on the remote; local `main` is in sync (only untracked `outputs/` differs).
+- No release/DMG build exists for 1.28.0. If one is needed, bump nothing in the code and run `npm run package` after verifying `npm run check`; do not commit generated build artifacts unless the repository policy explicitly changes.
 
 ## Historical status (1.27.1 publication on 2026-09-29): PUBLISHED ✅
 

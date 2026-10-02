@@ -822,12 +822,16 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               </Row>
             </Section>
             <Section title={t("教学显示覆盖")} defaultOpen={false}>
-              <div className="insp-tip teaching-warning">{t("不改变工程判定，不参与验收；仅用于讲解画面。")}</div>
-              <Row label={t("教学显示覆盖")}>
+              <div className="insp-tip teaching-warning">
+                <b>{t("教学显示覆盖")}</b>
+                <span>{t("不改变工程判定，不参与验收；仅用于讲解画面。")}</span>
+                {(ui.mode === "verify" || ui.mode === "fault") && <span className="teaching-lock">🔒 {t("验收/故障模式下不可修改教学覆盖")}</span>}
+              </div>
+              <Row label={t("显示状态")}>
                 <div className="seg">
-                  <button disabled={ui.mode === "verify" || ui.mode === "fault"} className={!pipeTeachingOverride(pipe) ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: undefined })}>{t("工程判定")}</button>
-                  <button disabled={ui.mode === "verify" || ui.mode === "fault"} className={pipeTeachingOverride(pipe) === "flow" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "flow" })}>{t("讲解流动")}</button>
-                  <button disabled={ui.mode === "verify" || ui.mode === "fault"} className={pipeTeachingOverride(pipe) === "stop" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "stop" })}>{t("讲解停流")}</button>
+                  <button title={t("工程状态（真实）")} disabled={ui.mode === "verify" || ui.mode === "fault"} className={!pipeTeachingOverride(pipe) ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: undefined })}>{t("工程状态")}</button>
+                  <button title={t("教学显示：显示为流动")} disabled={ui.mode === "verify" || ui.mode === "fault"} className={pipeTeachingOverride(pipe) === "flow" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "flow" })}>{t("显示为流动")}</button>
+                  <button title={t("教学显示：显示为停止")} disabled={ui.mode === "verify" || ui.mode === "fault"} className={pipeTeachingOverride(pipe) === "stop" ? "on" : ""} onClick={() => patchPipe(pipe.id, { teachingOverride: "stop" })}>{t("显示为停止")}</button>
                 </div>
               </Row>
             </Section>

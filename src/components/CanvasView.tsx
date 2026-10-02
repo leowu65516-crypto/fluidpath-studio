@@ -1097,7 +1097,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
               <g className="fp-state-badge">
                 <rect x={8} y={node.height + 24} width={node.width - 16} height={20} rx={10} fill="#f0f4f9" stroke="#b9c6d4" strokeWidth={1} />
                 <rect x={node.valveState === "closed" ? 10 : node.width - 28} y={node.height + 26} width={18} height={16} rx={8} fill={node.valveState === "closed" ? "#d9534f" : "#3fae6a"} stroke="#fff" strokeWidth={1.2} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id); }} />
-                <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={11} fill={node.valveState === "closed" ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none" style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={3}>{node.valveState === "closed" ? t("关") : t("开")}</text>
+                <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={11} fill={node.valveState === "closed" ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none" style={{ paintOrder: "stroke" }} stroke="var(--canvas-label-halo)" strokeWidth={3}>{node.valveState === "closed" ? t("关") : t("开")}</text>
               </g>
             ) : (
               <g className="fp-state-badge">
@@ -1120,7 +1120,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             <g className="fp-state-badge">
               <rect x={8} y={node.height + 24} width={node.width - 16} height={20} rx={10} fill="#f0f4f9" stroke="#b9c6d4" strokeWidth={1} />
               <rect x={node.pumpOn === false ? 10 : node.width - 28} y={node.height + 26} width={18} height={16} rx={8} fill={node.pumpOn === false ? "#d9534f" : "#3fae6a"} stroke="#fff" strokeWidth={1.2} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id); }} />
-              <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={10} fill={node.pumpOn === false ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none" style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={3}>{node.pumpOn === false ? t("停止") : t("运行")}</text>
+              <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={10} fill={node.pumpOn === false ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none" style={{ paintOrder: "stroke" }} stroke="var(--canvas-label-halo)" strokeWidth={3}>{node.pumpOn === false ? t("停止") : t("运行")}</text>
             </g>
           )}
         </g>

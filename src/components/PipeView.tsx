@@ -193,7 +193,7 @@ function PipeViewImpl({
           </g>
         )}
         {/* 管路文字标签（双击就地编辑） */}
-        {showPipeLabels && pipe.label && <text x={mid.pt.x} y={labelY} textAnchor="middle" fontSize={11} fill={disabled ? "#8a9ba8" : "var(--text)"} fontFamily="system-ui, sans-serif" fontWeight={500} stroke="#ffffff" strokeWidth={3} paintOrder="stroke" style={{ cursor: "text" }} data-ui="1" onDoubleClick={(e) => { e.stopPropagation(); onLabelDoubleClick(pipe.id, mid.pt.x, labelY, pipe.label); }}>
+        {showPipeLabels && pipe.label && <text x={mid.pt.x} y={labelY} textAnchor="middle" fontSize={11} fill={disabled ? "#8a9ba8" : "var(--text)"} fontFamily="system-ui, sans-serif" fontWeight={500} stroke="var(--canvas-label-halo)" strokeWidth={3} paintOrder="stroke" style={{ cursor: "text" }} data-ui="1" onDoubleClick={(e) => { e.stopPropagation(); onLabelDoubleClick(pipe.id, mid.pt.x, labelY, pipe.label); }}>
             {`${pipeDisplayLabel(pipe.label, lang ?? "zh")}${pipe.nominalDiameter ? " · " + pipe.nominalDiameter : ""}`}
           </text>}
         {/* 结构问题即时 lint 红点（标签右侧，编辑时实时提示） */}

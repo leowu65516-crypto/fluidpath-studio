@@ -256,18 +256,20 @@ export default function App() {
   if (!gateOk) {
     return <PasswordGate onPass={() => { setGateAuthed(); setGateOk(true); }} />;
   }
+  const modeInfo = mode === "present"
+    ? { icon: "🎬", title: t("演示模式"), summary: t("可拨阀、微调和切换教学步骤"), lock: t("拓扑编辑已锁定") }
+    : mode === "verify"
+      ? { icon: "✓", title: t("验收模式"), summary: t("验收中 · 拓扑已锁定，可摆工况跑验收，切回编辑可修改"), lock: t("禁止手动改到通过") }
+      : mode === "fault"
+        ? { icon: "⚠", title: t("故障模式"), summary: t("选择故障码、绑定排查范围并模拟信号"), lock: t("拓扑编辑已锁定") }
+        : { icon: "✏️", title: t("编辑模式"), summary: t("可修改拓扑、属性和工程状态"), lock: t("全部编辑操作可用") };
   return (
     <ErrorBoundary>
-      <div className="app">
-        {mode === "present" || mode === "verify" || mode === "fault" ? (
-          <div className="mode-banner" data-ui="1">
-            {mode === "present"
-              ? "🎬 " + t("演示中 · 拓扑已锁定，可拨阀/微调，切回编辑可修改")
-              : mode === "verify"
-                ? "🔒 " + t("验收中 · 拓扑已锁定，可摆工况跑验收，切回编辑可修改")
-                : "⚠ " + t("故障模式：拓扑已锁定；可配置代码、关联排查范围并模拟信号")}
-          </div>
-        ) : null}
+      <div className="app" data-mode={mode}>
+        <div className={`mode-banner mode-${mode}`} data-ui="1" data-testid="mode-banner">
+          <span className="mode-banner-main"><b>{modeInfo.icon} {modeInfo.title}</b><span>{modeInfo.summary}</span></span>
+          <span className="mode-banner-lock">{modeInfo.lock}</span>
+        </div>
         <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={() => setShowHelp(true)} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowValidation(false); setShowAdvice((v) => !v); } }} onOpenValidation={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowValidation(true), 0); } else { setShowAdvice(false); setShowValidation((v) => !v); } }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />

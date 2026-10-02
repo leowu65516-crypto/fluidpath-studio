@@ -26,25 +26,28 @@ export function StatusBar() {
   const modeLabel = ui.mode === "present" ? t("演示") : ui.mode === "verify" ? t("验收") : ui.mode === "fault" ? t("故障") : t("编辑");
   return (
     <div className="statusbar">
-      <span className="sb-item sb-mode" title={t("工作模式")}>{modeLabel === t("演示") ? "🎬" : modeLabel === t("验收") ? "✓" : modeLabel === t("故障") ? "⚠" : "✏️"} {modeLabel}</span>
-      <span className="sb-item">{selText}</span>
-      <span className="sb-item">X: {Math.round(ui.mouseWorld.x)} , Y: {Math.round(ui.mouseWorld.y)}</span>
-      <span className="sb-item">{t("缩放")} {Math.round(ui.zoom * 100)}%</span>
-      {!diagram.settings.globalAnimationPlaying && <span className="sb-item sb-paused" title={t("动画已暂停；不改变工程判定")}>{t("动画已暂停 · 工程流动仍按工况计算")}</span>}
-      <span className="sb-spacer" />
-      <span className="sb-item sb-hint" title={`Ctrl+E 快速导出 ${lastExportLabel()}`}>⌨ Ctrl+E → {lastExportLabel()}</span>
-      <span className="sb-item">{t("节点")} {diagram.nodes.length} · {t("管路")} {diagram.pipes.length}</span>
-      <span
-        className="sb-item sb-diag-click"
-        title="结构问题计数（工况提示不参与）· 点击打开回路诊断"
-        onClick={() => window.dispatchEvent(new CustomEvent("fluidpath:open-advice"))}
-        style={{ cursor: "pointer" }}
-      >
-        {diag.errors > 0 && <span style={{ color: "#d64545" }}>⛔ {diag.errors}</span>}
-        {diag.warnings > 0 && <span style={{ color: "#c07b1f" }}>⚠ {diag.warnings}</span>}
-        {diag.errors === 0 && diag.warnings === 0 && <span style={{ color: "#3fae6a" }}>✓ 正常</span>}
-      </span>
-      <span className={`sb-item ${ui.dirty ? "sb-dirty" : "sb-saved"}`}>{ui.dirty ? "● " + t("未保存") : "✓ " + t("已保存")}</span>
+      <div className="statusbar-left">
+        <span className="sb-item sb-mode" title={t("工作模式")}>{modeLabel === t("演示") ? "🎬" : modeLabel === t("验收") ? "✓" : modeLabel === t("故障") ? "⚠" : "✏️"} {modeLabel}</span>
+        <span className="sb-item sb-selected">{selText}</span>
+        {!diagram.settings.globalAnimationPlaying && <span className="sb-item sb-paused" title={t("动画已暂停；不改变工程判定")}>{t("动画已暂停 · 工程流动仍按工况计算")}</span>}
+      </div>
+      <div className="statusbar-right">
+        <span className="sb-item sb-secondary">X: {Math.round(ui.mouseWorld.x)} , Y: {Math.round(ui.mouseWorld.y)}</span>
+        <span className="sb-item sb-zoom">{t("缩放")} {Math.round(ui.zoom * 100)}%</span>
+        <span className="sb-item sb-hint" title={`Ctrl+E 快速导出 ${lastExportLabel()}`}>⌨ Ctrl+E → {lastExportLabel()}</span>
+        <span className="sb-item sb-counts">{t("节点")} {diagram.nodes.length} · {t("管路")} {diagram.pipes.length}</span>
+        <span
+          className="sb-item sb-diag-click"
+          title="结构问题计数（工况提示不参与）· 点击打开回路诊断"
+          onClick={() => window.dispatchEvent(new CustomEvent("fluidpath:open-advice"))}
+          style={{ cursor: "pointer" }}
+        >
+          {diag.errors > 0 && <span className="sb-error">⛔ {diag.errors}</span>}
+          {diag.warnings > 0 && <span className="sb-warning">⚠ {diag.warnings}</span>}
+          {diag.errors === 0 && diag.warnings === 0 && <span className="sb-success">✓ 正常</span>}
+        </span>
+        <span className={`sb-item ${ui.dirty ? "sb-dirty" : "sb-saved"}`}>{ui.dirty ? "● " + t("未保存") : "✓ " + t("已保存")}</span>
+      </div>
     </div>
   );
 }

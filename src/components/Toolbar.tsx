@@ -301,6 +301,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       </button>
       {!collapsed && <>
       <div className="tb-sep" />
+      <div className="tb-group tb-group-file" role="group" aria-label={t("文件")}>
       <button className="tb-btn" title={t("新建")} onClick={() => { if (confirm(t("新建") + "?")) newDiagram(); }}>
         <Icon d="M12 5v14M5 12h14" />{t("新建")}
       </button>
@@ -330,14 +331,18 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       >
         <Icon d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" />{t("保存到本地")}
       </button>
+      </div>
       <div className="tb-sep" />
+      <div className="tb-group tb-group-edit" role="group" aria-label={t("编辑工具")}>
       <button className="tb-btn" disabled={!canUndo()} onClick={undo} title="Undo">
         <Icon d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3" />{t("撤销")}
       </button>
       <button className="tb-btn" disabled={!canRedo()} onClick={redo} title="Redo">
         <Icon d="M15 14l5-5-5-5M20 9H9a5 5 0 0 0 0 10h3" />{t("重做")}
       </button>
+      </div>
       <div className="tb-sep" />
+      <div className="tb-group tb-group-view" role="group" aria-label={t("视图")}>
       <div className="zoom-group">
         <button className="tb-btn sq" onClick={() => setZoomCenter(ui.zoom / 1.2, viewSize().w, viewSize().h)} title={t("缩小")}>−</button>
         <span className="zoom-label" title="100%" onClick={() => setZoomCenter(1, viewSize().w, viewSize().h)}>
@@ -346,7 +351,9 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         <button className="tb-btn sq" onClick={() => setZoomCenter(ui.zoom * 1.2, viewSize().w, viewSize().h)} title={t("放大")}>+</button>
         <button className="tb-btn sq" onClick={() => fitToScreen(viewSize().w, viewSize().h)} title={t("适应画布")}>⊡</button>
       </div>
+      </div>
       <div className="tb-sep" />
+      <div className="tb-group tb-group-run" role="group" aria-label={t("运行")}>
       <button
         className={`tb-btn ${playing ? "active" : ""}`}
         onClick={() =>
@@ -367,6 +374,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" onClick={onOpenScenario} title={t("演示/讲述模式：按场景逐步讲解液路")}>
         <Icon d="M3 5l15 7-15 7zM19 4v16" />{t("演示")}
       </button>
+      </div>
       </>}
       </div>
       {!collapsed && (
@@ -397,6 +405,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" onClick={onOpenHelp} title={t("使用指南")}>
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 9a3 3 0 0 1 6 0c0 3-3 2-3 5M12 17h.01" />{t("使用指南")}
       </button>
+      <div className="tb-group tb-group-check" role="group" aria-label={t("检查") }>
       <button className="tb-btn" onClick={onOpenAdvice} title={t("回路诊断：智能检查液路并给出修改建议")}>
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M12 16.5h.01" />{t("回路诊断")}
       </button>
@@ -413,15 +422,19 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         </button>
         {layerOpen && <LayerPanel onClose={() => setLayerOpen(false)} />}
       </div>
+      </div>
       <div className="tb-sep" />
       {/* 工作模式：编辑 / 演示 / 验收 / 故障排查 */}
+      <div className="tb-group tb-group-mode" role="group" aria-label={t("工作模式") }>
       <div className="tb-mode seg" role="group" aria-label={t("工作模式")}>
         <button aria-pressed={mode === "edit"} className={mode === "edit" ? "on" : ""} title={t("编辑模式：画图、接线、属性编辑")} onClick={() => setWorkMode("edit")}>✏️ {t("编辑")}</button>
         <button aria-pressed={mode === "present"} className={mode === "present" ? "on" : ""} title={t("演示模式：收起面板，按场景步骤讲解")} onClick={() => setWorkMode("present")}>🎬 {t("演示")}</button>
         <button aria-pressed={mode === "verify"} className={mode === "verify" ? "on" : ""} title={t("验收模式：工况快照与验收矩阵")} onClick={() => setWorkMode("verify")}>✓ {t("验收")}</button>
         <button data-testid="mode-fault" aria-pressed={mode === "fault"} className={mode === "fault" ? "on" : ""} title={t("故障模式：拓扑已锁定；可配置代码、关联排查范围并模拟信号")} onClick={() => setWorkMode("fault")}>⚠ {t("故障")}</button>
       </div>
+      </div>
       <div className="tb-sep" />
+      <div className="tb-group tb-group-output" role="group" aria-label={t("输出") }>
       <button className="tb-btn" data-testid="lang-toggle" onClick={() => setLang(lang === "zh" ? "en" : "zh")} title="中 / EN">
         {lang === "zh" ? "EN" : "中"}
       </button>
@@ -458,6 +471,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
             <button className="export-item" onClick={() => doExport("share")}><span className="export-badge">🔗</span> 分享链接<small>复制即用</small></button>
           </div>
         )}
+      </div>
       </div>
       </div>
       )}

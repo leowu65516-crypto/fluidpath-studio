@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.27.1";
+export const APP_VERSION = "1.28.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.28.0",
+    date: "2026-10-02",
+    highlights: [
+      "重组工具栏为文件、编辑、视图、运行、检查、输出分组，降低入口密度并保留两行布局",
+      "四种工作模式使用差异化视觉重心，模式横幅明确当前允许操作与锁定范围；状态栏拆分为模式/选择与缩放/诊断/保存两端信息",
+      "教学显示覆盖改为明确的工程状态与显示覆盖文案，验收/故障模式锁定覆盖操作；状态色和节点预览背景接入暗色主题变量",
+    ],
+  },
   {
     version: "1.27.1",
     date: "2026-09-29",

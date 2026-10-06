@@ -19,7 +19,7 @@ import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, setWorkMode, useAppState } from "./store";
 import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath } from "./store";
-import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave } from "./store";
+import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave, recordSavedAt } from "./store";
 import type { AutosaveVersion } from "./store";
 import { decompressDiagram, parseDiagramJSON, saveJSONFile } from "./export";
 import { getBinding, matchKeys } from "./shortcuts";
@@ -32,6 +32,9 @@ const ARROW_DELTA: Record<string, [number, number]> = {
   ArrowUp: [0, -1],
   ArrowDown: [0, 1]
 };
+
+const HELP_SEEN_KEY = "fluidpath.help.seen.v1";
+const RECOVERY_DISMISSED_KEY = (id: string) => `fluidpath.autosave.dismissed.v1.${id}`;
 
 export default function App() {
   const { t } = useT();
@@ -62,6 +65,7 @@ export default function App() {
     const onClose = () => {
       const d = store.get().diagram;
       if (d.nodes.length === 0 && !store.get().ui.dirty) {
+        recordSavedAt(d.id);
         api.confirmClose?.();
       } else {
         setClosePrompt(true);
@@ -72,16 +76,26 @@ export default function App() {
   useEffect(() => {
     const id = lastEditedDiagramId();
     if (id) {
-      const pending = pendingAutosave(id);
+      let dismissedTs = 0;
+      try { dismissedTs = Number(localStorage.getItem(RECOVERY_DISMISSED_KEY(id)) ?? 0); } catch { /* ignore */ }
+      const pending = pendingAutosave(id).filter((v) => v.ts > dismissedTs);
       if (pending.length > 0) setRecover({ id, versions: pending });
     }
-    const onUnload = () => flushAutosave(store.get().diagram);
+    const onUnload = () => {
+      const d = store.get().diagram;
+      flushAutosave(d);
+      // 正常关闭时写入基准；崩溃不会触发 beforeunload，下一次仍可恢复。
+      recordSavedAt(d.id);
+    };
     window.addEventListener("beforeunload", onUnload);
     return () => window.removeEventListener("beforeunload", onUnload);
   }, []);
-  // 启动即空白工作台（不弹欢迎页）；自动打开「使用指南」方便新用户
+  // 启动即空白工作台（不弹欢迎页）；仅首次使用自动打开「使用指南」
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
   useEffect(() => {
+    let seen = false;
+    try { seen = localStorage.getItem(HELP_SEEN_KEY) === "1"; } catch { /* ignore */ }
+    if (seen) return;
     const timer = setTimeout(() => setShowHelp(true), 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -224,6 +238,18 @@ export default function App() {
     try { localStorage.setItem("fluidpath.welcomed", "1"); } catch { /* ignore */ }
   }
 
+  function openHelp() { setShowHelp(true); }
+  function closeHelp() {
+    setShowHelp(false);
+    try { localStorage.setItem(HELP_SEEN_KEY, "1"); } catch { /* ignore */ }
+  }
+
+  function dismissRecovery() {
+    if (!recover) return;
+    try { localStorage.setItem(RECOVERY_DISMISSED_KEY(recover.id), String(recover.versions[0]?.ts ?? Date.now())); } catch { /* ignore */ }
+    setRecover(null);
+  }
+
   async function handleCloseSave() {
     const d = store.get().diagram;
     const api = (window as unknown as { electron?: { saveJsonDialog?: (payload: { json: string; defaultName: string }) => Promise<{ saved: boolean; path?: string }>; confirmClose?: () => void } }).electron;
@@ -237,15 +263,17 @@ export default function App() {
       }
     } catch { /* ignore */ }
     setClosePrompt(false);
+    recordSavedAt(d.id);
     api?.confirmClose?.();
   }
   function handleCloseNoSave() {
+    recordSavedAt(store.get().diagram.id);
     setClosePrompt(false);
     (window as unknown as { electron?: { confirmClose?: () => void } }).electron?.confirmClose?.();
   }
 
   function handleWelcomeAction(id: string) {
-    if (id === "help") { closeWelcome(); setShowHelp(true); return; }
+    if (id === "help") { closeWelcome(); openHelp(); return; }
     if (id === "new") newDiagram();
     else if (id === "semi") insertTemplate("半自动咖啡机（双锅炉）");
     else if (id === "full") insertTemplate("全自动商用咖啡机");
@@ -270,7 +298,7 @@ export default function App() {
           <span className="mode-banner-main"><b>{modeInfo.icon} {modeInfo.title}</b><span>{modeInfo.summary}</span></span>
           <span className="mode-banner-lock">{modeInfo.lock}</span>
         </div>
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={() => setShowHelp(true)} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowValidation(false); setShowAdvice((v) => !v); } }} onOpenValidation={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowValidation(true), 0); } else { setShowAdvice(false); setShowValidation((v) => !v); } }} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowValidation(false); setShowAdvice((v) => !v); } }} onOpenValidation={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowValidation(true), 0); } else { setShowAdvice(false); setShowValidation((v) => !v); } }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <CanvasView svgRefOut={svgRef} />
@@ -295,7 +323,7 @@ export default function App() {
         }}
       />
       {showWelcome && <WelcomePanel onClose={closeWelcome} onAction={handleWelcomeAction} />}
-      {showHelp && <HelpPanel onClose={() => setShowHelp(false)} />}
+      {showHelp && <HelpPanel onClose={closeHelp} />}
       {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} onOpenSettings={() => { setShowShortcuts(false); setShowShortcutSettings(true); }} />}
       {showSearch && <SearchPanel onClose={() => setShowSearch(false)} />}
       {showShortcutSettings && <ShortcutSettings onClose={() => setShowShortcutSettings(false)} />}
@@ -317,23 +345,24 @@ export default function App() {
       )}
       {recover && !recoverHistory && (
         <div className="recover-banner" data-ui="1">
-          <span>💾 检测到未保存的自动备份（{recover.versions.length} 个版本，{new Date(recover.versions[0].ts).toLocaleTimeString()}）</span>
-          <button className="btn" onClick={() => { restoreAutosaveVersion(recover.id, 0); clearAutosave(recover.id); setRecover(null); }}>恢复最新</button>
-          <button className="btn ghost" onClick={() => setRecoverHistory(true)}>查看历史</button>
-          <button className="btn ghost" onClick={() => { clearAutosave(recover.id); setRecover(null); }}>丢弃</button>
+          <span>💾 {t("检测到未保存的自动备份")}（{recover.versions.length} {t("个版本")}，{new Date(recover.versions[0].ts).toLocaleTimeString()}）</span>
+          <button className="btn" onClick={() => { restoreAutosaveVersion(recover.id, 0); clearAutosave(recover.id); setRecover(null); }}>{t("恢复最新")}</button>
+          <button className="btn ghost" onClick={() => setRecoverHistory(true)}>{t("查看历史")}</button>
+          <button className="btn ghost" onClick={() => { clearAutosave(recover.id); setRecover(null); }}>{t("丢弃")}</button>
+          <button className="recover-dismiss" onClick={dismissRecovery} title={t("本次关闭恢复提示")} aria-label={t("关闭")}>×</button>
         </div>
       )}
       {/* 自动保存版本历史（预留：最多 5 份） */}
       {recover && recoverHistory && (
         <div className="recover-modal" data-ui="1">
-          <div className="recover-modal-title">📚 自动备份版本历史</div>
+          <div className="recover-modal-title">📚 {t("自动备份版本历史")}</div>
           {recover.versions.map((v, i) => (
             <button key={i} className="recover-version" onClick={() => { restoreAutosaveVersion(recover.id, i); clearAutosave(recover.id); setRecover(null); setRecoverHistory(false); }}>
               <span className="recover-ts">{new Date(v.ts).toLocaleString()}</span>
-              <span className="recover-meta">{v.diagram.nodes.length} 节点 · {v.diagram.pipes.length} 管路</span>
+              <span className="recover-meta">{v.diagram.nodes.length} {t("节点")} · {v.diagram.pipes.length} {t("管路")}</span>
             </button>
           ))}
-          <button className="btn ghost" style={{ width: "100%", marginTop: 8 }} onClick={() => setRecoverHistory(false)}>← 返回</button>
+          <button className="btn ghost" style={{ width: "100%", marginTop: 8 }} onClick={() => setRecoverHistory(false)}>← {t("返回")}</button>
         </div>
       )}
     </ErrorBoundary>

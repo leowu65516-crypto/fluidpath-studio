@@ -27,9 +27,17 @@ app.whenReady().then(async () => {
   });
 
   await win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+  // Reset the first-run marker so the recovery/help behavior is deterministic in CI.
+  await win.webContents.executeJavaScript("localStorage.removeItem('fluidpath.help.seen.v1'); localStorage.removeItem('fluidpath.lastDiagramId'); location.reload();");
+  await new Promise((r) => setTimeout(r, 500));
+  const firstRunHelp = await win.webContents.executeJavaScript("!!document.querySelector('.help-panel')");
   await new Promise((r) => setTimeout(r, 1800));
   await win.webContents.executeJavaScript("document.querySelector('.help-close')?.click()");
   await new Promise((r) => setTimeout(r, 80));
+  const helpSeen = await win.webContents.executeJavaScript("localStorage.getItem('fluidpath.help.seen.v1') === '1'");
+  await win.reload();
+  await new Promise((r) => setTimeout(r, 500));
+  const repeatRunHelp = await win.webContents.executeJavaScript("!!document.querySelector('.help-panel')");
 
   const result = await win.webContents.executeJavaScript(`
     (() => ({
@@ -89,11 +97,13 @@ app.whenReady().then(async () => {
   fs.writeFileSync("/tmp/fluidpath-mode-en-512.png", screenshot.toPNG());
 
   console.log("SMOKE_RESULT " + JSON.stringify(result));
+  console.log("SMOKE_HELP_MEMORY " + JSON.stringify({ firstRunHelp, helpSeen, repeatRunHelp }));
   console.log("SMOKE_FAULT_MODE " + JSON.stringify(faultMode));
   console.log("SMOKE_ENGLISH_MODES " + JSON.stringify(compactMode));
   console.log("SMOKE_CONSOLE_ERRORS " + JSON.stringify(consoleErrors));
 
   const ok = result.rootChildren > 0 && result.hasApp && result.hasCanvas
+    && firstRunHelp && helpSeen && !repeatRunHelp
     && faultMode.foundModeButton && faultMode.active && faultMode.panel && faultMode.aiTopbarButtons === 0
     && compactMode.found && compactMode.groupVisible && compactMode.unclipped
     && compactMode.labels.join("|") === "✏️ Edit|🎬 Demo|✓ Verify|⚠ Fault";

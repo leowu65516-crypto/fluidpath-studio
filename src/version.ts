@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.28.0";
+export const APP_VERSION = "1.29.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.29.0",
+    date: "2026-10-03",
+    highlights: [
+      "修复自动保存恢复横幅重复出现、空白图纸生成幽灵备份和正常关闭未写入基准的问题；支持关闭并记住当前恢复提示",
+      "使用指南只在首次使用自动打开；英文界面补齐导出、快捷键、故障、场景、分享和状态栏文案，并修正元件库分组提示",
+      "修复英文界面模板下拉框截断，新增空白工作台自动保存回归测试并扩展英文面板无中文残留检查",
+    ],
+  },
   {
     version: "1.28.0",
     date: "2026-10-02",

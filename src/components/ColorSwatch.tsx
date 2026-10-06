@@ -1,3 +1,5 @@
+import { useT } from "../i18n";
+
 /** 预设色块 + 自定义取色 的颜色选择器（用于液体色/管壁色可视化选择） */
 
 interface Props {
@@ -7,6 +9,7 @@ interface Props {
 }
 
 export function ColorSwatch({ value, presets, onChange }: Props) {
+  const { t } = useT();
   const normalized = (value.length === 9 ? value.slice(0, 7) : value).toLowerCase();
   return (
     <div className="color-swatch-row">
@@ -20,7 +23,7 @@ export function ColorSwatch({ value, presets, onChange }: Props) {
           onClick={() => onChange(c)}
         />
       ))}
-      <label className="color-swatch-custom" title="自定义颜色">
+      <label className="color-swatch-custom" title={t("自定义颜色")}>
         <input
           type="color"
           value={value.length === 9 ? value.slice(0, 7) : value}

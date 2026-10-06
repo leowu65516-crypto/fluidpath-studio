@@ -20,7 +20,7 @@ export function ShortcutSettings({ onClose }: { onClose: () => void }) {
       const keys = eventToKeys(e);
       const conflict = findBindingConflict(keys, recordingId);
       if (conflict) {
-        setWarning(`⚠️ "${keys}" 已被「${conflict.label}」使用`);
+        setWarning(`⚠️ "${keys}" ${t("已被快捷键占用")}「${t(conflict.label)}」`);
       } else {
         setWarning(null);
         setBinding(recordingId, keys);
@@ -54,7 +54,7 @@ export function ShortcutSettings({ onClose }: { onClose: () => void }) {
         <div style={{ padding: "12px 20px", overflowY: "auto", flex: 1 }}>
           {recordingId && (
             <div style={{ marginBottom: 12, padding: "10px 14px", background: "var(--accent-soft)", border: "1px solid var(--accent)", borderRadius: 8, color: "var(--text)", fontSize: 13 }}>
-              🎯 {t("正在为")}「{SHORTCUT_DEFS.find((d) => d.id === recordingId)?.label}」{t("录制新快捷键… 请按组合键（Esc 取消）")}
+              🎯 {t("正在为")}「{t(SHORTCUT_DEFS.find((d) => d.id === recordingId)?.label ?? "") }」{t("录制新快捷键… 请按组合键（Esc 取消）")}
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -67,12 +67,12 @@ export function ShortcutSettings({ onClose }: { onClose: () => void }) {
                   borderRadius: 8, background: isRecording ? "var(--accent-soft)" : "transparent",
                   border: isRecording ? "1px solid var(--accent)" : "1px solid transparent",
                 }}>
-                  <span style={{ flex: 1, fontSize: 13, color: "var(--text)" }}>{def.label}</span>
+                  <span style={{ flex: 1, fontSize: 13, color: "var(--text)" }}>{t(def.label)}</span>
                   <kbd style={{
                     fontSize: 12, background: "var(--surface-2)", border: "1px solid var(--border)",
                     borderRadius: 5, padding: "2px 8px", color: "var(--text)", fontFamily: "monospace",
                     minWidth: 60, textAlign: "center",
-                  }}>{binding || "（未绑定）"}</kbd>
+                  }}>{binding || t("未绑定")}</kbd>
                   {isRecording ? (
                     <span style={{ fontSize: 12, color: "var(--accent)" }}>{t("录制新快捷键… 请按组合键（Esc 取消）")}</span>
                   ) : (
@@ -83,7 +83,7 @@ export function ShortcutSettings({ onClose }: { onClose: () => void }) {
                       >{t("录制")}</button>
                       <button
                         onClick={() => { resetBinding(def.id); refresh(); }}
-                        title="恢复默认"
+                        title={t("恢复默认")}
                         style={{ fontSize: 12, padding: "3px 8px", borderRadius: 5, border: "1px solid transparent", background: "transparent", color: "var(--text-dim)", cursor: "pointer" }}
                       >↺</button>
                     </>

@@ -15,6 +15,9 @@ import { Toolbar } from "../components/Toolbar";
 import { Library } from "../components/Library";
 import { Inspector } from "../components/Inspector";
 import { ContextMenu } from "../components/ContextMenu";
+import { ExportDialog } from "../components/ExportDialog";
+import { ShortcutsPanel } from "../components/ShortcutsPanel";
+import { ShortcutSettings } from "../components/ShortcutSettings";
 import { loadDiagram, store } from "../store";
 import { knowledgeOf } from "../knowledge";
 import { collectAdvice } from "../advice";
@@ -113,6 +116,20 @@ describe("英文模式主要面板无中文残留", () => {
     ];
     const { container } = renderEn(<ContextMenu x={10} y={10} items={items as never} onClose={() => undefined} />);
     expectNoChinese(container, "ContextMenu(sample)");
+  });
+
+  it("ExportDialog + ShortcutsPanel 英文无中文", () => {
+    const d = enMiniDiagram();
+    loadDiagram(d);
+    const svgRef = { current: null } as React.MutableRefObject<SVGSVGElement | null>;
+    const exp = renderEn(<ExportDialog svgRef={svgRef} initialFormat="png" onClose={() => undefined} />);
+    expectNoChinese(exp.container, "ExportDialog");
+    exp.unmount();
+    const shortcuts = renderEn(<ShortcutsPanel onClose={() => undefined} onOpenSettings={() => undefined} />);
+    expectNoChinese(shortcuts.container, "ShortcutsPanel");
+    shortcuts.unmount();
+    const settings = renderEn(<ShortcutSettings onClose={() => undefined} />);
+    expectNoChinese(settings.container, "ShortcutSettings");
   });
 
   it("知识库英文条目无中文", () => {

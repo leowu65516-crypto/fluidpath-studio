@@ -111,6 +111,8 @@ function persistAutosave(diagram: Diagram) {
 /** 立即落盘（beforeunload 时调用，防止退出丢最新改动） */
 export function flushAutosave(diagram: Diagram) {
   if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
+  // 空白工作台没有可恢复内容，不能写入一份会在下次启动时误报的备份。
+  if (!diagram.id || diagram.nodes.length === 0) return;
   persistAutosave(diagram);
   void writeFileAutosave(diagram);
 }

@@ -226,8 +226,8 @@ function PipeViewImpl({
       {pipe.fault === "pipeBlocked" && (
         <g data-ui="1" pointerEvents="none">
           <circle cx={mid.pt.x} cy={mid.pt.y - (wallW + 34)} r={8} fill="#d64545" stroke="#ffffff" strokeWidth={1.5} />
-          <text x={mid.pt.x} y={mid.pt.y - (wallW + 34) + 4} textAnchor="middle" fontSize={11} fontWeight={800} fill="#ffffff" fontFamily="system-ui, sans-serif">堵</text>
-          <title>管路堵塞（故障模拟）</title>
+          <text x={mid.pt.x} y={mid.pt.y - (wallW + 34) + 4} textAnchor="middle" fontSize={11} fontWeight={800} fill="#ffffff" fontFamily="system-ui, sans-serif">×</text>
+          <title>{lang === "en" ? "Pipe blocked (fault simulation)" : "管路堵塞（故障模拟）"}</title>
         </g>
       )}
       {/* 介质冲突感叹号（点击逐条修复，导出时剔除） */}

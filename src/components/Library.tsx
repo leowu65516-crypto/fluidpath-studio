@@ -69,7 +69,7 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
   return (
     <div className={`library${collapsed ? " collapsed" : ""}`}>
       <div className={`panel-title${collapsed ? " vertical" : ""}`}>
-        <button className="panel-toggle" onClick={onToggle} title={collapsed ? "展开元件库" : "折叠元件库"} aria-label={collapsed ? "展开元件库" : "折叠元件库"}>
+        <button className="panel-toggle" onClick={onToggle} title={collapsed ? t("展开元件库") : t("折叠元件库")} aria-label={collapsed ? t("展开元件库") : t("折叠元件库")}>
           {collapsed ? "▶" : "◀"}
         </button>
         {!collapsed && <span>{t("元件库")}</span>}
@@ -103,7 +103,7 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
             const closed = closedGroups.has(group.name);
             return (
               <div key={group.name} className="lib-group">
-                <div className="lib-group-title" onClick={() => toggleGroup(group.name)} title={closed ? t("展开工具栏") : t("折叠工具栏")}>
+                <div className="lib-group-title" onClick={() => toggleGroup(group.name)} title={closed ? t("展开分组") : t("折叠分组")}>
                   <span className={`lib-group-caret${closed ? " closed" : ""}`}>▾</span>
                   {t(group.name)}
                   <span className="lib-group-count">{group.items.length}</span>

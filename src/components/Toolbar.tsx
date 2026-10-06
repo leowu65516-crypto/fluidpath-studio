@@ -139,7 +139,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         } else {
           const link = buildShareLink(diagram);
           navigator.clipboard.writeText(link).then(() => {
-            alert("✅ 分享链接已复制！发送给他人即可打开图纸。\n\n" + link.slice(0, 80) + "…");
+            alert(`${t("✅ 分享链接已复制！发送给他人即可打开图纸。")}\n\n` + link.slice(0, 80) + "…");
           }).catch(() => { setShareFallback(link); });
         }
         break;
@@ -197,13 +197,13 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         const pipeCount = d.pipes?.length ?? 0;
         // 检测大图
         if (nodeCount + pipeCount > 40) {
-          tips.push(`📐 大图纸（${nodeCount}元件 + ${pipeCount}管路）：右下角缩略图可快速导航，滚轮缩放，拖拽平移`);
+          tips.push(`${t("📐 大图纸提示")}（${nodeCount} ${t("元件")} + ${pipeCount} ${t("管路")}）：${t("右下角缩略图可快速导航，滚轮缩放，拖拽平移")}`);
         }
         // 检测多种介质
         if (d.pipes?.length) {
           const fluidTypes = new Set(d.pipes.map((p: any) => p.fluidType).filter(Boolean));
           if (fluidTypes.size >= 3) {
-            tips.push(`🎨 检测到 ${fluidTypes.size} 种介质 → 右键画布可「生成自动图例」`);
+            tips.push(`${t("🎨 检测到多种介质提示")} ${fluidTypes.size} ${t("种介质")} → ${t("右键画布可生成自动图例")}`);
           }
         }
         // 检测演示模式可用性
@@ -211,7 +211,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
           n.type === "solenoid2" || n.type === "solenoid3" || n.type === "pump" || n.type === "milkPump" || n.type === "airPump"
         );
         if (hasValves) {
-          tips.push(`🎬 含电磁阀/泵 → 工具栏「演示模式」可逐步讲解液路原理`);
+          tips.push(`${t("🎬 含阀泵提示")} → ${t("工具栏演示模式可逐步讲解液路原理")}`);
         }
         if (tips.length) {
           setPostLoadTip(tips.join("\n"));
@@ -334,10 +334,10 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       </div>
       <div className="tb-sep" />
       <div className="tb-group tb-group-edit" role="group" aria-label={t("编辑工具")}>
-      <button className="tb-btn" disabled={!canUndo()} onClick={undo} title="Undo">
+      <button className="tb-btn" disabled={!canUndo()} onClick={undo} title={t("撤销")}>
         <Icon d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3" />{t("撤销")}
       </button>
-      <button className="tb-btn" disabled={!canRedo()} onClick={redo} title="Redo">
+      <button className="tb-btn" disabled={!canRedo()} onClick={redo} title={t("重做")}>
         <Icon d="M15 14l5-5-5-5M20 9H9a5 5 0 0 0 0 10h3" />{t("重做")}
       </button>
       </div>
@@ -435,7 +435,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       </div>
       <div className="tb-sep" />
       <div className="tb-group tb-group-output" role="group" aria-label={t("输出") }>
-      <button className="tb-btn" data-testid="lang-toggle" onClick={() => setLang(lang === "zh" ? "en" : "zh")} title="中 / EN">
+      <button className="tb-btn" data-testid="lang-toggle" onClick={() => setLang(lang === "zh" ? "en" : "zh")} title={t("切换语言")}>
         {lang === "zh" ? "EN" : "中"}
       </button>
       <button className="tb-btn" onClick={toggleFullscreen} title={fullscreen ? t("退出全屏") : t("全屏")}>
@@ -445,10 +445,10 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <div className="tb-sep" />
       {/* 导出下拉菜单 */}
       <div className="export-dropdown" ref={exportRef}>
-        <button className="tb-btn export-main" onClick={() => { setExportOpen(false); setExportDialogFmt(lastExport); }} title={`打开导出预览（上次格式 ${lastExport.toUpperCase()}）· Ctrl+E 快速导出 · 点击 ▼ 选择格式`}>
+        <button className="tb-btn export-main" onClick={() => { setExportOpen(false); setExportDialogFmt(lastExport); }} title={`${t("打开导出预览")} (${lastExport.toUpperCase()}) · ${t("Ctrl+E 快速导出")} · ${t("点击下拉选择格式")} `}>
           <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />{t("导出")} {lastExport.toUpperCase()}
         </button>
-        <button className={`tb-btn sq export-toggle ${exportOpen ? "active" : ""}`} onClick={(e) => { menuRectFrom(e.currentTarget); setExportOpen(!exportOpen); }} title="选择导出格式">▼</button>
+        <button className={`tb-btn sq export-toggle ${exportOpen ? "active" : ""}`} onClick={(e) => { menuRectFrom(e.currentTarget); setExportOpen(!exportOpen); }} title={t("选择导出格式")}>▼</button>
         {exportOpen && (
           <div className="export-menu" data-ui="1" style={{ position: "fixed", top: menuPos.top, right: menuPos.right, marginTop: 0 }}>
             <div className="export-options" onClick={(e) => e.stopPropagation()}>
@@ -459,16 +459,16 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
               <label><input type="checkbox" checked={diagram.settings.showFluidColors !== false} onChange={(e) => updateDiagram((d) => { d.settings.showFluidColors = e.target.checked; }, false)} /> {t("显示介质颜色")}</label>
             </div>
             <hr />
-            <button className="export-item" onClick={() => doExport("pdf")}><span className="export-badge">📄</span> PDF 文档<small>{t("预览 · 可调背景与留白")}</small></button>
+            <button className="export-item" onClick={() => doExport("pdf")}><span className="export-badge">📄</span> {t("PDF 文档")}<small>{t("预览 · 可调背景与留白")}</small></button>
             <button className="export-item" onClick={() => doExport("gif")} disabled={gifProgress !== null}><span className="export-badge">🎞️</span> GIF {t("动图")}<small>{gifProgress !== null ? `${t("生成中")} ${Math.round(gifProgress * 100)}%…` : t("预览 · 可调尺寸与速度")}</small></button>
-            <button className="export-item" onClick={() => doExport("jpg")}><span className="export-badge">🖼️</span> JPG 图片<small>高压缩 · 用于文档</small></button>
+            <button className="export-item" onClick={() => doExport("jpg")}><span className="export-badge">🖼️</span> {t("JPG 图片")}<small>{t("高压缩 · 用于文档")}</small></button>
             <hr />
-            <button className="export-item" onClick={() => doExport("png")}><span className="export-badge">🖼️</span> PNG 图片<small>{t("预览 · 可调字号与图例")}</small></button>
-            <button className="export-item" onClick={() => doExport("svg")}><span className="export-badge">📐</span> SVG 矢量<small>{t("可编辑 · 无限缩放")}</small></button>
+            <button className="export-item" onClick={() => doExport("png")}><span className="export-badge">🖼️</span> {t("PNG 图片")}<small>{t("预览 · 可调字号与图例")}</small></button>
+            <button className="export-item" onClick={() => doExport("svg")}><span className="export-badge">📐</span> {t("SVG 矢量")}<small>{t("可编辑 · 无限缩放")}</small></button>
             <hr />
-            <button className="export-item" onClick={() => doExport("json")}><span className="export-badge">💾</span> 工程文件 (.json)<small>完整数据</small></button>
-            <button className="export-item" onClick={() => doExport("engineering-json")}><span className="export-badge">🛡️</span> 工程 JSON<small>不含教学显示覆盖</small></button>
-            <button className="export-item" onClick={() => doExport("share")}><span className="export-badge">🔗</span> 分享链接<small>复制即用</small></button>
+            <button className="export-item" onClick={() => doExport("json")}><span className="export-badge">💾</span> {t("工程文件 (.json)")}<small>{t("完整数据")}</small></button>
+            <button className="export-item" onClick={() => doExport("engineering-json")}><span className="export-badge">🛡️</span> {t("工程 JSON")}<small>{t("不含教学显示覆盖")}</small></button>
+            <button className="export-item" onClick={() => doExport("share")}><span className="export-badge">🔗</span> {t("分享链接")}<small>{t("复制即用")}</small></button>
           </div>
         )}
       </div>
@@ -484,11 +484,11 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       )}
       {importOpen && (
         <PromptDialog
-          title="导入分享码"
-          label="粘贴接收到的分享码，点确定打开图纸"
+          title={t("导入分享码")}
+          label={t("粘贴接收到的分享码，点确定打开图纸")}
           multiline
-          placeholder="粘贴分享码…"
-          submitLabel="导入"
+          placeholder={t("粘贴分享码…")}
+          submitLabel={t("导入")}
           onSubmit={(code) => {
             try {
               loadDiagram(decompressDiagram(code));
@@ -501,11 +501,11 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       )}
       {shareFallback !== null && (
         <PromptDialog
-          title="复制失败，请手动复制"
-          label="自动复制失败，请全选下面内容手动复制（Ctrl/Cmd+A → C）"
+          title={t("复制失败，请手动复制")}
+          label={t("自动复制失败，请全选下面内容手动复制（Ctrl/Cmd+A → C）")}
           multiline
           defaultValue={shareFallback}
-          submitLabel="完成"
+          submitLabel={t("完成")}
           onSubmit={() => {}}
           onClose={() => setShareFallback(null)}
         />

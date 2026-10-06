@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { loadDiagram, updateDiagram, store, flushAutosave, getAutosaveVersions, restoreAutosaveVersion, recordSavedAt, pendingAutosave, clearAutosave } from "../store";
+import { loadDiagram, newDiagram, updateDiagram, store, flushAutosave, getAutosaveVersions, restoreAutosaveVersion, recordSavedAt, pendingAutosave, clearAutosave } from "../store";
 import { traceFunctionalChain } from "../functionalChain";
 import { parseDiagramJSON } from "../export";
 import bcmtsRaw from "../../BCMTS.json";
@@ -33,6 +33,14 @@ describe("元件→整机功能链", () => {
 });
 
 describe("自动保存 / 崩溃恢复", () => {
+  it("空白工作台退出不会生成伪恢复备份", () => {
+    newDiagram();
+    const id = store.get().diagram.id;
+    clearAutosave(id);
+    flushAutosave(store.get().diagram);
+    expect(getAutosaveVersions(id)).toEqual([]);
+  });
+
   it("flushAutosave 保存版本 → 恢复 → 记录保存时间后无待恢复", () => {
     const d = toDiagram(bcmtsRaw);
     loadDiagram(d);

@@ -567,6 +567,9 @@ body {
   background: var(--input-bg);
 }
 
+/* English labels such as "Choose template…" need a stable readable width. */
+.template-row .insp-ctrl { min-width: 118px; }
+
 .insp-ctrl input:focus,
 .insp-ctrl select:focus {
   outline: none;
@@ -1698,6 +1701,11 @@ body[data-theme="dark"] .welcome-overlay {
   box-shadow: 0 8px 28px rgba(0,0,0,0.2); padding: 10px 16px;
   font-size: 13px; color: var(--warning-text);
 }
+.recover-dismiss {
+  border: 0; background: transparent; color: var(--warning-text); opacity: .7;
+  font-size: 18px; line-height: 1; padding: 2px 4px; cursor: pointer;
+}
+.recover-dismiss:hover { opacity: 1; }
 .recover-modal {
   position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 9501;
   width: 340px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px;

@@ -41,7 +41,7 @@ export function ShortcutsPanel({ onClose, onOpenSettings }: { onClose: () => voi
         maxWidth: 480, width: "90%", maxHeight: "80vh", overflow: "auto",
         padding: "24px 28px",
       }} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 650, color: "var(--text)" }}>⌨️ 快捷键</h2>
+        <h2 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 650, color: "var(--text)" }}>⌨️ {t("快捷键")}</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {SHORTCUTS.map((s) => (
             <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
@@ -54,7 +54,7 @@ export function ShortcutsPanel({ onClose, onOpenSettings }: { onClose: () => voi
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-            <span style={{ fontSize: 13, color: "var(--text)" }}>方向键微调 1px / Shift+方向键 10px</span>
+            <span style={{ fontSize: 13, color: "var(--text)" }}>{t("方向键微调 1px / Shift+方向键 10px")}</span>
             <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("固定")}</span>
           </div>
         </div>
@@ -63,10 +63,10 @@ export function ShortcutsPanel({ onClose, onOpenSettings }: { onClose: () => voi
             <button
               onClick={onOpenSettings}
               style={{ fontSize: 12.5, padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--accent-soft)", color: "var(--accent)", cursor: "pointer" }}
-            >⚙️ 自定义快捷键</button>
+            >⚙️ {t("自定义快捷键")}</button>
           )}
         </div>
-        <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-dim)", textAlign: "center" }}>按 ? 或 Esc 关闭</p>
+        <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-dim)", textAlign: "center" }}>{t("按 ? 或 Esc 关闭")}</p>
       </div>
     </div>
   );

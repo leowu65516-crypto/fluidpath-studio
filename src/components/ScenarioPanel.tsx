@@ -224,15 +224,15 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
             width: "100%", padding: "7px 0", borderRadius: 6, border: "1px dashed var(--accent)",
             background: "var(--accent-soft)", color: "var(--accent)", cursor: "pointer", fontSize: 12.5,
           }}
-          title="把当前步骤的阀位/泵态保存为工况，可在工具栏「工况」里随时一键切换"
+          title={t("把当前步骤的阀位/泵态保存为工况，可在工具栏「工况」里随时一键切换")}
         >💾 {t("把本步存为工况")}</button>
       </div>
       {condDialog && (
         <PromptDialog
-          title="保存为工况"
-          label="给这套阀位起个名"
+          title={t("保存为工况")}
+          label={t("给这套阀位起个名")}
           defaultValue={`${scenario.title}·第${stepIndex + 1}步`}
-          submitLabel="保存"
+          submitLabel={t("保存")}
           onSubmit={(name) => saveWorkCondition(name)}
           onClose={() => setCondDialog(false)}
         />

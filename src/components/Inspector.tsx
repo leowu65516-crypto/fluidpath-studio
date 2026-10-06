@@ -946,7 +946,9 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <button className="btn wide" onClick={() => generateLegend(100, 100)}>{t("📊 生成图例")}</button>
                 <button className="btn wide" onClick={() => downloadBom(diagram)}>{t("📋 导出 BOM 清单")}</button>
               </div>
-            <Row label={t("插入模板")}>
+            <div className="insp-row template-row">
+              <label>{t("插入模板")}</label>
+              <div className="insp-ctrl">
                 <select
                   value=""
                   onChange={(e) => { if (e.target.value) { insertTemplate(e.target.value); e.target.value = ""; } }}
@@ -955,7 +957,8 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   <option value="循环回路">{t("🔄 循环回路")}</option>
                   {savedTemplates.map((tpl) => <option key={tpl.name} value={tpl.name}>★ {tpl.name}</option>)}
                 </select>
-              </Row>
+              </div>
+            </div>
               <button className="btn wide" onClick={() => setTemplateDialogOpen(true)}>＋ {t("保存当前图纸为模板")}</button>
             </Section>
             <Section title={t("撤销历史")}>

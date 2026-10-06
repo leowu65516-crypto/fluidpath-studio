@@ -175,7 +175,7 @@ export default function App() {
         setSourceFilePath(path);
       } catch (err) {
         console.error("打开工程文件失败:", err);
-        alert(`打开失败：${(err as Error).message}`);
+        toast(`${t("打开失败")}：${(err as Error).message}`, "error");
       }
     });
   }, []);
@@ -301,7 +301,19 @@ export default function App() {
         <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowValidation(false); setShowAdvice((v) => !v); } }} onOpenValidation={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowValidation(true), 0); } else { setShowAdvice(false); setShowValidation((v) => !v); } }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
+          <div className="canvas-anchor">
           <CanvasView svgRefOut={svgRef} />
+          {mode === "edit" && appState.diagram.nodes.length === 0 && appState.diagram.pipes.length === 0 && !showHelp && (
+            <div className="canvas-empty-overlay" data-ui="1">
+              <div className="canvas-empty-card">
+                <div className="canvas-empty-title">☕ {t("从这里开始")}</div>
+                <button className="canvas-empty-action" onClick={() => insertTemplate("循环回路")}>🔄 {t("插入循环回路模板")}</button>
+                <button className="canvas-empty-action" onClick={() => welcomeFileRef.current?.click()}>📂 {t("打开 JSON")}</button>
+                <div className="canvas-empty-hint">{t("或从左侧元件库拖拽 / 双击添加元件")}</div>
+              </div>
+            </div>
+          )}
+          </div>
           {mode === "fault" ? <FaultCodePanel onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }} /> : showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : showValidation ? <ValidationPanel onClose={() => setShowValidation(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
         </div>
         <StatusBar />
@@ -315,7 +327,7 @@ export default function App() {
           const f = e.target.files?.[0];
           if (f) {
             f.text().then((text) => {
-              try { loadDiagram(parseDiagramJSON(text)); } catch (err) { alert(`打开失败：${(err as Error).message}`); }
+              try { loadDiagram(parseDiagramJSON(text)); } catch (err) { toast(`${t("打开失败")}：${(err as Error).message}`, "error"); }
               setSourceFilePath((f as File & { path?: string }).path ?? null);
             });
           }

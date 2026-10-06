@@ -885,7 +885,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             try {
               loadDiagram(parseDiagramJSON(text));
             } catch (err) {
-              alert(`${t("打开失败")}：${(err as Error).message}`);
+              toast(`${t("打开失败")}：${(err as Error).message}`, "error");
             }
           });
           return;

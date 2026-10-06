@@ -4,6 +4,14 @@ import { createNode } from "./symbols";
 import { buildLegendNodes } from "./legend";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { toast } from "./toast";
+
+/** PDF 预览窗口被拦截时的双语提示（export.ts 为纯模块，不走 React i18n 上下文） */
+function pdfBlockedMessage(): string {
+  try {
+    if (localStorage.getItem("fluidpath.lang") === "zh") return "请允许弹出窗口以导出 PDF";
+  } catch { /* ignore */ }
+  return "Allow pop-ups to export the PDF";
+}
 import { parseDiagnosticProfile } from "./fault-codes/profile";
 
 /** Current diagram JSON schema. Keep this single source of truth for exports, migration and reports. */
@@ -585,7 +593,7 @@ export function exportPdfWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opt
   svg { max-width: 100%; max-height: 100vh; }
 </style></head><body>${svg}</body></html>`;
   const win = window.open("", "_blank");
-  if (!win) { alert("请允许弹出窗口以导出 PDF"); return; }
+  if (!win) { toast(pdfBlockedMessage(), "error"); return; }
   win.document.write(html);
   win.document.close();
   win.focus();
@@ -983,7 +991,7 @@ export function exportPDF(svgEl: SVGSVGElement, diagram: Diagram, diagramName?: 
   svg { max-width: 100%; max-height: 100vh; }
 </style></head><body>${svg}</body></html>`;
   const win = window.open("", "_blank");
-  if (!win) { alert("请允许弹出窗口以导出 PDF"); return; }
+  if (!win) { toast(pdfBlockedMessage(), "error"); return; }
   win.document.write(html);
   win.document.close();
   win.focus();

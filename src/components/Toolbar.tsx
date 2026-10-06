@@ -51,6 +51,15 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
   const [condOpen, setCondOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
+  const [confirmNew, setConfirmNew] = useState(false);
+  const [isDark, setIsDark] = useState(() => { try { return document.body.dataset.theme === "dark"; } catch { return false; } });
+  function toggleTheme() {
+    const next = document.body.dataset.theme === "dark" ? "light" : "dark";
+    document.body.dataset.theme = next;
+    setIsDark(next === "dark");
+    try { localStorage.setItem("fluidpath.theme", next); } catch { /* ignore */ }
+    window.dispatchEvent(new Event("fp-theme"));
+  }
   const layerRef = useRef<HTMLDivElement | null>(null);
   // 下拉菜单用 fixed 定位（工具行 overflow 会裁剪 absolute 菜单）
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
@@ -134,12 +143,12 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
           // Electron file:// 下 location.origin 为 "null"，改用「分享码」方案
           const code = compressDiagram(diagram);
           navigator.clipboard.writeText(code).then(() => {
-            alert(t("✅ 已复制分享码！接收方在 FluidPath 中点击「导入分享码」粘贴即可打开图纸。"));
+            toast(t("✅ 已复制分享码！接收方在 FluidPath 中点击「导入分享码」粘贴即可打开图纸。"));
           }).catch(() => { setShareFallback(code); });
         } else {
           const link = buildShareLink(diagram);
           navigator.clipboard.writeText(link).then(() => {
-            alert(`${t("✅ 分享链接已复制！发送给他人即可打开图纸。")}\n\n` + link.slice(0, 80) + "…");
+            toast(`${t("✅ 分享链接已复制！发送给他人即可打开图纸。")} ${link.slice(0, 60)}…`);
           }).catch(() => { setShareFallback(link); });
         }
         break;
@@ -178,7 +187,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
     try {
       await exportGIF(svgRef.current, diagram, (r) => setGifProgress(r));
     } catch (err) {
-      alert(`${t("GIF 导出失败")}：${(err as Error).message}`);
+      toast(`${t("GIF 导出失败")}：${(err as Error).message}`, "error");
     } finally {
       setGifProgress(null);
     }
@@ -218,7 +227,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
           setTimeout(() => setPostLoadTip(null), 1000);
         }
       } catch (err) {
-        alert(`打开失败：${(err as Error).message}`);
+        toast(`${t("打开失败")}：${(err as Error).message}`, "error");
       }
   }
 
@@ -236,7 +245,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       const result = await api.openJsonFile();
       if (result) openFileContent(result.content, result.path);
     } catch (err) {
-      alert(`打开失败：${(err as Error).message}`);
+      toast(`${t("打开失败")}：${(err as Error).message}`, "error");
     }
   }
 
@@ -302,7 +311,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       {!collapsed && <>
       <div className="tb-sep" />
       <div className="tb-group tb-group-file" role="group" aria-label={t("文件")}>
-      <button className="tb-btn" title={t("新建")} onClick={() => { if (confirm(t("新建") + "?")) newDiagram(); }}>
+      <button className="tb-btn" title={t("新建")} onClick={() => setConfirmNew(true)}>
         <Icon d="M12 5v14M5 12h14" />{t("新建")}
       </button>
       <button className="tb-btn" title={t("打开独立工作台，可与当前窗口互相复制粘贴")} onClick={() => void openAppWindow()}>
@@ -350,6 +359,11 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         </span>
         <button className="tb-btn sq" onClick={() => setZoomCenter(ui.zoom * 1.2, viewSize().w, viewSize().h)} title={t("放大")}>+</button>
         <button className="tb-btn sq" onClick={() => fitToScreen(viewSize().w, viewSize().h)} title={t("适应画布")}>⊡</button>
+        <button className="tb-btn" onClick={toggleTheme} title={t("切换明暗主题")} aria-label={t("切换明暗主题")}>
+          {isDark
+            ? <Icon d="M12 3v1M0 12h1M12 23v-1M23 12h-1M5.6 5.6l-.7-.7M19.1 19.1l.7.7M5.6 18.4l-.7.7M19.1 4.9l.7-.7" />
+            : <Icon d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />}
+        </button>
       </div>
       </div>
       <div className="tb-sep" />
@@ -493,7 +507,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
             try {
               loadDiagram(decompressDiagram(code));
             } catch (err) {
-              alert(`导入失败：${(err as Error).message}`);
+              toast(`${t("导入失败")}：${(err as Error).message}`, "error");
             }
           }}
           onClose={() => setImportOpen(false)}
@@ -550,6 +564,19 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
           {postLoadTip.split("\n").map((line, i) => (
             <div key={i}>{line}</div>
           ))}
+        </div>
+      )}
+      {/* 新建前确认：说明当前画布将被清空 */}
+      {confirmNew && (
+        <div className="close-save-overlay" data-ui="1" onClick={() => setConfirmNew(false)}>
+          <div className="close-save-card" onClick={(e) => e.stopPropagation()}>
+            <div className="close-save-title">🆕 {t("新建空白图纸？")}</div>
+            <div className="close-save-sub">{t("当前画布将被清空；未保存的编辑仍会保留在自动备份中，可通过重启时的恢复横幅找回。")}</div>
+            <div className="close-save-actions">
+              <button className="btn" onClick={() => { setConfirmNew(false); newDiagram(); }}>{t("新建")}</button>
+              <button className="btn ghost" onClick={() => setConfirmNew(false)}>{t("取消")}</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

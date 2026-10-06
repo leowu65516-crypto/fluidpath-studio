@@ -1,5 +1,27 @@
 # FluidPath Studio 1.27.1 Handoff
 
+## 2026-10-06 UX review + fixes — PUBLISHED as 1.29.1 ✅
+
+A structured UI/UX review (oiloil-ui-ux-guide review mode, 10 hard rules) ran against the 1.29.0 working tree. Findings were fixed and published on 2026-10-06.
+
+Remote `origin/main`: `fbb8c22` (`fix: 1.29.1 empty-canvas guide, non-blocking errors, theme button, focus visibility`). Check + Deploy workflows: **success**. Deployed bundle: **1.29.1**.
+
+What changed in 1.29.0 + 1.29.1 (published together):
+
+- Recovery banner: dismiss button with per-version memory; normal close records savedAt (crash-only recovery); flushAutosave skips empty workspaces
+- Usage guide auto-opens on first use only
+- i18n completed: 0 missing EN entries; all hardcoded Chinese wrapped in t()
+- Empty workbench shows a start overlay (template / open JSON / library hint) until content exists
+- All 14 native alert() calls replaced with non-blocking toasts (localized)
+- Dark/light theme toggle button added to the toolbar View group (was keyboard-only)
+- Global :focus-visible outline for keyboard users
+- New-document uses a custom confirm modal explaining the consequence
+- Template dropdown truncation fixed (min-width 118px)
+
+Remaining known backlog (not scheduled): undo history is read-only, web "save" semantics wording, library search box at panel bottom, export menu grouping, bundle 640 KB (code-splitting), no UI font-size scaling, statusbar X/Y low value, icon system mixed (SVG vs emoji on mode buttons).
+
+---
+
 ## 2026-10-02 update — PUBLISHED as 1.28.0 ✅
 
 The first batch of six bugfixes plus the visual-hierarchy/dark-theme refinement was published to GitHub on 2026-10-02 as application version `1.28.0`. Remote `origin/main` is now `c5126b5` (`feat: refine visual hierarchy and dark theme`).

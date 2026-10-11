@@ -599,7 +599,8 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
  * - 自身 disabled；或任一端连接节点 disabled；
  * - 或受电磁阀门控：两通电磁阀关闭、三通电磁阀关闭、三通非激活支路。
  * - 或相连自定义图形/接头/容器类节点有禁用的入口管路（传播效应）
- * - 或上游供液被切断：进水阀未打开时，锅炉/容器之后的管路即使出口阀打开也不流动
+ * - 或上游供液被切断：进水阀未打开时，锅炉等之后的管路即使出口阀打开也不流动；
+ *   储液罐是液源例外——罐出侧管不因入侧全停而判停（与需求域/压力域对 tank 的源语义一致）
  * visitedPipes 用于防止递归回环。
  */
 export function pipeEffectiveDisabled(
@@ -734,6 +735,10 @@ function pipeEffectiveDisabledRecursive(
 
     // 若当前管是入侧（流入 n），不反向传播下游停流
     if (!curIsOut) return false;
+
+    // 储液罐是液源：罐内液体不依赖入侧来流（储奶/储水），出侧管不因入侧全停而判停；
+    // 是否流动仍由需求域（下游开放去处）与阀门状态决定。与 DEMAND_BOUNDARY_TYPES 的源语义一致。
+    if (n.type === "tank") return false;
 
     // 当前管是出侧：查 n 的所有「入侧管」（有效流入端落在 n 上的管）
     // 汇流语义（AND）：只有全部入侧管都停流，该出侧管才停；任一入侧仍流动则有流。

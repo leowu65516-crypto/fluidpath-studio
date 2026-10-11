@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.29.2";
+export const APP_VERSION = "1.29.3";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.29.3",
+    date: "2026-10-11",
+    highlights: [
+      "换热器（低温盘管）双通道建模：对置端口自动成对形成独立通道，供液/停流相位/压力域/需求域按通道隔离——两侧介质互不串供，消除“咖啡未进盘管却显示流出”“水侧串供”类假流动",
+      "三通电磁阀支持“汇流”用法（两进一出）：激活出侧的供液改为“全部入侧口任一路有来流即可”，修复“做咖啡”时热水侧关闭导致咖啡主路整段误停流；单入侧阀行为不变",
+      "新增换热器通道隔离与三通汇流回归测试 12 例；5 张图纸×全工况对比确认影响仅限目标图纸预期位置",
+    ],
+  },
   {
     version: "1.29.2",
     date: "2026-10-11",

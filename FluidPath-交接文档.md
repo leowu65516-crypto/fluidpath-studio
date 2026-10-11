@@ -153,6 +153,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ### 3.3 递归兜底层（pipeEffectiveDisabledRecursive）
 
 - 三通/直通节点 **AND 汇流**：出侧管仅当**全部**入侧管停流才停（任一入侧有供即供）。
+- **储液罐（tank）按液源处理**（1.29.2）：罐出侧管**不因入侧全停而判停**（如罐入侧只有一根关闭的润湿阀时，出奶管仍可流）；是否流动由需求域（下游开放去处）与阀态决定。与 §3.4 tank 兼作“回流终点+奶源”、知识库“稳定供给”语义一致。历史踩坑：旧行为把 tank 当普通直通件，导致新图纸（如 Smart X BCM2TS）奶泵抽奶时整条奶路显示停流。
 - 泵/阀出侧依赖入侧供液（`hasDisabledUpstream`，同为 AND）。
 - `solenoid3` 端口推断：优先 `direction`，缺失按位置（left=in, right=A, bottom=B）；`outA = position right ?? outPorts[0]`，`outB = bottom ?? outPorts[1]`。
 - `direction="reverse"` 管路：有效流向与存储方向相反（from/to 对调），递归层入侧分类与 curIsOut 都尊重有效流向。
@@ -428,9 +429,11 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 > 结构已预留：`src/version.ts`（APP_VERSION + CHANGELOG）、`DiagramSettings.appVersion`、`package.json` version（打包文件名依赖）。
 > 每次发布：更新 version.ts 的 APP_VERSION 并在 CHANGELOG 头部追加条目，同步 package.json 版本，再打包。
+> 注：1.25.0–1.29.1 的发布记录见 git log 与根目录 HANDOFF 文件（待回填本表）。
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.29.2 | 2026-10-11 | 储液罐液源修复：供液递归不再把 tank 当直通件（罐出侧不因入侧全停判停）；修复 “奶泵开+进奶阀开时牛奶路整段显示停流”；新增回归测试 5 例（tank-source-supply）。 |
 | 1.24.0 | 2026-09-03 | 英文界面导出物去中文（管路默认名渲染为 Pipe N，新建管路按语言命名）；登录页初始可选中/EN；网页密码改为当日动态密码（年月日反转拼接）；管路默认名语言化（createPipe）。 |
 | 1.23.0 | 2026-09-02 | 三态模式操作权限：演示/验收锁定拓扑编辑（拖动/连线/缩放/删除/粘贴/标签编辑/撤销重做），保留拨阀/平移/选择；画布模式提示条；App 订阅 store 修复模式联动不刷新。 |
 | 1.22.0 | 2026-09-01 | 自定义演示场景（从工况多选合成多步，随图纸保存可删除）；顶栏精简（删图纸名编辑框与暗色按钮）；加载提示 1s；演示高亮固定跟随流动；使用指南细化（三模式/量感/微调保存/自定义演示/导出预览）。 |

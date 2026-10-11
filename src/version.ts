@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.29.1";
+export const APP_VERSION = "1.29.2";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.29.2",
+    date: "2026-10-11",
+    highlights: [
+      "修复储液罐供液判定：供液递归不再把储液罐当直通件——罐出侧管不因入侧全停而判停（修复奶泵开+进奶阀开时牛奶路整段显示停流）",
+      "新增储液罐液源回归测试（tank-source-supply，5 例）：罐入侧全停时按需求域正确判流/判停，润湿阀、出口非激活支路保持停流",
+    ],
+  },
   {
     version: "1.29.1",
     date: "2026-10-06",

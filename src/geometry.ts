@@ -240,6 +240,43 @@ export function setCachedPipes(pipes: Pipe[], nodes?: DiagramNode[]) {
   }
 }
 
+/**
+ * 换热器（heatExchanger）通道配对：对置端口按顺序成对（left↔right、top↔bottom），
+ * 优先“入侧口配出侧口”。换热器两条通道互不混合（知识库：冷热两侧各自独立），
+ * 供液与停流传播只在同一通道内进行，另一条通道不得给本通道供液。
+ */
+function hxChannelPairs(n: DiagramNode): Array<[Port, Port]> {
+  const pairs: Array<[Port, Port]> = [];
+  const pairAxis = (aSide: "left" | "right" | "top" | "bottom", bSide: "left" | "right" | "top" | "bottom") => {
+    const a = n.ports.filter((p) => p.position === aSide);
+    const b = n.ports.filter((p) => p.position === bSide);
+    const used = new Set<string>();
+    for (const pa of a) {
+      const complementary = (pb: Port) =>
+        (pa.direction === "in" && pb.direction === "out") ||
+        (pa.direction === "out" && pb.direction === "in") ||
+        pa.direction === "bidirectional" ||
+        pb.direction === "bidirectional";
+      const pick = b.find((pb) => !used.has(pb.id) && complementary(pb)) ?? b.find((pb) => !used.has(pb.id));
+      if (!pick) break;
+      used.add(pick.id);
+      pairs.push([pa, pick]);
+    }
+  };
+  pairAxis("left", "right");
+  pairAxis("top", "bottom");
+  return pairs;
+}
+
+/** 换热器端口所在通道的另一端端口；端口未配对时返回 undefined（回退节点级汇流） */
+function hxChannelPartner(n: DiagramNode, portId: string): Port | undefined {
+  for (const [a, b] of hxChannelPairs(n)) {
+    if (a.id === portId) return b;
+    if (b.id === portId) return a;
+  }
+  return undefined;
+}
+
 /** 直通类节点（停流传播可穿过） */
 const PASS_THROUGH_TYPES = new Set([
   "shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "cross", "elbow",
@@ -348,15 +385,15 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         }
       }
       if (path === "off") {
-        // off 全关：出侧隔离，入侧向下游扩散（上游停流传播）
-        const inPort = n.ports.find((p) => p.direction === "in");
+        // off 全关：出侧隔离，入侧向下游扩散（上游停流传播）；汇流阀（多入侧口）全部入侧口一并处理
+        const inPortIds = new Set(n.ports.filter((p) => p.direction === "in").map((p) => p.id));
         for (const p of n.ports) {
           for (const pipe of pipes) {
             if (pipe.fromPortId === p.id) {
-              if (inPort && p.id === inPort.id) disabledPipes.add(pipe.id);
+              if (inPortIds.has(p.id)) disabledPipes.add(pipe.id);
               else isolatedDisabled.add(pipe.id);
             }
-            if (pipe.toPortId === p.id && inPort && p.id === inPort.id) isolatedDisabled.add(pipe.id);
+            if (pipe.toPortId === p.id && inPortIds.has(p.id)) isolatedDisabled.add(pipe.id);
           }
         }
       }
@@ -395,6 +432,8 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       const e = edgeOf(pipe2);
       if (!e.v) continue;
       const node = e.v.node;
+      // 换热器：压力域沿同通道继续（对置端口成对，两通道互不混合）
+      const hxPartner = node.type === "heatExchanger" ? hxChannelPartner(node, e.v.port.id) : undefined;
       if (node.type === "shape" && node.label.includes("排废")) continue;
       if (node.type === "inlet" || node.type === "tank" || node.type === "pressureTank" || node.type === "syrupBottle") continue;
       if (node.disabled) continue;
@@ -416,7 +455,8 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       for (const op of pipes) {
         if (op.id === pid2) continue;
         const oe = edgeOf(op);
-        if (oe.u && oe.u.node.id === node.id) pq.push(op.id);
+        const match = hxPartner ? !!(oe.u && oe.u.port.id === hxPartner.id) : !!(oe.u && oe.u.node.id === node.id);
+        if (match) pq.push(op.id);
       }
     }
   }
@@ -452,6 +492,8 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
     for (const arr of arrivals) {
       if (!arr) continue;
       const node = arr.node;
+      // 换热器：停流传播沿同通道继续（对置端口成对，两通道互不混合）
+      const hxPartner = node.type === "heatExchanger" ? hxChannelPartner(node, arr.port.id) : undefined;
       // 排废/源端 吸收：不继续
       if (node.type === "shape" && node.label.includes("排废")) continue;
       if (node.type === "inlet" || node.type === "tank" || node.type === "pressureTank" || node.type === "syrupBottle") continue;
@@ -480,25 +522,30 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         const activeOutId3 = path === "A" ? outA3?.id : path === "B" ? outB3?.id : undefined;
         if (arr.port.direction === "out" && arr.port.id !== activeOutId3) continue;
       }
-      // 扩散到 node 的其他管路（隔离停流不参与扩散）
+      // 扩散到 node 的其他管路（隔离停流不参与扩散；换热器限同通道配对端口）
       for (const op of pipes) {
         if (op.id === pid || isolatedDisabled.has(op.id)) continue;
         const oe = edgeOf(op);
         if (phase === "push") {
           // 顺流向：op 必须从 node 流出
-          if (oe.u && oe.u.node.id === node.id) queue.push({ pid: op.id, phase: "push" });
+          const match = hxPartner ? !!(oe.u && oe.u.port.id === hxPartner.id) : !!(oe.u && oe.u.node.id === node.id);
+          if (match) queue.push({ pid: op.id, phase: "push" });
         } else if (phase === "suck") {
           // 逆流向：op 必须流入 node（继续向上游追溯）；
           // 但从运行中/任何泵流出的管不得被 suck 污染（泵是独立动力源，其出侧由自身维持）；
           // 压力域（其他运行泵正压供液的管路）同样不得被污染
-          if (oe.v && oe.v.node.id === node.id) {
+          const match = hxPartner ? !!(oe.v && oe.v.port.id === hxPartner.id) : !!(oe.v && oe.v.node.id === node.id);
+          if (match) {
             const srcNode = oe.u?.node;
             if (srcNode && (srcNode.type === "pump" || srcNode.type === "milkPump")) continue;
             if (pressurized.has(op.id)) continue;
             queue.push({ pid: op.id, phase: "suck" });
           }
         } else {
-          if ((oe.u && oe.u.node.id === node.id) || (oe.v && oe.v.node.id === node.id)) {
+          const touches = hxPartner
+            ? !!(oe.u && oe.u.port.id === hxPartner.id) || !!(oe.v && oe.v.port.id === hxPartner.id)
+            : !!(oe.u && oe.u.node.id === node.id) || !!(oe.v && oe.v.node.id === node.id);
+          if (touches) {
             queue.push({ pid: op.id, phase: "both" });
           }
         }
@@ -570,24 +617,30 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
   }
   for (const root of roots) {
     const hasDemandNode = new Set<string>();
-    const queue: DiagramNode[] = [];
-    function seed(n: DiagramNode) {
-      if (hasDemandNode.has(n.id)) return;
-      hasDemandNode.add(n.id);
-      queue.push(n);
+    const queue: Array<{ node: DiagramNode; viaPortId?: string }> = [];
+    function seed(n: DiagramNode, viaPortId?: string) {
+      // 换热器按“到达端口”分别记忆：两条通道各自独立，互不跨通道拉需求
+      const key = n.type === "heatExchanger" && viaPortId ? `${n.id}|${viaPortId}` : n.id;
+      if (hasDemandNode.has(key)) return;
+      hasDemandNode.add(key);
+      queue.push({ node: n, viaPortId });
     }
     seed(root);
     while (queue.length) {
-      const n = queue.shift()!;
+      const { node: n, viaPortId } = queue.shift()!;
+      // 换热器：需求倒推只沿同通道继续（另一条通道的管不得被本通道需求拉入）
+      const partnerId =
+        n.type === "heatExchanger" && viaPortId ? (hxChannelPartner(n, viaPortId)?.id ?? undefined) : undefined;
       for (const pipe of pipes) {
         const e = edgeOf(pipe);
         if (!e.v || e.v.node.id !== n.id) continue; // 该管流入 n
         if (!e.u) continue;
+        if (partnerId && e.v.port.id !== partnerId) continue; // 换热器跨通道隔离
         if (e.u.node.id === root.id && DEMAND_BOUNDARY_TYPES.has(e.u.node.type)) continue; // 根自身出侧回环 → 跳过
         if (!canEmit(e.u.node, e.u.port)) continue; // 上游源不放流 → 无需求
         if (demand.has(pipe.id)) continue;
         demand.add(pipe.id);
-        if (!DEMAND_BOUNDARY_TYPES.has(e.u.node.type) && !hasDemandNode.has(e.u.node.id)) seed(e.u.node);
+        if (!DEMAND_BOUNDARY_TYPES.has(e.u.node.type)) seed(e.u.node, e.u.port.id);
       }
     }
   }
@@ -649,20 +702,33 @@ function pipeEffectiveDisabledRecursive(
   // 递归深度上限：防止全连通图环回导致的栈溢出
   if (visited.size > 200) return false;
 
-  /** 连接到指定端口的管路是否全部 disabled（汇流语义：任一路在供液即有供，全停才算断供） */
-  function hasDisabledUpstream(portId: string): boolean {
-    const ref = findPort(nodes, portId);
-    if (!ref) return false;
-    let count = 0;
-    for (const op of _cachedPipes) {
-      if (visited.has(op.id)) continue;
-      for (const oe of [op.fromPortId, op.toPortId]) {
-        if (!oe || oe !== portId) continue;
-        count++;
-        if (!pipeEffectiveDisabled(op, nodes, visited, ignoreTeachingOverride)) return false; // 任一流动 → 有供液
+  /**
+   * 入侧端口组供液状态（汇流语义）：
+   * - "flowing"：任一口有来流 → 有供液；
+   * - "stopped"：所有接了管路的入侧口都断供 → 才判停；
+   * - "none"：没有任何入侧管 → 维持既有行为（不判停）。
+   */
+  function upstreamPortsState(portIds: string[]): "flowing" | "stopped" | "none" {
+    let anyPiped = false;
+    for (const portId of portIds) {
+      if (!findPort(nodes, portId)) continue;
+      let count = 0;
+      for (const op of _cachedPipes) {
+        if (visited.has(op.id)) continue;
+        for (const oe of [op.fromPortId, op.toPortId]) {
+          if (!oe || oe !== portId) continue;
+          count++;
+          if (!pipeEffectiveDisabled(op, nodes, visited, ignoreTeachingOverride)) return "flowing"; // 任一流动 → 有供液
+        }
       }
+      if (count > 0) anyPiped = true;
     }
-    return count > 0; // 有管且全停 → 断供；无管 → 维持既有行为（不判停）
+    return anyPiped ? "stopped" : "none";
+  }
+
+  /** 连接到指定端口的管路是否全部 disabled（单端口包装，行为与历史一致） */
+  function hasDisabledUpstream(portId: string): boolean {
+    return upstreamPortsState([portId]) === "stopped";
   }
 
   function checkPort(portId: string | undefined): boolean {
@@ -692,7 +758,12 @@ function pipeEffectiveDisabledRecursive(
       if (path === "off") return true;
       // 端口方向：优先用 direction，缺失时按位置推断（left=in, right=A, bottom=B）
       const hasDir = n.ports.some((p) => p.direction === "in" || p.direction === "out");
-      const inPort = hasDir ? n.ports.find((p) => p.direction === "in") : n.ports.find((p) => p.position === "left");
+      const inPorts = hasDir
+        ? n.ports.filter((p) => p.direction === "in")
+        : (() => {
+            const lp = n.ports.find((p) => p.position === "left");
+            return lp ? [lp] : [];
+          })();
       const outPorts = hasDir
         ? n.ports.filter((p) => p.direction === "out")
         : n.ports.filter((p) => p.position === "right" || p.position === "bottom");
@@ -701,9 +772,11 @@ function pipeEffectiveDisabledRecursive(
       // 当前端口是非激活出侧 → 停流
       if (path === "A" && outB && ref.port.id === outB.id) return true;
       if (path === "B" && outA && ref.port.id === outA.id) return true;
-      // 当前端口是激活出侧：依赖入侧上游供液
+      // 当前端口是激活出侧：依赖全部入侧上游供液。
+      // 汇流语义（两进一出“汇集”用法，如冲泡出口“咖啡+热水汇集”）：
+      // 任一路入侧有来流即出侧有介质；所有接了管的入侧口都断供才判停。
       const isActiveOut = (outA && ref.port.id === outA.id) || (outB && ref.port.id === outB.id);
-      if (isActiveOut && inPort && hasDisabledUpstream(inPort.id)) return true;
+      if (isActiveOut && upstreamPortsState(inPorts.map((p) => p.id)) === "stopped") return true;
     }
 
     // 经过中间节点传播（直通类元件：阀门、接头、容器、换热器、过滤器、泵、单向阀等）
@@ -739,6 +812,23 @@ function pipeEffectiveDisabledRecursive(
     // 储液罐是液源：罐内液体不依赖入侧来流（储奶/储水），出侧管不因入侧全停而判停；
     // 是否流动仍由需求域（下游开放去处）与阀门状态决定。与 DEMAND_BOUNDARY_TYPES 的源语义一致。
     if (n.type === "tank") return false;
+
+    // 换热器是双通道元件：出侧管的供液只由同通道另一端的入侧管决定，
+    // 另一条通道（如水侧）不得给本通道（如咖啡侧）供液（知识库：冷热两侧各自独立）。
+    if (n.type === "heatExchanger" && curPortId) {
+      const partner = hxChannelPartner(n, curPortId);
+      if (partner) {
+        let count = 0;
+        for (const op of _cachedPipes) {
+          if (op.id === pipe.id) continue;
+          const inEndPortId = op.direction === "reverse" ? op.fromPortId : op.toPortId;
+          if (inEndPortId !== partner.id) continue;
+          count++;
+          if (!pipeEffectiveDisabled(op, nodes, visited, ignoreTeachingOverride)) return false;
+        }
+        return count > 0; // 通道另一端有入侧管且全部停流 → 本管停；无入侧管 → 维持“不判停”约定
+      }
+    }
 
     // 当前管是出侧：查 n 的所有「入侧管」（有效流入端落在 n 上的管）
     // 汇流语义（AND）：只有全部入侧管都停流，该出侧管才停；任一入侧仍流动则有流。

@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.29.3";
+export const APP_VERSION = "1.30.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.0",
+    date: "2026-10-11",
+    highlights: [
+      "导出文字增强（分类）：导出面板新增管路/阀门/元器件/开关状态/图例文字/自定义文字六类独立放大（1×–2.5×，可筛选），配描边光晕与可选白色底板，放大后仍不遮元件",
+      "导出预览支持拖拽微调任意文字位置（仅导出物生效、可一键重置）；自定义文字层（标题/说明/水印/日期）同样可放大与拖拽；GIF 每帧同步生效",
+      "修复导出文字缺失：节点标签与管路主标签因带 data-ui 标记被导出克隆误剥离，现已保留；补充导出文字增强回归测试 6 例",
+    ],
+  },
   {
     version: "1.29.3",
     date: "2026-10-11",

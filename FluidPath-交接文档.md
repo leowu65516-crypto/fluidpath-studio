@@ -35,7 +35,7 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 63 个测试文件 / 409 通过 + 4 跳过（共 413），见 §6 |
+| `src/__tests__/` | 64 个测试文件 / 415 通过 + 4 跳过（共 419），见 §6 |
 | `/Users/leo/Desktop/Fluidpath studio/` | 机型图纸与协议文档目录（含统超定制系列图纸、图纸规范 v0.2 及增补），见 §4.7 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
@@ -414,7 +414,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：63 文件（61 通过 + 2 本机专属跳过）/ 413 用例（409 通过 + 4 跳过），tsc 无错误。**
+**当前全量：64 文件（62 通过 + 2 本机专属跳过）/ 419 用例（415 通过 + 4 跳过），tsc 无错误。**
 
 ---
 
@@ -446,6 +446,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.30.0 | 2026-10-11 | 导出文字增强（分类）：管路/阀门/元器件/开关状态/图例/自定义文字六类独立放大（1×–2.5×）+ 描边光晕/白底板 + 预览拖拽偏移（仅导出物生效）；修复导出克隆误剥节点/管路标签；测试 64 文件/419 用例。 |
 | 1.29.3 | 2026-10-11 | 换热器双通道隔离（对置端口成对，供液/停流相位/压力域/需求域四层按通道判定）+ 三通“汇流”语义（两进一出任一路有供即出流）；新增回归测试 12 例；5 图纸×全工况对比仅目标图纸按预期变化。 |
 | 1.29.2 | 2026-10-11 | 储液罐液源修复：供液递归不再把 tank 当直通件（罐出侧不因入侧全停判停）；修复 “奶泵开+进奶阀开时牛奶路整段显示停流”；新增回归测试 5 例（tank-source-supply）。 |
 | 1.24.0 | 2026-09-03 | 英文界面导出物去中文（管路默认名渲染为 Pipe N，新建管路按语言命名）；登录页初始可选中/EN；网页密码改为当日动态密码（年月日反转拼接）；管路默认名语言化（createPipe）。 |

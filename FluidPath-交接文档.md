@@ -543,7 +543,8 @@ GitHub Pages URL: https://<user>.github.io/<repo>/
 
 ### 9.7 发布记录（滚动最近一条）
 
-- 2026-10-11 发布 **1.30.1**（导出文字增强补全：全类可拖拽 + 双击逐条改字）：`origin/main` = `cf5bf4c`；Check + Deploy 均 **success**；线上 bundle `assets/index-BeXJYwBL.js` 与本地构建 sha256 一致（`5ad11ccd…`），线上版本常量 1.30.1；DMG：`release/FluidPath Studio-1.30.1-arm64.dmg`（约 122.6 MB；包内提取 bundle sha256 与线上一致，`verify:asar` 通过）。
+- 2026-10-11 发布 **1.30.2**（导出预览工作台：缩放/平移/加字/字号）：`origin/main` = `80a1a46`；Check + Deploy 均 **success**；线上 bundle `assets/index-DFJVW2rI.js` 与本地构建 sha256 一致（`0d997f52…`），线上版本常量 1.30.2；DMG：`release/FluidPath Studio-1.30.2-arm64.dmg`（约 122.6 MB；包内提取 bundle sha256 与线上一致，`verify:asar` 通过）。
+- 2026-10-11 发布 **1.30.1**（导出文字增强补全：全类可拖拽 + 双击逐条改字）：`origin/main` = `cf5bf4c`；线上 bundle `assets/index-BeXJYwBL.js`（`5ad11ccd…`）；网页端 + DMG 均已发布。
 - 同日更早发布 **1.30.0**（导出文字增强·分类放大，`a669aeb`）—— 输入第一半迭代，已被 1.30.1 取代。
 - 2026-10-11 发布 **1.29.3**（换热器双通道 + 三通汇流）：`origin/main` = `c50f1a9`；线上 bundle `assets/index-BuCigIWr.js`（`bedee3d8…`）；网页端 + DMG 均已发布。
 - 前一版 **1.29.2**（储液罐液源）同日已发网页 + DMG（`release/FluidPath Studio-1.29.2-arm64.dmg`，线上 bundle `index-DBrLFsF3.js`）。

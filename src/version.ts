@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.30.1";
+export const APP_VERSION = "1.30.2";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.2",
+    date: "2026-10-11",
+    highlights: [
+      "导出预览升级为可缩放工作台：滚轮缩放（0.5–8×，光标锚定）、空白处拖动平移、缩放条（−/＋/适应）；悬停与拖拽显示高亮框，选中更精准",
+      "双击就地编辑升级：「文字内容 + 字号」双字段（字号为绝对大小，覆盖分类倍率）；「添加文字」支持在视口中心新增自由文字块，可删改",
+      "新增/图例/标题等附加文字层改为稳定 id，拖拽与改字不再随预览重建漂移；写回图纸去重",
+      "导出文字增强专项测试扩展至 11 例（字号覆盖、自由文字、id 稳定性）",
+    ],
+  },
   {
     version: "1.30.1",
     date: "2026-10-11",

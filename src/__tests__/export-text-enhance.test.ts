@@ -22,7 +22,7 @@ function baseOpts(over: Partial<ExportOptions> = {}): ExportOptions {
 }
 
 function textOver(over: Partial<ExportTextEnhance>): ExportTextEnhance {
-  return { scales: {}, halo: true, plates: false, offsets: {}, overrides: {}, ...over };
+  return { scales: {}, halo: true, plates: false, offsets: {}, overrides: {}, sizes: {}, ...over };
 }
 
 /** 构造最小画布 SVG：注入带身份标记的文字元素（模拟 CanvasView/PipeView 渲染） */
@@ -144,6 +144,29 @@ describe("导出文字增强（v1.30）", () => {
     const { svg } = buildExportSVGWithOptions(svgEl, d, baseOpts({ textScale: 2, text: textOver({ scales: { valves: 2 } }) }));
     expect(svg).toContain('font-size="52"'); // 13*2*2
   });
+
+  it("逐条文字大小：sizes 覆盖分类倍率（绝对字号）", () => {
+    const d = bcmts();
+    const svgEl = makeSvgEl();
+    const { svg } = buildExportSVGWithOptions(svgEl, d, baseOpts({
+      text: textOver({ scales: { valves: 2 }, sizes: { "node:n1": 30, "pipe:p1:label": 21 } }),
+    }));
+    expect(svg).toContain('font-size="30"'); // 阀门绝对 30（非 13*2=26）
+    expect(svg).toContain('font-size="21"'); // 管路标签绝对 21
+    expect(svg).not.toContain('font-size="26"');
+  });
+
+  it("新增自定义文字：extraTexts 渲染、偏移键 export:ex_<id> 生效", () => {
+    const d = bcmts();
+    const svgEl = makeSvgEl();
+    const { svg } = buildExportSVGWithOptions(svgEl, d, baseOpts({
+      extraTexts: [{ id: "ut1", text: "测试文字", x: 500, y: 300, size: 24 }],
+      text: textOver({ offsets: { "export:ex_ut1": { x: 12, y: 0 } } }),
+    }));
+    expect(svg).toContain("测试文字");
+    expect(svg).toMatch(/x="512"/); // 500 + 12
+    expect(svg).toContain('font-size="24"');
+  });
 });
 
 describe("prepareExportDiagram 附加节点分类标记", () => {
@@ -156,5 +179,22 @@ describe("prepareExportDiagram 附加节点分类标记", () => {
     const legend = extra.filter((n) => n.exportKind === "legend");
     expect(custom.map((n) => n.label)).toContain("标题");
     expect(legend.length).toBeGreaterThan(0);
+  });
+
+  it("附加节点 id 稳定（ex_title / ex_legend_0）；extraTexts 生成 ex_<id> 且坐标为中心点", () => {
+    const d = bcmts();
+    const { extra } = prepareExportDiagram(d, baseOpts({
+      title: "标题", legend: { fluid: true, diameter: false, status: false },
+      extraTexts: [{ id: "ut1", text: "自由文字", x: 500, y: 300, size: 24 }],
+    }));
+    expect(extra.some((n) => n.id === "ex_title")).toBe(true);
+    expect(extra.some((n) => n.id === "ex_legend_0")).toBe(true);
+    const n1 = extra.find((n) => n.id === "ex_ut1");
+    expect(n1).toBeTruthy();
+    expect(n1!.label).toBe("自由文字");
+    expect(n1!.fontSize).toBe(24);
+    // 文字中心 = (500, 300)：渲染 x = n.x + w/2，y = n.y + h/2 + fs/3
+    expect(n1!.x + (n1!.width ?? 0) / 2).toBeCloseTo(500, 5);
+    expect(n1!.y + (n1!.height ?? 24) / 2 + 24 / 3).toBeCloseTo(300, 5);
   });
 });

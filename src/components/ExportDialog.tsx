@@ -20,20 +20,32 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const [quizSaved, setQuizSaved] = useState(false);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const reqIdRef = useRef(0);
-  /** 预览几何（导出坐标系原点与缩放），供文字拖拽命中换算 */
-  const previewMetaRef = useRef<{ x: number; y: number; w: number; h: number; fit: number } | null>(null);
-  const dragRef = useRef<{ key: string; ax: number; ay: number } | null>(null);
+  /** 可拖拽/可编辑文字目录项（导出坐标系基准锚点；offsets 由命中测试/高亮实时叠加） */
+  type TextItem = { key: string; groupKey?: string; cat: ExportTextCategory; x: number; y: number; fs: number; len: number; text: string };
+  /** 预览几何（导出坐标系原点与缩放 + 基础位图尺寸），供文字拖拽/命中换算 */
+  const previewMetaRef = useRef<{ x: number; y: number; w: number; h: number; fit: number; bw: number; bh: number } | null>(null);
+  /** 预览视图：相对「适应」尺寸的缩放 z 与平移 pan（单位=基础位图像素） */
+  const viewRef = useRef({ z: 1, panX: 0, panY: 0 });
+  const [zoomPct, setZoomPct] = useState(100);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const catalogRef = useRef<TextItem[]>([]);
+  const hoverRef = useRef<TextItem | null>(null);
+  const activeRef = useRef<TextItem | null>(null);
+  const panRef = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
+  const drawRafRef = useRef(0);
+  const offsetsRef = useRef<Record<string, { x: number; y: number }>>({});
+  const dragRef = useRef<{ key: string; ax: number; ay: number; item: TextItem } | null>(null);
   const patch = (p: Partial<ExportOptions>) => setOpts((o) => ({ ...o, ...p }));
   const patchText = (p: Partial<ExportTextEnhance>) =>
-    setOpts((o) => ({ ...o, text: { scales: {}, halo: true, plates: false, offsets: {}, overrides: {}, ...(o.text ?? {}), ...p } }));
-  /** 双击就地编辑状态（预览内） */
-  const [editing, setEditing] = useState<{ key: string; value: string; left: number; top: number } | null>(null);
+    setOpts((o) => ({ ...o, text: { scales: {}, halo: true, plates: false, offsets: {}, overrides: {}, sizes: {}, ...(o.text ?? {}), ...p } }));
+  /** 双击就地编辑状态（预览内）：文字内容 + 字号（空=默认） */
+  const [editing, setEditing] = useState<{ key: string; value: string; size: string; left: number; top: number } | null>(null);
   const editCancelRef = useRef(false);
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  offsetsRef.current = opts.text?.offsets ?? {};
 
   const hasSelection = ui.selection.nodes.length + ui.selection.pipes.length > 0;
-
-  /** 可拖拽/可编辑文字目录（导出坐标系）：画布文字 + 开关徽标 + 图例/自定义文字层 */
-  type TextItem = { key: string; groupKey?: string; cat: ExportTextCategory; x: number; y: number; fs: number; len: number; text: string };
   /** 画布客户端坐标 → 世界坐标（经 svg 元素尺寸与 data-world 变换反推） */
   const clientToWorld = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const svg = svgRef.current;
@@ -103,64 +115,183 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     return items;
   };
 
-  /** 最近的文字项（命中测试：近似包围盒 + 半径容差） */
+  /** 最近的文字项（命中测试：近似包围盒 + 半径容差；容差按缩放换算为固定屏幕像素） */
   const nearestTextItem = (wx: number, wy: number): TextItem | null => {
+    const list = catalogRef.current.length ? catalogRef.current : buildTextCatalog();
+    const meta = previewMetaRef.current;
+    const tol = meta ? Math.max(2, 12 / (meta.fit * viewRef.current.z)) : 12;
+    const offs = offsetsRef.current;
     let best: { item: TextItem; d: number } | null = null;
-    for (const it of buildTextCatalog()) {
+    for (const it of list) {
+      const o = offs[it.groupKey ?? it.key];
+      const ix = it.x + (o?.x ?? 0);
+      const iy = it.y + (o?.y ?? 0);
       const halfW = Math.max(26, it.fs * it.len * 0.5);
       const halfH = Math.max(14, it.fs);
-      const dx = Math.max(0, Math.abs(wx - it.x) - halfW);
-      const dy = Math.max(0, Math.abs(wy - it.y) - halfH);
+      const dx = Math.max(0, Math.abs(wx - ix) - halfW);
+      const dy = Math.max(0, Math.abs(wy - iy) - halfH);
       const d = Math.hypot(dx, dy);
-      if (d < 12 && (!best || d < best.d)) best = { item: it, d };
+      if (d < tol && (!best || d < best.d)) best = { item: it, d };
     }
     return best ? best.item : null;
   };
 
-  const canvasToWorld = (e: { clientX: number; clientY: number }) => {
-    const meta = previewMetaRef.current;
+  /** 画布客户端坐标 → 基础位图像素（考虑 object-fit:contain 居中留白） */
+  const bitmapFromClient = (clientX: number, clientY: number): { bx: number; by: number; scale: number } | null => {
     const cv = previewRef.current;
-    if (!meta || !cv) return null;
+    if (!cv) return null;
     const rect = cv.getBoundingClientRect();
-    // canvas 内容按 object-fit:contain 居中显示（可能有留白）：先还原到比特图像素
     const scale = Math.min(rect.width / cv.width, rect.height / cv.height) || 1;
     const ox = rect.left + (rect.width - cv.width * scale) / 2;
     const oy = rect.top + (rect.height - cv.height * scale) / 2;
-    const px = (e.clientX - ox) / scale;
-    const py = (e.clientY - oy) / scale;
-    const sx = px / Math.max(0.001, meta.fit);
-    const sy = py / Math.max(0.001, meta.fit);
-    return { x: sx + meta.x, y: sy + meta.y };
+    return { bx: (clientX - ox) / scale, by: (clientY - oy) / scale, scale };
+  };
+
+  /** 画布客户端坐标 → 世界坐标（含视图缩放/平移） */
+  const canvasToWorld = (clientX: number, clientY: number): { x: number; y: number } | null => {
+    const meta = previewMetaRef.current;
+    const bm = bitmapFromClient(clientX, clientY);
+    if (!meta || !bm) return null;
+    const v = viewRef.current;
+    const cx = (bm.bx - v.panX) / v.z;
+    const cy = (bm.by - v.panY) / v.z;
+    return { x: cx / Math.max(0.001, meta.fit) + meta.x, y: cy / Math.max(0.001, meta.fit) + meta.y };
+  };
+
+  /** 平移越界收敛（软边距）；z<1 时居中 */
+  const clampView = () => {
+    const meta = previewMetaRef.current;
+    if (!meta) return;
+    const v = viewRef.current;
+    v.z = Math.min(8, Math.max(0.5, v.z));
+    const w = meta.bw * v.z, h = meta.bh * v.z;
+    const m = 60;
+    v.panX = w <= meta.bw ? (meta.bw - w) / 2 : Math.min(m, Math.max(meta.bw - w - m, v.panX));
+    v.panY = h <= meta.bh ? (meta.bh - h) / 2 : Math.min(m, Math.max(meta.bh - h - m, v.panY));
+  };
+
+  /** 重绘预览（图像 + 悬停/拖拽高亮），rAF 节流 */
+  const drawPreview = () => {
+    const cv = previewRef.current;
+    const meta = previewMetaRef.current;
+    const img = imgRef.current;
+    if (!cv || !meta || !img) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    const { z, panX, panY } = viewRef.current;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.imageSmoothingEnabled = z < 1;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, panX, panY, meta.bw * z, meta.bh * z);
+    const hl = activeRef.current ?? hoverRef.current;
+    if (hl) {
+      const o = offsetsRef.current[hl.groupKey ?? hl.key];
+      const bx = (hl.x + (o?.x ?? 0) - meta.x) * meta.fit * z + panX;
+      const by = (hl.y + (o?.y ?? 0) - meta.y) * meta.fit * z + panY;
+      const halfW = Math.max(26, hl.fs * hl.len * 0.5) * meta.fit * z;
+      const halfH = Math.max(14, hl.fs) * meta.fit * z;
+      ctx.save();
+      ctx.fillStyle = "rgba(47,127,214,0.08)";
+      ctx.strokeStyle = "#2f7fd6";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 3]);
+      ctx.fillRect(bx - halfW, by - halfH, halfW * 2, halfH * 2);
+      ctx.strokeRect(bx - halfW, by - halfH, halfW * 2, halfH * 2);
+      ctx.restore();
+    }
+  };
+  const scheduleDraw = () => {
+    if (drawRafRef.current) return;
+    drawRafRef.current = requestAnimationFrame(() => { drawRafRef.current = 0; drawPreview(); });
+  };
+
+  /** 以位图点 (bx,by) 为锚缩放（光标下的内容保持不动） */
+  const zoomAt = (bx: number, by: number, factor: number) => {
+    const v = viewRef.current;
+    const z2 = Math.min(8, Math.max(0.5, v.z * factor));
+    if (Math.abs(z2 - v.z) < 0.001) return;
+    const cx = (bx - v.panX) / v.z, cy = (by - v.panY) / v.z;
+    v.z = z2;
+    v.panX = bx - cx * z2;
+    v.panY = by - cy * z2;
+    clampView();
+    setZoomPct(Math.round(v.z * 100));
+    scheduleDraw();
+  };
+  const zoomBy = (factor: number) => {
+    const cv = previewRef.current;
+    if (!cv) return;
+    zoomAt(cv.width / 2, cv.height / 2, factor);
+  };
+  const fitView = () => {
+    viewRef.current = { z: 1, panX: 0, panY: 0 };
+    setZoomPct(100);
+    scheduleDraw();
   };
 
   const onPreviewPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const w = canvasToWorld(e);
+    const cv = e.currentTarget;
+    const w = canvasToWorld(e.clientX, e.clientY);
     if (!w) return;
-    const item = nearestTextItem(w.x, w.y);
-    if (!item) return;
-    dragRef.current = { key: item.groupKey ?? item.key, ax: item.x, ay: item.y };
-    try { (e.currentTarget as HTMLCanvasElement).setPointerCapture?.(e.pointerId); } catch { /* 合成事件/无活动指针时忽略 */ }
-    (e.currentTarget as HTMLCanvasElement).classList.add("text-dragging");
+    const item = e.button === 1 ? null : nearestTextItem(w.x, w.y);
+    if (item) {
+      dragRef.current = { key: item.groupKey ?? item.key, ax: item.x, ay: item.y, item };
+      activeRef.current = item;
+      try { cv.setPointerCapture?.(e.pointerId); } catch { /* 合成事件/无活动指针时忽略 */ }
+      cv.classList.add("text-dragging");
+      scheduleDraw();
+      return;
+    }
+    panRef.current = { sx: e.clientX, sy: e.clientY, px: viewRef.current.panX, py: viewRef.current.panY };
+    try { cv.setPointerCapture?.(e.pointerId); } catch { /* 合成事件/无活动指针时忽略 */ }
+    cv.classList.add("panning");
   };
 
   const onPreviewPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const cv = e.currentTarget;
+    const pan = panRef.current;
+    if (pan) {
+      const bm = bitmapFromClient(e.clientX, e.clientY);
+      if (!bm) return;
+      viewRef.current.panX = pan.px + (e.clientX - pan.sx) / bm.scale;
+      viewRef.current.panY = pan.py + (e.clientY - pan.sy) / bm.scale;
+      clampView();
+      scheduleDraw();
+      return;
+    }
     const drag = dragRef.current;
-    if (!drag) return;
-    const w = canvasToWorld(e);
-    if (!w) return;
-    const off = opts.text?.offsets ?? {};
-    patchText({ offsets: { ...off, [drag.key]: { x: Math.round(w.x - drag.ax), y: Math.round(w.y - drag.ay) } } });
+    if (drag) {
+      const w = canvasToWorld(e.clientX, e.clientY);
+      if (!w) return;
+      const off = opts.text?.offsets ?? {};
+      patchText({ offsets: { ...off, [drag.key]: { x: Math.round(w.x - drag.ax), y: Math.round(w.y - drag.ay) } } });
+      scheduleDraw();
+      return;
+    }
+    // 悬停命中：更新高亮与光标（选中更精准）
+    const w = canvasToWorld(e.clientX, e.clientY);
+    const it = w ? nearestTextItem(w.x, w.y) : null;
+    if ((it?.key ?? null) !== (hoverRef.current?.key ?? null)) {
+      hoverRef.current = it;
+      cv.style.cursor = it ? "move" : "grab";
+      scheduleDraw();
+    }
   };
 
   const onPreviewPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!dragRef.current) return;
-    dragRef.current = null;
-    (e.currentTarget as HTMLCanvasElement).classList.remove("text-dragging");
+    const cv = e.currentTarget;
+    let changed = false;
+    if (panRef.current) { panRef.current = null; changed = true; }
+    if (dragRef.current) { dragRef.current = null; activeRef.current = null; changed = true; }
+    cv.classList.remove("text-dragging");
+    cv.classList.remove("panning");
+    if (changed) scheduleDraw();
   };
 
-  /** 双击预览文字 → 就地修改内容 */
+  /** 双击预览文字 → 就地修改内容/字号 */
   const onPreviewDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const w = canvasToWorld(e);
+    const w = canvasToWorld(e.clientX, e.clientY);
     if (!w) return;
     const item = nearestTextItem(w.x, w.y);
     if (!item) return;
@@ -168,29 +299,67 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     const wrap = cv?.parentElement;
     if (!wrap) return;
     const wr = wrap.getBoundingClientRect();
-    setEditing({ key: item.key, value: opts.text?.overrides?.[item.key] ?? item.text, left: e.clientX - wr.left, top: e.clientY - wr.top });
+    const sizeOv = opts.text?.sizes?.[item.key];
+    // 新增文字：字号框预填其当前字号（无 sizes 覆盖时取 extraTexts 里的值）
+    const utId = item.key.startsWith("export:ex_") ? item.key.slice("export:ex_".length) : null;
+    const utSize = utId ? opts.extraTexts?.find((x) => x.id === utId)?.size : undefined;
+    setEditing({
+      key: item.key,
+      value: opts.text?.overrides?.[item.key] ?? item.text,
+      size: sizeOv !== undefined ? String(sizeOv) : utSize !== undefined ? String(utSize) : "",
+      left: Math.min(Math.max(8, e.clientX - wr.left + 10), Math.max(8, wr.width - 310)),
+      top: Math.min(Math.max(8, e.clientY - wr.top + 12), Math.max(8, wr.height - 64)),
+    });
   };
 
+  /** 提交就地编辑：内容→overrides，字号→sizes（空即恢复默认） */
   const commitEdit = () => {
-    setEditing((ed) => {
-      if (!ed) return null;
-      const next = { ...(opts.text?.overrides ?? {}) };
-      const v = ed.value.trim();
-      if (!v) delete next[ed.key];
-      else next[ed.key] = v;
-      patchText({ overrides: next });
-      return null;
-    });
+    const ed = editingRef.current;
+    if (!ed) return;
+    setEditing(null);
+    const ov = { ...(opts.text?.overrides ?? {}) };
+    const v = ed.value.trim();
+    if (!v) delete ov[ed.key];
+    else ov[ed.key] = v;
+    const sz = { ...(opts.text?.sizes ?? {}) };
+    const num = Number(ed.size);
+    if (ed.size.trim() === "" || !isFinite(num) || num <= 0) delete sz[ed.key];
+    else sz[ed.key] = Math.round(num * 10) / 10;
+    patchText({ overrides: ov, sizes: sz });
+  };
+
+  /** 在预览视口中心新增一段自由文字（可拖拽/双击改字与字号） */
+  const addExtraText = () => {
+    const cv = previewRef.current;
+    let wx = 120, wy = 120;
+    if (cv) {
+      const r = cv.getBoundingClientRect();
+      const c = canvasToWorld(r.left + r.width / 2, r.top + r.height / 2);
+      if (c) { wx = c.x; wy = c.y; }
+    }
+    const id = `ut${Date.now().toString(36)}`;
+    patch({ extraTexts: [...(opts.extraTexts ?? []), { id, text: t("新文字"), x: Math.round(wx), y: Math.round(wy), size: 18 }] });
+  };
+
+  /** 删除新增文字并清理它的偏移/改字/字号记录 */
+  const removeExtraText = (id: string) => {
+    const ek = `export:ex_${id}`;
+    const off = { ...(opts.text?.offsets ?? {}) }; delete off[ek];
+    const ovr = { ...(opts.text?.overrides ?? {}) }; delete ovr[ek];
+    const szs = { ...(opts.text?.sizes ?? {}) }; delete szs[ek];
+    patch({ extraTexts: (opts.extraTexts ?? []).filter((x) => x.id !== id) });
+    patchText({ offsets: off, overrides: ovr, sizes: szs });
   };
 
   // 语言切换时同步导出物语言（图例/日期）
   useEffect(() => { patch({ lang }); }, [lang]);
 
-  // 实时预览：任何选项变更立即重绘（防抖 + requestId 防竞态）
+  // 实时预览：选项变更重建 SVG（拖拽中即时、平时防抖）；缩放/平移仅重绘不改内容
   useEffect(() => {
     const svgEl = svgRef.current;
     if (!svgEl || !previewRef.current) return;
     const id = ++reqIdRef.current;
+    const immediate = dragRef.current !== null;
     const timer = setTimeout(() => {
       if (id !== reqIdRef.current) return;
       try {
@@ -204,20 +373,38 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
           const maxW = cv.parentElement?.clientWidth ?? 560;
           const maxH = cv.parentElement?.clientHeight ?? 420;
           const fit = Math.min(maxW / w, maxH / h, 1);
-          cv.width = Math.max(1, Math.round(w * fit));
-          cv.height = Math.max(1, Math.round(h * fit));
-          const ctx = cv.getContext("2d")!;
-          ctx.clearRect(0, 0, cv.width, cv.height);
-          ctx.drawImage(img, 0, 0, cv.width, cv.height);
-          previewMetaRef.current = { x, y, w, h, fit };
+          const bw = Math.max(1, Math.round(w * fit));
+          const bh = Math.max(1, Math.round(h * fit));
+          cv.width = bw;
+          cv.height = bh;
+          previewMetaRef.current = { x, y, w, h, fit, bw, bh };
+          imgRef.current = img;
+          catalogRef.current = buildTextCatalog();
+          clampView();
+          drawPreview();
           URL.revokeObjectURL(url);
         };
         img.onerror = () => URL.revokeObjectURL(url);
         img.src = url;
       } catch { /* 预览失败静默（导出时会报错） */ }
-    }, 120);
+    }, immediate ? 16 : 120);
     return () => clearTimeout(timer);
   }, [opts, diagram, svgRef]);
+
+  // 滚轮缩放（原生监听：需要 preventDefault；React 合成 wheel 为 passive）
+  useEffect(() => {
+    const cv = previewRef.current;
+    if (!cv) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!previewMetaRef.current) return;
+      e.preventDefault();
+      const bm = bitmapFromClient(e.clientX, e.clientY);
+      if (bm) zoomAt(bm.bx, bm.by, Math.exp(-e.deltaY * 0.0018));
+    };
+    cv.addEventListener("wheel", onWheel, { passive: false });
+    return () => cv.removeEventListener("wheel", onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const run = async () => {
     if (!svgRef.current) return;
@@ -242,7 +429,8 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     // 自定义文字存回图纸（把文字层节点插入画布；图例节点不写回）
     if (finalOpts.saveTextToDiagram) {
       const { extra } = prepareExportDiagram(diagram, { ...finalOpts, legend: { fluid: false, diameter: false, status: false } });
-      const textNodes = extra.filter((n) => n.type === "label");
+      const existing = new Set(diagram.nodes.map((n) => n.id));
+      const textNodes = extra.filter((n) => n.type === "label" && !existing.has(n.id));
       if (textNodes.length > 0) {
         updateDiagram((d) => d.nodes.push(...textNodes));
         setQuizSaved(true);
@@ -295,23 +483,48 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
               onPointerCancel={onPreviewPointerUp}
               onDoubleClick={onPreviewDoubleClick}
             />
+            <div className="exp-zoom-bar">
+              <button onClick={() => zoomBy(1 / 1.25)} title={t("缩小")}>−</button>
+              <span className="exp-zoom-val">{zoomPct}%</span>
+              <button onClick={() => zoomBy(1.25)} title={t("放大")}>＋</button>
+              <button className="exp-zoom-fit" onClick={fitView}>{t("适应")}</button>
+            </div>
             {editing && (
-              <input
+              <div
                 className="exp-text-edit"
-                autoFocus
-                value={editing.value}
                 style={{ left: editing.left, top: editing.top }}
-                placeholder={t("输入文字，回车确认，Esc 取消")}
-                onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitEdit();
-                  if (e.key === "Escape") { editCancelRef.current = true; setEditing(null); }
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    if (editCancelRef.current) { editCancelRef.current = false; return; }
+                    commitEdit();
+                  }
                 }}
-                onBlur={() => {
-                  if (editCancelRef.current) { editCancelRef.current = false; return; }
-                  commitEdit();
-                }}
-              />
+              >
+                <input
+                  className="exp-text-edit-main"
+                  autoFocus
+                  value={editing.value}
+                  placeholder={t("文字内容")}
+                  onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitEdit();
+                    if (e.key === "Escape") { editCancelRef.current = true; setEditing(null); }
+                  }}
+                />
+                <input
+                  className="exp-text-edit-size"
+                  type="number"
+                  min={6}
+                  max={160}
+                  value={editing.size}
+                  placeholder={t("大小")}
+                  onChange={(e) => setEditing({ ...editing, size: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitEdit();
+                    if (e.key === "Escape") { editCancelRef.current = true; setEditing(null); }
+                  }}
+                />
+              </div>
             )}
             <div className="exp-preview-meta">{diagram.nodes.length} {t("节点")} · {diagram.pipes.length} {t("管路")}{opts.scale > 1 ? ` · ${opts.scale}x` : ""}</div>
           </div>
@@ -391,17 +604,17 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                   <label><input type="checkbox" checked={opts.text?.halo !== false} onChange={(e) => patchText({ halo: e.target.checked })} /> {t("描边加强")}</label>
                   <label><input type="checkbox" checked={!!opts.text?.plates} onChange={(e) => patchText({ plates: e.target.checked })} /> {t("白色底板")}</label>
                 </div>
-                {(Object.keys(opts.text?.offsets ?? {}).length > 0 || Object.keys(opts.text?.overrides ?? {}).length > 0) && (
+                {(Object.keys(opts.text?.offsets ?? {}).length > 0 || Object.keys(opts.text?.overrides ?? {}).length > 0 || Object.keys(opts.text?.sizes ?? {}).length > 0) && (
                   <div className="exp-reset-row">
                     {Object.keys(opts.text?.offsets ?? {}).length > 0 && (
                       <button className="btn ghost exp-reset" onClick={() => patchText({ offsets: {} })}>{t("重置位置")}</button>
                     )}
-                    {Object.keys(opts.text?.overrides ?? {}).length > 0 && (
-                      <button className="btn ghost exp-reset" onClick={() => patchText({ overrides: {} })}>{t("重置文字")}</button>
+                    {(Object.keys(opts.text?.overrides ?? {}).length > 0 || Object.keys(opts.text?.sizes ?? {}).length > 0) && (
+                      <button className="btn ghost exp-reset" onClick={() => patchText({ overrides: {}, sizes: {} })}>{t("重置文字")}</button>
                     )}
                   </div>
                 )}
-                <div className="exp-tip">{t("单击拖拽移动文字；双击修改文字内容（仅导出物生效）")}</div>
+                <div className="exp-tip">{t("滚轮缩放、空白处拖动平移；单击文字拖拽移动，双击改文字/大小（仅导出物生效）")}</div>
               </>
             ), "textcats")}
             {group(t("图例"), (
@@ -417,6 +630,21 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                 {textInput(t("副标题"), "subtitle", t("如：售后培训 · 第 1 讲"))}
                 {textInput(t("底部说明"), "footnote", t("如：仅用于内部培训"))}
                 {textInput(t("水印"), "watermark", t("如：FluidPath Studio"))}
+                <div className="exp-row">
+                  <label>{t("添加文字")}</label>
+                  <button className="btn ghost exp-add-text" onClick={addExtraText}>＋ {t("添加文字")}</button>
+                  <span className="exp-val">{t("拖拽移动、双击改字与字号")}</span>
+                </div>
+                {(opts.extraTexts?.length ?? 0) > 0 && (
+                  <div className="exp-extra-chips">
+                    {(opts.extraTexts ?? []).map((et) => (
+                      <span className="exp-chip" key={et.id}>
+                        <span>{et.text}</span>
+                        <button title={t("删除文字")} onClick={() => removeExtraText(et.id)}>✕</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="exp-row exp-checks">
                   <label><input type="checkbox" checked={opts.dateStamp} onChange={(e) => patch({ dateStamp: e.target.checked })} /> {t("右下角日期戳")}</label>
                   <label><input type="checkbox" checked={opts.saveTextToDiagram} onChange={(e) => patch({ saveTextToDiagram: e.target.checked })} /> {t("同时写回图纸")}</label>

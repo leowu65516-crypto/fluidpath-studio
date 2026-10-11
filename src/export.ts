@@ -129,6 +129,8 @@ export interface ExportTextEnhance {
   offsets: Record<string, { x: number; y: number }>;
   /** 逐条文字内容修改（导出物专用）：key 同上；徽标分段用 node:xx:badge:0/1/2 */
   overrides: Record<string, string>;
+  /** 逐条文字大小（导出坐标系绝对字号）：key 同上；设置后覆盖分类倍率 */
+  sizes: Record<string, number>;
 }
 
 /** 导出选项：全部只作用于导出物，画布零污染（延续「验收在副本运行」的哲学） */
@@ -151,6 +153,8 @@ export interface ExportOptions {
   textScale: number;
   /** 文字增强（分类放大/描边/底板/拖拽偏移，与 textScale 相乘） */
   text?: ExportTextEnhance;
+  /** 额外自定义文字（预览内添加；x/y 为文字中心，导出坐标系） */
+  extraTexts?: Array<{ id: string; text: string; x: number; y: number; size: number }>;
   /** 状态徽标样式：default=画布同款 / pill=强化描边放大 / hidden=隐藏 */
   badgeStyle: "default" | "pill" | "hidden";
   /** 图例段开关 */
@@ -178,7 +182,7 @@ export const EXPORT_DEFAULTS: Omit<ExportOptions, "format" | "lang"> = {
   filename: "",
   selectionOnly: false,
   textScale: 1,
-  text: { scales: {}, halo: true, plates: false, offsets: {}, overrides: {} },
+  text: { scales: {}, halo: true, plates: false, offsets: {}, overrides: {}, sizes: {} },
   badgeStyle: "default",
   legend: { fluid: false, diameter: false, status: false },
   dateStamp: false,
@@ -232,10 +236,11 @@ function preserveExportText(clone: SVGSVGElement) {
 
 /** 文字/徽标 SVG DOM 后处理（v1.30：分类放大 + 描边/底板 + 拖拽偏移 + 逐条改字） */
 function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
-  const text = opts.text ?? { scales: {}, halo: true, plates: false, offsets: {}, overrides: {} };
+  const text = opts.text ?? { scales: {}, halo: true, plates: false, offsets: {}, overrides: {}, sizes: {} };
   const global = opts.textScale ?? 1;
   const catScale = (cat: ExportTextCategory | null) => (cat ? (text.scales?.[cat] ?? 1) : 1) * global;
   const overrides = text.overrides ?? {};
+  const sizes = text.sizes ?? {};
 
   const NS = "http://www.w3.org/2000/svg";
   const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -278,9 +283,15 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
       // 逐条改字（先于缩放/底板，使底板按新文字长度计算）
       if (key && overrides[key] !== undefined) el.textContent = overrides[key];
       const scale = catScale(cat);
-      if (scale !== 1) {
+      const sizeOv = key ? sizes[key] : undefined;
+      const enhanced = scale !== 1 || (typeof sizeOv === "number" && sizeOv > 0);
+      if (typeof sizeOv === "number" && sizeOv > 0) {
+        el.setAttribute("font-size", String(round1(sizeOv)));
+      } else if (scale !== 1) {
         const fs = Number(el.getAttribute("font-size") || 0);
         if (fs > 0) el.setAttribute("font-size", String(round1(fs * scale)));
+      }
+      if (enhanced) {
         if (text.halo) {
           el.setAttribute("stroke", "#ffffff");
           el.setAttribute("stroke-width", "3");
@@ -379,8 +390,9 @@ export function prepareExportDiagram(diagram: Diagram, opts: ExportOptions): { d
   const base = contentBBox(d);
   const cx = base.x + base.w / 2;
   let top = base.y;
-  const mkLabel = (text: string, y: number, fontSize: number, fill: string): DiagramNode => {
+  const mkLabel = (id: string, text: string, y: number, fontSize: number, fill: string): DiagramNode => {
     const n = createNode("label", 0, 0, text);
+    n.id = id;
     n.fontSize = fontSize;
     n.fill = fill;
     n.exportKind = "custom";
@@ -391,28 +403,41 @@ export function prepareExportDiagram(diagram: Diagram, opts: ExportOptions): { d
     return n;
   };
   if (opts.title?.trim()) {
-    extra.push(mkLabel(opts.title.trim(), top - 64, 26, opts.darkMode ? "#dde5ee" : "#1f2c3d"));
+    extra.push(mkLabel("ex_title", opts.title.trim(), top - 64, 26, opts.darkMode ? "#dde5ee" : "#1f2c3d"));
     top -= 68;
   }
   if (opts.subtitle?.trim()) {
-    extra.push(mkLabel(opts.subtitle.trim(), top - 34, 15, opts.darkMode ? "#8b99a9" : "#6b7787"));
+    extra.push(mkLabel("ex_subtitle", opts.subtitle.trim(), top - 34, 15, opts.darkMode ? "#8b99a9" : "#6b7787"));
   }
   const bottom = base.y + base.h + 18;
-  if (opts.footnote?.trim()) extra.push(mkLabel(opts.footnote.trim(), bottom, 13, opts.darkMode ? "#8b99a9" : "#6b7787"));
+  if (opts.footnote?.trim()) extra.push(mkLabel("ex_footnote", opts.footnote.trim(), bottom, 13, opts.darkMode ? "#8b99a9" : "#6b7787"));
   if (opts.dateStamp) {
     const stamp = new Date().toLocaleString(opts.lang === "zh" ? "zh-CN" : "en-US");
-    const n = mkLabel(stamp, bottom, 12, opts.darkMode ? "#8b99a9" : "#9aa7b5");
+    const n = mkLabel("ex_date", stamp, bottom, 12, opts.darkMode ? "#8b99a9" : "#9aa7b5");
     n.x = base.x + base.w - n.width;
     extra.push(n);
   }
   if (opts.watermark?.trim()) {
-    const n = mkLabel(opts.watermark.trim(), bottom, 13, opts.darkMode ? "#6b7787" : "#9aa7b5");
+    const n = mkLabel("ex_watermark", opts.watermark.trim(), bottom, 13, opts.darkMode ? "#6b7787" : "#9aa7b5");
     n.x = base.x;
     extra.push(n);
   }
+  // 预览内新增的自由文字（稳定 id：拖拽偏移/改字键位 export:ex_<id> 不随重建漂移）
+  (opts.extraTexts ?? []).forEach((t) => {
+    const label = (t.text ?? "").trim();
+    if (!label) return;
+    const size = Math.max(6, Math.round(t.size || 18));
+    const n = mkLabel(`ex_${t.id}`, label, 0, size, opts.darkMode ? "#dde5ee" : "#2b3644");
+    n.x = t.x - n.width / 2;
+    n.y = t.y - n.height / 2 - size / 3;
+    extra.push(n);
+  });
   if (opts.legend.fluid || opts.legend.diameter || opts.legend.status) {
     const nodes = buildLegendNodes(d, base.x + base.w + 28, base.y, opts.legend, opts.lang);
-    for (const n of nodes) n.exportKind = "legend";
+    nodes.forEach((n, i) => {
+      n.exportKind = "legend";
+      n.id = `ex_legend_${i}`;
+    });
     extra.push(...nodes);
   }
   return { diagram: d, extra };

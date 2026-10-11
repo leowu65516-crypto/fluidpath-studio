@@ -1,5 +1,5 @@
-import type { Diagram } from "./types";
-import { findPort } from "./geometry";
+import type { Diagram, DiagramNode } from "./types";
+import { findPort, nearestPort } from "./geometry";
 
 export type ConnectionError = "missing-port" | "same-port" | "same-node" | "both-in" | "both-out" | "occupied";
 
@@ -22,6 +22,18 @@ export function validatePipeConnection(
     return "occupied";
   }
   return null;
+}
+
+/** 新建连线松手解析：精确命中端口热区优先；否则按容差接近吸附（与重连端子同一手感）。返回 null 表示未命中任何端口。 */
+export function resolveConnectDrop(
+  nodes: DiagramNode[],
+  world: { x: number; y: number },
+  tol: number,
+  exactPortId?: string | null
+): string | null {
+  if (exactPortId && findPort(nodes, exactPortId)) return exactPortId;
+  const cand = nearestPort(nodes, world, [], tol);
+  return cand ? cand.portId : null;
 }
 
 export function connectionErrorMessage(error: ConnectionError, lang: "zh" | "en"): string {

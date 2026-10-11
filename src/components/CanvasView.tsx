@@ -70,14 +70,14 @@ import { parseDiagramJSON } from "../export";
 import { toast } from "../toast";
 import { checkDiagramFluid, checkPipeFluid, fluidLabel, fluidColor } from "../fluidRules";
 import { computeRelativeFlow, computePressureDomain } from "../relativeFlow";
-import { connectionErrorMessage, validatePipeConnection, type ConnectionError } from "../connection";
+import { connectionErrorMessage, resolveConnectDrop, validatePipeConnection, type ConnectionError } from "../connection";
 
 type DragState =
   | { type: "pan"; startClientX: number; startClientY: number; startPanX: number; startPanY: number }
   | { type: "node"; ids: string[]; start: Map<string, Pt>; startWorld: Pt; moved: boolean }
   | { type: "vertex"; pipeId: string; vIndex: number; pts: Pt[]; free: boolean; moved: boolean }
   | { type: "marquee"; start: Pt }
-  | { type: "connect"; fromPortId: string; fromNodeId: string }
+  | { type: "connect"; fromPortId: string; fromNodeId: string; portValidity: Map<string, ConnectionError | null> }
   | { type: "port"; nodeId: string; portId: string; moved: boolean }
   | { type: "terminal"; pipeId: string; end: "from" | "to"; startWorld: Pt; moved: boolean }
   | { type: "resize"; nodeId: string; corner: string; start: { x: number; y: number; w: number; h: number }; startWorld: Pt; moved: boolean; startRot: number; startAngle: number }
@@ -155,6 +155,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   const dragRef = useRef<DragState | null>(null);
   const spaceRef = useRef(false);
   const [connectMouse, setConnectMouse] = useState<Pt | null>(null);
+  /** 新建连线拖动中的目标预览（最近端口 + 合法性 + 吸附点） */
+  const [connectTarget, setConnectTarget] = useState<{ portId?: string; point?: Pt; error?: ConnectionError } | null>(null);
   const [marqueeEnd, setMarqueeEnd] = useState<Pt | null>(null);
   const [hoverNode, setHoverNode] = useState<string | null>(null);
   const [hoverPort, setHoverPort] = useState<string | null>(null);
@@ -541,31 +543,51 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
       onPortMoveDrag(nodeId, portId);
       return;
     }
-    dragRef.current = { type: "connect", fromPortId: portId, fromNodeId: nodeId };
+    // 拖动开始前一次性预计算所有端口的合法性（供绿/红圈实时高亮；拖动期间图不变）
+    const src = store.get().diagram;
+    const validity = new Map<string, ConnectionError | null>();
+    for (const n of src.nodes) for (const p of n.ports) {
+      if (p.id === portId) continue;
+      validity.set(p.id, validatePipeConnection(src, portId, p.id));
+    }
+    dragRef.current = { type: "connect", fromPortId: portId, fromNodeId: nodeId, portValidity: validity };
     setConnectMouse(screenToWorld(e.clientX, e.clientY));
+    setConnectTarget(null);
     beginWindowDrag(
       (ev) => {
         const d = dragRef.current;
         if (d?.type !== "connect") return;
-        setConnectMouse(screenToWorld(ev.clientX, ev.clientY));
+        const world = screenToWorld(ev.clientX, ev.clientY);
+        setConnectMouse(world);
+        // 拖动中实时预览：最近端口 + 校验结果（合法则预览线吸附到端口）
+        const tol = 16 / store.get().ui.zoom;
+        const cand = nearestPort(store.get().diagram.nodes, world, [], tol);
+        const error = cand ? validatePipeConnection(store.get().diagram, d.fromPortId, cand.portId) : null;
+        const ref = cand && !error ? findPort(store.get().diagram.nodes, cand.portId) : null;
+        setConnectTarget(cand ? { portId: cand.portId, point: ref ? portWorldPos(ref.node, ref.port) : { x: snap(world.x), y: snap(world.y) }, error: error ?? undefined } : null);
       },
       (ev) => {
         const d = dragRef.current;
         dragRef.current = null;
         setConnectMouse(null);
+        setConnectTarget(null);
         if (d?.type !== "connect") return;
-        const target = (ev.target as Element)?.closest?.("[data-port-id]");
-        const toPortId = target?.getAttribute("data-port-id");
-        if (toPortId) {
-          // 连接约束由 store 中的新建/重连共用校验执行；介质冲突仅作提示。
-          const diag = store.get().diagram;
-          const pipe = createPipe(d.fromPortId, toPortId);
-          // 介质冲突即时提示（不阻断，由用户决定）
-          if (pipe) {
-            const issues = checkPipeFluid(pipe, diag.nodes, lang);
-            if (issues.length > 0) {
-              toast(`${t("介质异常")}: ${issues[0].message}`, "error");
-            }
+        // P0：精确命中端口热区优先；落空时 16px 屏幕距离接近吸附（与重连端子同一手感）；仍落空则明确提示
+        const world = screenToWorld(ev.clientX, ev.clientY);
+        const exact = (ev.target as Element)?.closest?.("[data-port-id]")?.getAttribute("data-port-id") ?? null;
+        const toPortId = resolveConnectDrop(store.get().diagram.nodes, world, 16 / store.get().ui.zoom, exact);
+        if (!toPortId) {
+          toast(t("未连接到端口，请拖到目标端口上"));
+          return;
+        }
+        // 连接约束由 store 中的新建/重连共用校验执行；介质冲突仅作提示。
+        const diag = store.get().diagram;
+        const pipe = createPipe(d.fromPortId, toPortId);
+        // 介质冲突即时提示（不阻断，由用户决定）
+        if (pipe) {
+          const issues = checkPipeFluid(pipe, diag.nodes, lang);
+          if (issues.length > 0) {
+            toast(`${t("介质异常")}: ${issues[0].message}`, "error");
           }
         }
       }
@@ -1040,8 +1062,10 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           {/* 端口：接头延长线 stub + 进/出口可视化区分（进口=蓝空心+内箭头 / 出口=橙实心+外箭头 / 双向=灰菱形） */}
           {node.ports.map((port) => {
             const local = { top: { x: node.width * (port.offset ?? 0.5), y: 0 }, bottom: { x: node.width * (port.offset ?? 0.5), y: node.height }, left: { x: 0, y: node.height * (port.offset ?? 0.5) }, right: { x: node.width, y: node.height * (port.offset ?? 0.5) } }[port.position];
-            const active = hoverPort === port.id || terminalPreview?.portId === port.id;
-            const invalidTarget = terminalPreview?.portId === port.id && !!terminalPreview.error;
+            const active = hoverPort === port.id || terminalPreview?.portId === port.id || connectTarget?.portId === port.id;
+            const invalidTarget =
+              (terminalPreview?.portId === port.id && !!terminalPreview.error) ||
+              (connectTarget?.portId === port.id && !!connectTarget.error);
             const isPipeEnd = selectedPipeEnds && (selectedPipeEnds.fromPortId === port.id || selectedPipeEnds.toPortId === port.id);
             const dir = port.direction ?? "bidirectional";
             const isIn = dir === "in", isOut = dir === "out";
@@ -1073,8 +1097,27 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                 )}
                 {/* 端口圆点画在 stub 末端：出口实心橙 / 进口空心蓝 / 双向空心灰 */}
                 <circle cx={tx} cy={ty} r={active ? 6 : 4.5} fill={isOut ? color : "#ffffff"} stroke={invalidTarget ? "#d64545" : isPipeEnd ? "#ff6a00" : color} strokeWidth={invalidTarget ? 3 : isPipeEnd ? 2.6 : 1.8} pointerEvents="none" />
-                {invalidTarget && <title>{connectionErrorMessage(terminalPreview.error!, lang)}</title>}
+                {invalidTarget && (
+                  <title>
+                    {connectionErrorMessage(
+                      (terminalPreview?.portId === port.id ? terminalPreview.error : connectTarget?.error)!,
+                      lang
+                    )}
+                  </title>
+                )}
                 {isPipeEnd && <circle cx={tx} cy={ty} r={9} fill="none" stroke="#ff6a00" strokeWidth={1.4} opacity={0.7} pointerEvents="none" />}
+                {/* P1：新建连线拖动中，所有端口实时绿圈（可接）/红圈（不可接） */}
+                {(() => {
+                  const cd = dragRef.current;
+                  if (cd?.type !== "connect" || cd.fromPortId === port.id) return null;
+                  const v = cd.portValidity?.get(port.id);
+                  if (v === undefined) return null;
+                  return v === null ? (
+                    <circle cx={tx} cy={ty} r={7.5} fill="none" stroke="#2f9e5f" strokeWidth={1.6} opacity={0.85} pointerEvents="none" />
+                  ) : (
+                    <circle cx={tx} cy={ty} r={6.5} fill="none" stroke="#d64545" strokeWidth={1.3} opacity={0.45} pointerEvents="none" />
+                  );
+                })()}
                 {/* 热区：stub 末端 + 元件边缘各一个（连线锚点仍在边缘，点末端也能起线） */}
                 <circle cx={tx} cy={ty} r={12} fill="transparent" data-port-id={port.id} style={{ cursor: "crosshair", pointerEvents: portVisible ? "all" : "none" }} onMouseDown={(e) => onPortMouseDown(e, node.id, port.id)} onMouseEnter={() => setHoverPort(port.id)} onMouseLeave={() => setHoverPort((h) => (h === port.id ? null : h))} />
                 <circle cx={local.x} cy={local.y} r={10} fill="transparent" data-port-id={port.id} style={{ cursor: "crosshair", pointerEvents: portVisible ? "all" : "none" }} onMouseDown={(e) => onPortMouseDown(e, node.id, port.id)} onMouseEnter={() => setHoverPort(port.id)} onMouseLeave={() => setHoverPort((h) => (h === port.id ? null : h))} />
@@ -1172,8 +1215,10 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
       const a = portWorldPos(from.node, from.port);
       const n = portWorldNormal(from.node, from.port);
       const s0 = { x: a.x + n.x * 24, y: a.y + n.y * 24 };
-      const mid = Math.abs(n.x) > 0.5 ? { x: connectMouse.x, y: s0.y } : { x: s0.x, y: connectMouse.y };
-      connectPreview = pathD([a, s0, mid, connectMouse]);
+      // 合法目标存在时预览线吸附到端口；非法时停在光标
+      const end = connectTarget?.point && !connectTarget.error ? connectTarget.point : connectMouse;
+      const mid = Math.abs(n.x) > 0.5 ? { x: end.x, y: s0.y } : { x: s0.x, y: end.y };
+      connectPreview = pathD([a, s0, mid, end]);
     }
   }
 
@@ -1343,7 +1388,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             })}
           </g>
           {connectPreview && (
-            <path data-ui="1" d={connectPreview} fill="none" stroke="#2f7fd6" strokeWidth={2.4} strokeDasharray="7 5" pointerEvents="none" />
+            <path data-ui="1" d={connectPreview} fill="none" stroke={connectTarget?.error ? "#d64545" : "#2f7fd6"} strokeWidth={2.4} strokeDasharray="7 5" pointerEvents="none" />
           )}
           {terminalPreview && (() => {
             const pipe = diagram.pipes.find((p) => p.id === terminalPreview.pipeId);

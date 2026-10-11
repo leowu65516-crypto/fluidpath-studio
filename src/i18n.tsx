@@ -381,6 +381,7 @@ const EN: Record<string, string> = {
 
   // 介质校验
   "介质异常": "Fluid mismatch",
+  "未连接到端口，请拖到目标端口上": "Not connected to any port — drag onto a target port.",
   "改为": "Change to",
 
   // 教学知识卡

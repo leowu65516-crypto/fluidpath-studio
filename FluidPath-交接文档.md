@@ -35,7 +35,8 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 57 个测试文件 / 383 通过 + 4 跳过（共 387），见 §6 |
+| `src/__tests__/` | 63 个测试文件 / 409 通过 + 4 跳过（共 413），见 §6 |
+| `/Users/leo/Desktop/Fluidpath studio/` | 机型图纸与协议文档目录（含统超定制系列图纸、图纸规范 v0.2 及增补），见 §4.7 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
 | `BCTMS.json`（项目根） | 另一台机型 BCTMS 快照（62/70，供 flow-isolation 测试） |
@@ -327,6 +328,13 @@ pipeEffectiveDisabled(pipe) 依次短路：
 3. 排废场景中咖啡侧要有料（冲泡 A 给料）才会流动；排废总管受蒸汽排废阀总控。
 4. 三通阀 A/B 端口位约定：left=in、right=A、bottom=B（牛奶排废阀端口镜像，引擎按 direction 推断已处理）。
 5. **汇流保护（1.7 已修）**：BFS push 到达非定向汇流接头时，若存在另一条未停流的入侧管，不再把单一停流支路扩散到公共出管；递归层仍在所有入侧均停时判停。
+
+### 4.7 统超定制系列图纸（X 修订版 / Y BCTM2）与阀位语义（2026-10-11）
+
+- **系列位置**：桌面 `/Users/leo/Desktop/Fluidpath studio/`。`Smart X BCMT-统超定制-修订.json`（65 节点/74 管；用户 20:07 手工修订后的当前版）；`Smart Y BCTM2（统超定制）.json`（用户二次加工版，AI 初版 69/79 可由会话工作台 `build-y-bctm2.cjs` 重跑）。
+- **定制核心（相对标准机型）**：①进水管改经低温盘管（进水口→盘管→单向阀→滤网）；②咖啡路插「汇流三通（缸+清洗/旁通水汇集）→ 盘管选择三通（A 直通 / B 进盘管）→ 低温盘管（咖啡通道）→ 咖啡排废阀 → 合流 Y → 咖啡出口」；③牛奶出口加两通阀（按机型）；④热水链按机型差异重排（hotWater 口径）。
+- **引擎支撑（v1.29.3）**：换热器双通道隔离 + 三通汇流语义——规则与回归见 §3.3/§3.4 与测试 `heat-exchanger-channel` / `solenoid3-merge`；图纸协议对应条款见桌面《FluidPath-图纸规范与AI绘图协议-v0.2.md》§16（v0.2.2 增补）。
+- **阀位语义提醒（易误操作点）**：单出路汇流阀（如咖啡汇流三通）三档中 **A=工作位、B=死位（无输出）、关=全关**；盘管选择阀 **A=直通（绕开盘管）、B=下路（进盘管）**；咖啡排废阀必须 A（出口方向）全链才通。画布节点下方 [A|关|B] 徽标可直接点选。排障先查这三处，再看上游供液（注水/泵）。
 
 ---
 

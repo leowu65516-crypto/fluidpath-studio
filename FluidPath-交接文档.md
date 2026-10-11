@@ -523,3 +523,10 @@ GitHub Pages URL: https://<user>.github.io/<repo>/
 - 另存 → 主进程 `dialog.showSaveDialog` 写 JSON（preload 暴露 `saveJsonDialog`）；不保存 → `confirmClose` 直接关；取消 → 留在界面。
 - 空白且未修改时直接关闭、不弹窗。
 - 网页版浏览器无法拦截关闭，沿用 beforeunload 自动保存（崩溃恢复）。
+
+### 9.7 发布记录（滚动最近一条）
+
+- 2026-10-11 发布 **1.29.2**（储液罐液源修复）：`origin/main` = `170ec3c`；Check + Deploy 工作流均 **success**；线上 bundle `assets/index-DBrLFsF3.js` 与本地构建产物 sha256 一致（`f99c2d73…`），线上版本常量已为 `1.29.2`（且不含 1.29.1）。
+- DMG：`release/FluidPath Studio-1.29.2-arm64.dmg`（约 117 MB）。
+- 网络事实更新（2026-10-11 实测）：本机 **直连 github.com 可用**（`git push` 直连成功）；旧记录的 `http.proxy=127.0.0.1:10808` 方式当前不通（该端口为 xray，HTTP 代理协议下无响应）。PAT 仍在钥匙串有效。
+- 附带发现（未修，待排期）：超大图纸的分享链接（如 Smart X，≈89K 分享码）会因超长 URL/Referer 在通用服务器触发 431、页面空白；建议后续改用 URL fragment 或压缩编码。

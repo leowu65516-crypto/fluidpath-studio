@@ -193,7 +193,7 @@ function PipeViewImpl({
           </g>
         )}
         {/* 管路文字标签（双击就地编辑） */}
-        {showPipeLabels && pipe.label && <text x={mid.pt.x} y={labelY} textAnchor="middle" fontSize={11} fill={disabled ? "#8a9ba8" : "var(--text)"} fontFamily="system-ui, sans-serif" fontWeight={500} stroke="var(--canvas-label-halo)" strokeWidth={3} paintOrder="stroke" style={{ cursor: "text" }} data-ui="1" onDoubleClick={(e) => { e.stopPropagation(); onLabelDoubleClick(pipe.id, mid.pt.x, labelY, pipe.label); }}>
+        {showPipeLabels && pipe.label && <text x={mid.pt.x} y={labelY} textAnchor="middle" fontSize={11} fill={disabled ? "#8a9ba8" : "var(--text)"} fontFamily="system-ui, sans-serif" fontWeight={500} stroke="var(--canvas-label-halo)" strokeWidth={3} paintOrder="stroke" style={{ cursor: "text" }} data-ui="1" data-pipe-id={pipe.id} onDoubleClick={(e) => { e.stopPropagation(); onLabelDoubleClick(pipe.id, mid.pt.x, labelY, pipe.label); }}>
             {`${pipeDisplayLabel(pipe.label, lang ?? "zh")}${pipe.nominalDiameter ? " · " + pipe.nominalDiameter : ""}`}
           </text>}
         {/* 结构问题即时 lint 红点（标签右侧，编辑时实时提示） */}
@@ -209,14 +209,14 @@ function PipeViewImpl({
         {pipe.annotation && (
           <g pointerEvents="none">
             <rect x={mid.pt.x - 34} y={mid.pt.y + wallW * 0.7 + 4} width={68} height={16} rx={4} fill="var(--tip-bg)" stroke="#d9a441" strokeWidth={1} />
-            <text className="fp-pipe-annotation" x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + 15.5} textAnchor="middle" fontSize={10} fill="#c07b1f" fontFamily="system-ui, sans-serif" fontWeight={600}>{pipe.annotation}</text>
+            <text className="fp-pipe-annotation" x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + 15.5} textAnchor="middle" fontSize={10} fill="#c07b1f" fontFamily="system-ui, sans-serif" fontWeight={600} data-pipe-id={pipe.id}>{pipe.annotation}</text>
           </g>
         )}
         {/* 自动介质标签 */}
         {showFluidLabels && displayFluidType && displayFluidType !== "custom" && (
           <g pointerEvents="none">
             <rect x={mid.pt.x - 30} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 21 : 5)} width={60} height={15} rx={4} fill={visibleFluidColor} fillOpacity={0.18} stroke={visibleFluidColor} strokeWidth={1} />
-          <text className="fp-fluid-label" x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 31 : 15)} textAnchor="middle" fontSize={9.5} fill={visibleFluidColor} fontFamily="system-ui, sans-serif" fontWeight={650}>
+          <text className="fp-fluid-label" x={mid.pt.x} y={mid.pt.y + wallW * 0.7 + (pipe.annotation ? 31 : 15)} textAnchor="middle" fontSize={9.5} fill={visibleFluidColor} fontFamily="system-ui, sans-serif" fontWeight={650} data-pipe-id={pipe.id}>
               {FLUID_PRESETS.find((f) => f.key === displayFluidType)?.label ?? displayFluidType}
             </text>
           </g>

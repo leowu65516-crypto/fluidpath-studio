@@ -1009,6 +1009,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
         {/* 图形+端口+手柄 —— 可能旋转 */}
         <g
           transform={`translate(${node.x} ${node.y}) rotate(${node.rotation} ${node.width / 2} ${node.height / 2})`}
+          data-node-id={node.id}
+          data-node-kind={node.type}
           onMouseEnter={() => setHoverNode(node.id)}
           onMouseLeave={() => setHoverNode((h) => (h === node.id ? null : h))}
         >
@@ -1131,6 +1133,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             textAnchor="middle" className="fp-node-label" fontSize={node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13} fill="var(--node-label)"
             fontFamily="system-ui, -apple-system, sans-serif"
             data-ui="1"
+            data-node-id={node.id}
+            data-node-kind={node.type}
             style={{ cursor: "text" }}
             onDoubleClick={(e) => { e.stopPropagation(); beginLabelEdit("node", node.id, node.x + node.width / 2, node.y + node.height + 18, node.label); }}
           >{nodeCanvasLabel(node, lang)}</text>

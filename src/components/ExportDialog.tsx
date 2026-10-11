@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { buildExportSVGWithOptions, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, prepareExportDiagram, EXPORT_DEFAULTS, type ExportOptions } from "../export";
+import { buildExportSVGWithOptions, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, prepareExportDiagram, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance } from "../export";
 import { updateDiagram, useAppState } from "../store";
 import { useT } from "../i18n";
 import { toast } from "../toast";
@@ -20,9 +20,93 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const [quizSaved, setQuizSaved] = useState(false);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const reqIdRef = useRef(0);
+  /** 预览几何（导出坐标系原点与缩放），供文字拖拽命中换算 */
+  const previewMetaRef = useRef<{ x: number; y: number; w: number; h: number; fit: number } | null>(null);
+  const dragRef = useRef<{ key: string; ax: number; ay: number } | null>(null);
   const patch = (p: Partial<ExportOptions>) => setOpts((o) => ({ ...o, ...p }));
+  const patchText = (p: Partial<ExportTextEnhance>) =>
+    setOpts((o) => ({ ...o, text: { scales: {}, halo: true, plates: false, offsets: {}, ...(o.text ?? {}), ...p } }));
 
   const hasSelection = ui.selection.nodes.length + ui.selection.pipes.length > 0;
+
+  /** 可拖拽文字目录（导出坐标系）：画布文字 + 图例/自定义文字层 */
+  type TextItem = { key: string; cat: ExportTextCategory; x: number; y: number; fs: number; len: number };
+  const buildTextCatalog = (): TextItem[] => {
+    const items: TextItem[] = [];
+    const svgEl = svgRef.current;
+    if (svgEl) {
+      svgEl.querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label, text[data-pipe-id]").forEach((el) => {
+        const pipeId = el.getAttribute("data-pipe-id");
+        const nodeId = el.getAttribute("data-node-id");
+        const kind = el.getAttribute("data-node-kind");
+        const cat: ExportTextCategory = pipeId ? "pipes" : kind === "solenoid2" || kind === "solenoid3" ? "valves" : "components";
+        items.push({
+          key: pipeId ? `pipe:${pipeId}` : `node:${nodeId}`,
+          cat,
+          x: Number(el.getAttribute("x") || 0),
+          y: Number(el.getAttribute("y") || 0),
+          fs: Number(el.getAttribute("font-size") || 12),
+          len: (el.textContent || "").length,
+        });
+      });
+    }
+    const { extra } = prepareExportDiagram(diagram, { ...opts, selection: ui.selection });
+    for (const n of extra) {
+      if (n.type === "shape") {
+        items.push({ key: `export:${n.id}`, cat: "legend", x: n.x + (n.width || 130) / 2, y: n.y + (n.height || 28) / 2 + 5, fs: n.fontSize ?? 13, len: n.label.length });
+      } else {
+        const fs = n.fontSize ?? 14;
+        items.push({ key: `export:${n.id}`, cat: n.exportKind === "legend" ? "legend" : "custom", x: n.x + (n.width || 0) / 2, y: n.y + (n.height || 24) / 2 + fs / 3, fs, len: n.label.length });
+      }
+    }
+    return items;
+  };
+
+  const canvasToWorld = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const meta = previewMetaRef.current;
+    const cv = previewRef.current;
+    if (!meta || !cv) return null;
+    const rect = cv.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / Math.max(1, rect.width)) * cv.width;
+    const py = ((e.clientY - rect.top) / Math.max(1, rect.height)) * cv.height;
+    const sx = px / Math.max(0.001, meta.fit);
+    const sy = py / Math.max(0.001, meta.fit);
+    return { x: sx + meta.x, y: sy + meta.y };
+  };
+
+  const onPreviewPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const w = canvasToWorld(e);
+    if (!w) return;
+    let best: { item: TextItem; d: number } | null = null;
+    for (const it of buildTextCatalog()) {
+      const halfW = Math.max(26, it.fs * it.len * 0.5);
+      const halfH = Math.max(14, it.fs);
+      const dx = Math.max(0, Math.abs(w.x - it.x) - halfW);
+      const dy = Math.max(0, Math.abs(w.y - it.y) - halfH);
+      const d = Math.hypot(dx, dy);
+      if (d < 12 && (!best || d < best.d)) best = { item: it, d };
+    }
+    if (!best) return;
+    dragRef.current = { key: best.item.key, ax: best.item.x, ay: best.item.y };
+    try { (e.currentTarget as HTMLCanvasElement).setPointerCapture?.(e.pointerId); } catch { /* 合成事件/无活动指针时忽略 */ }
+    (e.currentTarget as HTMLCanvasElement).classList.add("text-dragging");
+    e.preventDefault();
+  };
+
+  const onPreviewPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const w = canvasToWorld(e);
+    if (!w) return;
+    const off = opts.text?.offsets ?? {};
+    patchText({ offsets: { ...off, [drag.key]: { x: Math.round(w.x - drag.ax), y: Math.round(w.y - drag.ay) } } });
+  };
+
+  const onPreviewPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    (e.currentTarget as HTMLCanvasElement).classList.remove("text-dragging");
+  };
 
   // 语言切换时同步导出物语言（图例/日期）
   useEffect(() => { patch({ lang }); }, [lang]);
@@ -35,7 +119,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     const timer = setTimeout(() => {
       if (id !== reqIdRef.current) return;
       try {
-        const { svg, w, h } = buildExportSVGWithOptions(svgEl, diagram, { ...opts, selection: ui.selection });
+        const { svg, w, h, x, y } = buildExportSVGWithOptions(svgEl, diagram, { ...opts, selection: ui.selection });
         const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
         const img = new Image();
         img.onload = () => {
@@ -50,6 +134,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
           const ctx = cv.getContext("2d")!;
           ctx.clearRect(0, 0, cv.width, cv.height);
           ctx.drawImage(img, 0, 0, cv.width, cv.height);
+          previewMetaRef.current = { x, y, w, h, fit };
           URL.revokeObjectURL(url);
         };
         img.onerror = () => URL.revokeObjectURL(url);
@@ -126,7 +211,14 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
         </div>
         <div className="export-dialog-body">
           <div className="exp-preview-wrap">
-            <canvas ref={previewRef} className="exp-preview" />
+            <canvas
+              ref={previewRef}
+              className="exp-preview"
+              onPointerDown={onPreviewPointerDown}
+              onPointerMove={onPreviewPointerMove}
+              onPointerUp={onPreviewPointerUp}
+              onPointerCancel={onPreviewPointerUp}
+            />
             <div className="exp-preview-meta">{diagram.nodes.length} {t("节点")} · {diagram.pipes.length} {t("管路")}{opts.scale > 1 ? ` · ${opts.scale}x` : ""}</div>
           </div>
           <div className="exp-options">
@@ -182,6 +274,35 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                 </div>
               </>
             ), "text")}
+            {group(t("文字增强（分类）"), (
+              <>
+                {([
+                  ["pipes", t("管路")],
+                  ["valves", t("阀门")],
+                  ["components", t("元器件")],
+                  ["switches", t("开关状态")],
+                  ["legend", t("图例文字")],
+                  ["custom", t("自定义文字")],
+                ] as Array<[ExportTextCategory, string]>).map(([key, label]) => (
+                  <div className="exp-row" key={key}>
+                    <label>{label}</label>
+                    <div className="seg">
+                      {[1, 1.5, 2, 2.5].map((sc) => (
+                        <button key={sc} className={(opts.text?.scales?.[key] ?? 1) === sc ? "on" : ""} onClick={() => patchText({ scales: { ...(opts.text?.scales ?? {}), [key]: sc } })}>{sc}x</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div className="exp-row exp-checks">
+                  <label><input type="checkbox" checked={opts.text?.halo !== false} onChange={(e) => patchText({ halo: e.target.checked })} /> {t("描边加强")}</label>
+                  <label><input type="checkbox" checked={!!opts.text?.plates} onChange={(e) => patchText({ plates: e.target.checked })} /> {t("白色底板")}</label>
+                </div>
+                {Object.keys(opts.text?.offsets ?? {}).length > 0 && (
+                  <button className="btn ghost exp-reset" onClick={() => patchText({ offsets: {} })}>{t("重置位置")}</button>
+                )}
+                <div className="exp-tip">{t("拖动预览里的文字可微调位置（仅导出物生效）")}</div>
+              </>
+            ), "textcats")}
             {group(t("图例"), (
               <div className="exp-row exp-checks">
                 <label><input type="checkbox" checked={opts.legend.fluid} onChange={(e) => patch({ legend: { ...opts.legend, fluid: e.target.checked } })} /> {t("介质")}</label>

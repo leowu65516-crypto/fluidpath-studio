@@ -114,6 +114,21 @@ function contentBBox(diagram: Diagram) {
 /** 从画布 SVG 克隆出干净的导出用 DOM（剔除 UI 辅助元素）。transparent 时去除背景色 */
 // ===== 导出预览/覆盖管线（v1.18）：所见即所得的导出前编辑 =====
 
+/** 导出文字增强的分类键：pipes=管路 / valves=阀门 / components=元器件 / switches=开关状态 / legend=图例 / custom=自定义文字 */
+export type ExportTextCategory = "pipes" | "valves" | "components" | "switches" | "legend" | "custom";
+
+/** 导出文字增强选项（全部只作用于导出物） */
+export interface ExportTextEnhance {
+  /** 分类倍率（缺省视为 1；与全局 textScale 相乘） */
+  scales: Partial<Record<ExportTextCategory, number>>;
+  /** 描边加强：白色描边光晕，让放大文字在元件/管线上仍可读（尽量不遮元件） */
+  halo: boolean;
+  /** 白色底板：文字后加半透明白底（更醒目，但会遮盖背景，默认关） */
+  plates: boolean;
+  /** 单个文字偏移（导出坐标系）：key = pipe:xx / node:xx / export:xx */
+  offsets: Record<string, { x: number; y: number }>;
+}
+
 /** 导出选项：全部只作用于导出物，画布零污染（延续「验收在副本运行」的哲学） */
 export interface ExportOptions {
   /** Static diagnostic overlays are opt-in and never modify fluid colors. */
@@ -132,6 +147,8 @@ export interface ExportOptions {
   selection?: { nodes: string[]; pipes: string[] };
   /** 文字增强倍率 1–2（节点标签/管路标注/介质文字/图例） */
   textScale: number;
+  /** 文字增强（分类放大/描边/底板/拖拽偏移，与 textScale 相乘） */
+  text?: ExportTextEnhance;
   /** 状态徽标样式：default=画布同款 / pill=强化描边放大 / hidden=隐藏 */
   badgeStyle: "default" | "pill" | "hidden";
   /** 图例段开关 */
@@ -159,6 +176,7 @@ export const EXPORT_DEFAULTS: Omit<ExportOptions, "format" | "lang"> = {
   filename: "",
   selectionOnly: false,
   textScale: 1,
+  text: { scales: {}, halo: true, plates: false, offsets: {} },
   badgeStyle: "default",
   legend: { fluid: false, diameter: false, status: false },
   dateStamp: false,
@@ -174,14 +192,14 @@ const THEME_VARS: Record<"light" | "dark", Record<string, string>> = {
     "--text-dim": "#6b7787", "--accent": "#2f7fd6", "--accent-soft": "#e7f0fb", "--danger": "#d64545",
     "--surface": "#fbfcfe", "--surface-2": "#f0f4f9", "--tip-bg": "#f4f7fb", "--input-bg": "#ffffff",
     "--brand": "#1f2c3d", "--static": "#7a8794", "--section-title": "#34435a", "--node-label": "#41505f",
-    "--card": "#ffffff",
+    "--canvas-label-halo": "#ffffff", "--card": "#ffffff",
   },
   dark: {
     "--bg-work": "#141b24", "--panel": "#1d2632", "--border": "#334052", "--text": "#dde5ee",
     "--text-dim": "#8b99a9", "--accent": "#4d9ef0", "--accent-soft": "#223550", "--danger": "#e27070",
     "--surface": "#242f3d", "--surface-2": "#2a3646", "--tip-bg": "#242f3d", "--input-bg": "#242f3d",
     "--brand": "#e6edf5", "--static": "#93a1b1", "--section-title": "#c6d2e0", "--node-label": "#aebccb",
-    "--card": "#24303d",
+    "--canvas-label-halo": "#1d2632", "--card": "#24303d",
   },
 };
 
@@ -203,16 +221,85 @@ function resolveSvgTheme(clone: SVGSVGElement, theme: "light" | "dark") {
   });
 }
 
-/** 文字/徽标 SVG DOM 后处理 */
+/** 导出克隆前：保留节点/管路标签、介质/标注文字与状态徽标——它们带 data-ui，先解除标记再剥离 UI 辅助元素 */
+function preserveExportText(clone: SVGSVGElement) {
+  clone
+    .querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label, .fp-state-badge, text[data-pipe-id]")
+    .forEach((el) => el.removeAttribute("data-ui"));
+}
+
+/** 文字/徽标 SVG DOM 后处理（v1.30：分类放大 + 描边/底板 + 拖拽偏移） */
 function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
-  // 文字增强
-  if (opts.textScale !== 1) {
-    clone.querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label").forEach((el) => {
-      const fs = Number(el.getAttribute("font-size") || 0);
-      if (fs > 0) el.setAttribute("font-size", String(Math.round(fs * opts.textScale * 10) / 10));
+  const text = opts.text ?? { scales: {}, halo: true, plates: false, offsets: {} };
+  const global = opts.textScale ?? 1;
+  const catScale = (cat: ExportTextCategory | null) => (cat ? (text.scales?.[cat] ?? 1) : 1) * global;
+
+  const NS = "http://www.w3.org/2000/svg";
+  const classify = (el: Element): { cat: ExportTextCategory | null; key: string | null } => {
+    if (el.closest(".fp-state-badge")) {
+      const host = el.closest("[data-node-id]");
+      return { cat: "switches", key: host ? `node:${host.getAttribute("data-node-id")}:badge` : null };
+    }
+    const expKind = el.getAttribute("data-export-kind");
+    if (expKind === "legend" || expKind === "custom") {
+      const nid = el.getAttribute("data-export-node-id");
+      return { cat: expKind, key: nid ? `export:${nid}` : null };
+    }
+    const pipeId = el.getAttribute("data-pipe-id");
+    if (pipeId) return { cat: "pipes", key: `pipe:${pipeId}` };
+    const nodeId = el.getAttribute("data-node-id");
+    if (nodeId) {
+      const kind = el.getAttribute("data-node-kind");
+      return { cat: kind === "solenoid2" || kind === "solenoid3" ? "valves" : "components", key: `node:${nodeId}` };
+    }
+    return { cat: null, key: null };
+  };
+
+  clone
+    .querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label, text[data-pipe-id], text[data-export-kind], .fp-state-badge text")
+    .forEach((el) => {
+      const { cat, key } = classify(el);
+      const scale = catScale(cat);
+      if (scale !== 1) {
+        const fs = Number(el.getAttribute("font-size") || 0);
+        if (fs > 0) el.setAttribute("font-size", String(Math.round(fs * scale * 10) / 10));
+        if (text.halo) {
+          el.setAttribute("stroke", "#ffffff");
+          el.setAttribute("stroke-width", "3");
+          el.setAttribute("style", "paint-order: stroke");
+        }
+        if (text.plates) {
+          // 文字后插半透明白底（近似包围盒；不依赖 getBBox，jsdom/导出环境安全）
+          const x = Number(el.getAttribute("x") || 0);
+          const y = Number(el.getAttribute("y") || 0);
+          const fs2 = Number(el.getAttribute("font-size") || 12);
+          const len = (el.textContent || "").length;
+          const w = len * fs2 * 0.62 + 10;
+          const h = fs2 * 1.45 + 6;
+          const rect = el.ownerDocument.createElementNS(NS, "rect");
+          rect.setAttribute("x", String(Math.round(x - w / 2)));
+          rect.setAttribute("y", String(Math.round(y - fs2 * 0.95 - h / 2 + fs2 / 2)));
+          rect.setAttribute("width", String(Math.round(w)));
+          rect.setAttribute("height", String(Math.round(h)));
+          rect.setAttribute("rx", "4");
+          rect.setAttribute("fill", "#ffffff");
+          rect.setAttribute("fill-opacity", "0.72");
+          if (el.parentNode) el.parentNode.insertBefore(rect, el);
+        }
+      }
+      // 拖拽偏移（开关徽标处于局部坐标系，不支持拖拽）
+      if (key && cat !== "switches" && text.offsets?.[key]) {
+        const off = text.offsets[key];
+        if (off.x || off.y) {
+          const baseX = Number(el.getAttribute("x") || 0);
+          const baseY = Number(el.getAttribute("y") || 0);
+          el.setAttribute("x", String(Math.round((baseX + off.x) * 10) / 10));
+          el.setAttribute("y", String(Math.round((baseY + off.y) * 10) / 10));
+        }
+      }
     });
-  }
-  // 状态徽标
+
+  // 状态徽标样式（保留 v1.18 行为：隐藏/强化描边）
   if (opts.badgeStyle === "hidden") {
     clone.querySelectorAll(".fp-state-badge").forEach((el) => el.remove());
   } else if (opts.badgeStyle === "pill") {
@@ -263,6 +350,7 @@ export function prepareExportDiagram(diagram: Diagram, opts: ExportOptions): { d
     const n = createNode("label", 0, 0, text);
     n.fontSize = fontSize;
     n.fill = fill;
+    n.exportKind = "custom";
     n.width = Math.max(240, text.length * fontSize * 1.05);
     n.height = fontSize + 14;
     n.x = cx - n.width / 2;
@@ -291,6 +379,7 @@ export function prepareExportDiagram(diagram: Diagram, opts: ExportOptions): { d
   }
   if (opts.legend.fluid || opts.legend.diameter || opts.legend.status) {
     const nodes = buildLegendNodes(d, base.x + base.w + 28, base.y, opts.legend, opts.lang);
+    for (const n of nodes) n.exportKind = "legend";
     extra.push(...nodes);
   }
   return { diagram: d, extra };
@@ -316,6 +405,9 @@ function appendExportNodes(clone: SVGSVGElement, extra: DiagramNode[]) {
       t.setAttribute("fill", n.stroke);
       t.setAttribute("font-family", "system-ui, -apple-system, sans-serif");
       t.setAttribute("font-weight", "600");
+      t.setAttribute("class", "fp-export-text");
+      t.setAttribute("data-export-kind", n.exportKind ?? "custom");
+      t.setAttribute("data-export-node-id", n.id);
       t.textContent = n.label;
       g.appendChild(t);
     } else {
@@ -329,6 +421,9 @@ function appendExportNodes(clone: SVGSVGElement, extra: DiagramNode[]) {
       t.setAttribute("fill", n.fill && n.fill !== "#fff" ? n.fill : "#2b3644");
       t.setAttribute("font-family", "system-ui, -apple-system, sans-serif");
       if (n.fontSize && n.fontSize >= 22) t.setAttribute("font-weight", "700");
+      t.setAttribute("class", "fp-export-text");
+      t.setAttribute("data-export-kind", n.exportKind ?? "custom");
+      t.setAttribute("data-export-node-id", n.id);
       t.textContent = n.label;
       g.appendChild(t);
     }
@@ -340,6 +435,7 @@ function appendExportNodes(clone: SVGSVGElement, extra: DiagramNode[]) {
 function buildExportClone(svgEl: SVGSVGElement, diagram: Diagram, transparent = false): { clone: SVGSVGElement; w: number; h: number } {
   const bbox = contentBBox(diagram);
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
+  preserveExportText(clone);
   clone.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
   const world = clone.querySelector("[data-world='1']");
   if (world) world.removeAttribute("transform");
@@ -530,7 +626,7 @@ export function prepareDiagnosticExport(clone: SVGSVGElement, opts: ExportOption
   }
 }
 
-export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opts: ExportOptions): { svg: string; w: number; h: number } {
+export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opts: ExportOptions): { svg: string; w: number; h: number; x: number; y: number } {
   const { diagram: exDiagram, extra } = prepareExportDiagram(diagram, opts);
   const bbox = bboxWith(extra, exDiagram);
   const pad = Math.max(0, opts.padding || 0);
@@ -540,6 +636,7 @@ export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram
   const h = bbox.h + pad * 2;
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   prepareDiagnosticExport(clone, opts);
+  preserveExportText(clone);
   clone.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
   const world = clone.querySelector("[data-world='1']");
   if (world) world.removeAttribute("transform");
@@ -561,7 +658,7 @@ export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram
   applySvgOverrides(clone, opts);
   resolveSvgTheme(clone, opts.darkMode ? "dark" : "light");
   const xml = new XMLSerializer().serializeToString(clone);
-  return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n` + xml, w: Math.round(w), h: Math.round(h) };
+  return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n` + xml, w: Math.round(w), h: Math.round(h), x: Math.round(x), y: Math.round(y) };
 }
 
 /** PNG/JPG 选项化导出 */

@@ -85,6 +85,8 @@ export interface DiagramNode {
   dispensing?: boolean;
   /** 组 ID：同组节点选中时联动、一起移动 */
   groupId?: string;
+  /** 导出附加节点分类（仅导出管线用：legend=图例文字 / custom=自定义文字层） */
+  exportKind?: "legend" | "custom";
   /** 工程禁用：参与液路判定；不是画布淡化。 */
   disabled?: boolean;
   /** 仅画布显示淡化，不改变工程状态、验收结果或导出。 */

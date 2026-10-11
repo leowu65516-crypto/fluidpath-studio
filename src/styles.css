@@ -2035,8 +2035,11 @@ body[data-theme="dark"] .welcome-overlay {
 .exp-preview {
   flex: 1; min-height: 0; width: 100%; object-fit: contain;
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  touch-action: none;
 }
+.exp-preview.text-dragging { cursor: grabbing; }
 .exp-preview-meta { font-size: 11px; color: var(--text-dim); text-align: center; }
+.exp-reset { align-self: flex-start; padding: 4px 10px; font-size: 12px; }
 .exp-options { flex: 1; min-width: 300px; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 10px; }
 .exp-group { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
 .exp-group-title { font-size: 12px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; letter-spacing: 0.4px; }

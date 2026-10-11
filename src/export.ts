@@ -125,8 +125,10 @@ export interface ExportTextEnhance {
   halo: boolean;
   /** 白色底板：文字后加半透明白底（更醒目，但会遮盖背景，默认关） */
   plates: boolean;
-  /** 单个文字偏移（导出坐标系）：key = pipe:xx / node:xx / export:xx */
+  /** 单个元素偏移（导出坐标系）：key = pipe:xx:label / pipe:xx:anno / pipe:xx:fluid / node:xx / node:xx:badge / export:xx */
   offsets: Record<string, { x: number; y: number }>;
+  /** 逐条文字内容修改（导出物专用）：key 同上；徽标分段用 node:xx:badge:0/1/2 */
+  overrides: Record<string, string>;
 }
 
 /** 导出选项：全部只作用于导出物，画布零污染（延续「验收在副本运行」的哲学） */
@@ -176,7 +178,7 @@ export const EXPORT_DEFAULTS: Omit<ExportOptions, "format" | "lang"> = {
   filename: "",
   selectionOnly: false,
   textScale: 1,
-  text: { scales: {}, halo: true, plates: false, offsets: {} },
+  text: { scales: {}, halo: true, plates: false, offsets: {}, overrides: {} },
   badgeStyle: "default",
   legend: { fluid: false, diameter: false, status: false },
   dateStamp: false,
@@ -228,17 +230,28 @@ function preserveExportText(clone: SVGSVGElement) {
     .forEach((el) => el.removeAttribute("data-ui"));
 }
 
-/** 文字/徽标 SVG DOM 后处理（v1.30：分类放大 + 描边/底板 + 拖拽偏移） */
+/** 文字/徽标 SVG DOM 后处理（v1.30：分类放大 + 描边/底板 + 拖拽偏移 + 逐条改字） */
 function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
-  const text = opts.text ?? { scales: {}, halo: true, plates: false, offsets: {} };
+  const text = opts.text ?? { scales: {}, halo: true, plates: false, offsets: {}, overrides: {} };
   const global = opts.textScale ?? 1;
   const catScale = (cat: ExportTextCategory | null) => (cat ? (text.scales?.[cat] ?? 1) : 1) * global;
+  const overrides = text.overrides ?? {};
 
   const NS = "http://www.w3.org/2000/svg";
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+  const nodeRotationOf = (el: Element): number => {
+    const g = el.closest("[data-node-id]");
+    const m = (g?.getAttribute("transform") || "").match(/rotate\(\s*([-\d.eE]+)/);
+    return m ? parseFloat(m[1]) : 0;
+  };
   const classify = (el: Element): { cat: ExportTextCategory | null; key: string | null } => {
     if (el.closest(".fp-state-badge")) {
       const host = el.closest("[data-node-id]");
-      return { cat: "switches", key: host ? `node:${host.getAttribute("data-node-id")}:badge` : null };
+      const badge = el.closest(".fp-state-badge");
+      if (!host || !badge) return { cat: "switches", key: null };
+      const segs = [...badge.querySelectorAll("text")];
+      const idx = segs.indexOf(el as SVGTextElement);
+      return { cat: "switches", key: `node:${host.getAttribute("data-node-id")}:badge:${idx}` };
     }
     const expKind = el.getAttribute("data-export-kind");
     if (expKind === "legend" || expKind === "custom") {
@@ -246,7 +259,10 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
       return { cat: expKind, key: nid ? `export:${nid}` : null };
     }
     const pipeId = el.getAttribute("data-pipe-id");
-    if (pipeId) return { cat: "pipes", key: `pipe:${pipeId}` };
+    if (pipeId) {
+      const suffix = el.classList.contains("fp-fluid-label") ? "fluid" : el.classList.contains("fp-pipe-annotation") ? "anno" : "label";
+      return { cat: "pipes", key: `pipe:${pipeId}:${suffix}` };
+    }
     const nodeId = el.getAttribute("data-node-id");
     if (nodeId) {
       const kind = el.getAttribute("data-node-kind");
@@ -259,10 +275,12 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
     .querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label, text[data-pipe-id], text[data-export-kind], .fp-state-badge text")
     .forEach((el) => {
       const { cat, key } = classify(el);
+      // 逐条改字（先于缩放/底板，使底板按新文字长度计算）
+      if (key && overrides[key] !== undefined) el.textContent = overrides[key];
       const scale = catScale(cat);
       if (scale !== 1) {
         const fs = Number(el.getAttribute("font-size") || 0);
-        if (fs > 0) el.setAttribute("font-size", String(Math.round(fs * scale * 10) / 10));
+        if (fs > 0) el.setAttribute("font-size", String(round1(fs * scale)));
         if (text.halo) {
           el.setAttribute("stroke", "#ffffff");
           el.setAttribute("stroke-width", "3");
@@ -287,17 +305,32 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
           if (el.parentNode) el.parentNode.insertBefore(rect, el);
         }
       }
-      // 拖拽偏移（开关徽标处于局部坐标系，不支持拖拽）
-      if (key && cat !== "switches" && text.offsets?.[key]) {
+      // 拖拽偏移（徽标分段不单独偏移，由整组 node:xx:badge 处理）
+      const isBadgeSeg = el.closest(".fp-state-badge") !== null;
+      if (key && !isBadgeSeg && text.offsets?.[key]) {
         const off = text.offsets[key];
         if (off.x || off.y) {
           const baseX = Number(el.getAttribute("x") || 0);
           const baseY = Number(el.getAttribute("y") || 0);
-          el.setAttribute("x", String(Math.round((baseX + off.x) * 10) / 10));
-          el.setAttribute("y", String(Math.round((baseY + off.y) * 10) / 10));
+          el.setAttribute("x", String(round1(baseX + off.x)));
+          el.setAttribute("y", String(round1(baseY + off.y)));
         }
       }
     });
+
+  // 状态徽标整组拖拽偏移（局部坐标系：按节点 rotation 逆变换）
+  clone.querySelectorAll(".fp-state-badge").forEach((badge) => {
+    if (badge.tagName.toLowerCase() !== "g") return;
+    const host = badge.closest("[data-node-id]");
+    if (!host) return;
+    const key = `node:${host.getAttribute("data-node-id")}:badge`;
+    const off = text.offsets?.[key];
+    if (!off || (!off.x && !off.y)) return;
+    const rot = (nodeRotationOf(badge) * Math.PI) / 180;
+    const lx = off.x * Math.cos(rot) + off.y * Math.sin(rot);
+    const ly = -off.x * Math.sin(rot) + off.y * Math.cos(rot);
+    badge.setAttribute("transform", `translate(${round1(lx)} ${round1(ly)})`);
+  });
 
   // 状态徽标样式（保留 v1.18 行为：隐藏/强化描边）
   if (opts.badgeStyle === "hidden") {
@@ -306,7 +339,7 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
     clone.querySelectorAll(".fp-state-badge").forEach((el) => {
       if (el.tagName.toLowerCase() === "text") {
         const fs = Number(el.getAttribute("font-size") || 0);
-        if (fs > 0) el.setAttribute("font-size", String(Math.round(fs * 1.35 * 10) / 10));
+        if (fs > 0) el.setAttribute("font-size", String(round1(fs * 1.35)));
         el.setAttribute("stroke", "#ffffff");
         el.setAttribute("stroke-width", "3");
         el.setAttribute("style", "paint-order: stroke");

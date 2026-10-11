@@ -2026,12 +2026,21 @@ body[data-theme="dark"] .welcome-overlay {
 .export-dialog-body { flex: 1; display: flex; min-height: 0; }
 .exp-preview-wrap {
   flex: 1.35; min-width: 0; padding: 14px; display: flex; flex-direction: column; gap: 6px;
+  position: relative;
   background:
     linear-gradient(45deg, var(--surface-2) 25%, transparent 25%, transparent 75%, var(--surface-2) 75%),
     linear-gradient(45deg, var(--surface-2) 25%, transparent 25%, transparent 75%, var(--surface-2) 75%);
   background-size: 16px 16px; background-position: 0 0, 8px 8px;
   border-right: 1px solid var(--border);
 }
+.exp-text-edit {
+  position: absolute; z-index: 5; transform: translate(-50%, -130%);
+  min-width: 140px; padding: 4px 8px; font-size: 12px;
+  border: 1px solid var(--accent); border-radius: 6px;
+  background: var(--input-bg); color: var(--text);
+  box-shadow: 0 4px 14px rgba(31, 44, 61, 0.18);
+}
+.exp-reset-row { display: flex; gap: 8px; }
 .exp-preview {
   flex: 1; min-height: 0; width: 100%; object-fit: contain;
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px;

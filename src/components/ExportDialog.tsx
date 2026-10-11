@@ -25,12 +25,29 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const dragRef = useRef<{ key: string; ax: number; ay: number } | null>(null);
   const patch = (p: Partial<ExportOptions>) => setOpts((o) => ({ ...o, ...p }));
   const patchText = (p: Partial<ExportTextEnhance>) =>
-    setOpts((o) => ({ ...o, text: { scales: {}, halo: true, plates: false, offsets: {}, ...(o.text ?? {}), ...p } }));
+    setOpts((o) => ({ ...o, text: { scales: {}, halo: true, plates: false, offsets: {}, overrides: {}, ...(o.text ?? {}), ...p } }));
+  /** 双击就地编辑状态（预览内） */
+  const [editing, setEditing] = useState<{ key: string; value: string; left: number; top: number } | null>(null);
+  const editCancelRef = useRef(false);
 
   const hasSelection = ui.selection.nodes.length + ui.selection.pipes.length > 0;
 
-  /** 可拖拽文字目录（导出坐标系）：画布文字 + 图例/自定义文字层 */
-  type TextItem = { key: string; cat: ExportTextCategory; x: number; y: number; fs: number; len: number };
+  /** 可拖拽/可编辑文字目录（导出坐标系）：画布文字 + 开关徽标 + 图例/自定义文字层 */
+  type TextItem = { key: string; groupKey?: string; cat: ExportTextCategory; x: number; y: number; fs: number; len: number; text: string };
+  /** 画布客户端坐标 → 世界坐标（经 svg 元素尺寸与 data-world 变换反推） */
+  const clientToWorld = (clientX: number, clientY: number): { x: number; y: number } | null => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const r = svg.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    const sw = (svg as SVGSVGElement).width?.baseVal?.value || r.width;
+    const sh = (svg as SVGSVGElement).height?.baseVal?.value || r.height;
+    const ux = (clientX - r.left) * (sw / r.width);
+    const uy = (clientY - r.top) * (sh / r.height);
+    const tr = (svg.querySelector("[data-world='1']")?.getAttribute("transform") || "").match(/translate\(\s*([-\d.eE]+)[ ,]+([-\d.eE]+)\s*\)\s*scale\(\s*([-\d.eE]+)\s*\)/);
+    const tx = tr ? parseFloat(tr[1]) : 0, ty = tr ? parseFloat(tr[2]) : 0, s = tr ? parseFloat(tr[3]) : 1;
+    return { x: (ux - tx) / s, y: (uy - ty) / s };
+  };
   const buildTextCatalog = (): TextItem[] => {
     const items: TextItem[] = [];
     const svgEl = svgRef.current;
@@ -40,35 +57,77 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
         const nodeId = el.getAttribute("data-node-id");
         const kind = el.getAttribute("data-node-kind");
         const cat: ExportTextCategory = pipeId ? "pipes" : kind === "solenoid2" || kind === "solenoid3" ? "valves" : "components";
+        const suffix = pipeId
+          ? el.classList.contains("fp-fluid-label") ? ":fluid" : el.classList.contains("fp-pipe-annotation") ? ":anno" : ":label"
+          : "";
         items.push({
-          key: pipeId ? `pipe:${pipeId}` : `node:${nodeId}`,
+          key: pipeId ? `pipe:${pipeId}${suffix}` : `node:${nodeId}`,
           cat,
           x: Number(el.getAttribute("x") || 0),
           y: Number(el.getAttribute("y") || 0),
           fs: Number(el.getAttribute("font-size") || 12),
           len: (el.textContent || "").length,
+          text: el.textContent || "",
+        });
+      });
+      // 开关徽标分段（锚点由屏幕坐标换算；拖拽整组、双击改单段文字）
+      svgEl.querySelectorAll("g.fp-state-badge").forEach((badge) => {
+        const host = badge.closest("[data-node-id]");
+        if (!host) return;
+        const nodeId = host.getAttribute("data-node-id");
+        [...badge.querySelectorAll("text")].forEach((t, i) => {
+          const br = t.getBoundingClientRect();
+          const wp = clientToWorld(br.left + br.width / 2, br.top + br.height / 2);
+          if (!wp) return;
+          items.push({
+            key: `node:${nodeId}:badge:${i}`,
+            groupKey: `node:${nodeId}:badge`,
+            cat: "switches",
+            x: wp.x, y: wp.y,
+            fs: Number(t.getAttribute("font-size") || 10),
+            len: (t.textContent || "").length,
+            text: t.textContent || "",
+          });
         });
       });
     }
     const { extra } = prepareExportDiagram(diagram, { ...opts, selection: ui.selection });
     for (const n of extra) {
       if (n.type === "shape") {
-        items.push({ key: `export:${n.id}`, cat: "legend", x: n.x + (n.width || 130) / 2, y: n.y + (n.height || 28) / 2 + 5, fs: n.fontSize ?? 13, len: n.label.length });
+        items.push({ key: `export:${n.id}`, cat: "legend", x: n.x + (n.width || 130) / 2, y: n.y + (n.height || 28) / 2 + 5, fs: n.fontSize ?? 13, len: n.label.length, text: n.label });
       } else {
         const fs = n.fontSize ?? 14;
-        items.push({ key: `export:${n.id}`, cat: n.exportKind === "legend" ? "legend" : "custom", x: n.x + (n.width || 0) / 2, y: n.y + (n.height || 24) / 2 + fs / 3, fs, len: n.label.length });
+        items.push({ key: `export:${n.id}`, cat: n.exportKind === "legend" ? "legend" : "custom", x: n.x + (n.width || 0) / 2, y: n.y + (n.height || 24) / 2 + fs / 3, fs, len: n.label.length, text: n.label });
       }
     }
     return items;
   };
 
-  const canvasToWorld = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  /** 最近的文字项（命中测试：近似包围盒 + 半径容差） */
+  const nearestTextItem = (wx: number, wy: number): TextItem | null => {
+    let best: { item: TextItem; d: number } | null = null;
+    for (const it of buildTextCatalog()) {
+      const halfW = Math.max(26, it.fs * it.len * 0.5);
+      const halfH = Math.max(14, it.fs);
+      const dx = Math.max(0, Math.abs(wx - it.x) - halfW);
+      const dy = Math.max(0, Math.abs(wy - it.y) - halfH);
+      const d = Math.hypot(dx, dy);
+      if (d < 12 && (!best || d < best.d)) best = { item: it, d };
+    }
+    return best ? best.item : null;
+  };
+
+  const canvasToWorld = (e: { clientX: number; clientY: number }) => {
     const meta = previewMetaRef.current;
     const cv = previewRef.current;
     if (!meta || !cv) return null;
     const rect = cv.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / Math.max(1, rect.width)) * cv.width;
-    const py = ((e.clientY - rect.top) / Math.max(1, rect.height)) * cv.height;
+    // canvas 内容按 object-fit:contain 居中显示（可能有留白）：先还原到比特图像素
+    const scale = Math.min(rect.width / cv.width, rect.height / cv.height) || 1;
+    const ox = rect.left + (rect.width - cv.width * scale) / 2;
+    const oy = rect.top + (rect.height - cv.height * scale) / 2;
+    const px = (e.clientX - ox) / scale;
+    const py = (e.clientY - oy) / scale;
     const sx = px / Math.max(0.001, meta.fit);
     const sy = py / Math.max(0.001, meta.fit);
     return { x: sx + meta.x, y: sy + meta.y };
@@ -77,20 +136,11 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const onPreviewPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const w = canvasToWorld(e);
     if (!w) return;
-    let best: { item: TextItem; d: number } | null = null;
-    for (const it of buildTextCatalog()) {
-      const halfW = Math.max(26, it.fs * it.len * 0.5);
-      const halfH = Math.max(14, it.fs);
-      const dx = Math.max(0, Math.abs(w.x - it.x) - halfW);
-      const dy = Math.max(0, Math.abs(w.y - it.y) - halfH);
-      const d = Math.hypot(dx, dy);
-      if (d < 12 && (!best || d < best.d)) best = { item: it, d };
-    }
-    if (!best) return;
-    dragRef.current = { key: best.item.key, ax: best.item.x, ay: best.item.y };
+    const item = nearestTextItem(w.x, w.y);
+    if (!item) return;
+    dragRef.current = { key: item.groupKey ?? item.key, ax: item.x, ay: item.y };
     try { (e.currentTarget as HTMLCanvasElement).setPointerCapture?.(e.pointerId); } catch { /* 合成事件/无活动指针时忽略 */ }
     (e.currentTarget as HTMLCanvasElement).classList.add("text-dragging");
-    e.preventDefault();
   };
 
   const onPreviewPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -106,6 +156,31 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     if (!dragRef.current) return;
     dragRef.current = null;
     (e.currentTarget as HTMLCanvasElement).classList.remove("text-dragging");
+  };
+
+  /** 双击预览文字 → 就地修改内容 */
+  const onPreviewDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const w = canvasToWorld(e);
+    if (!w) return;
+    const item = nearestTextItem(w.x, w.y);
+    if (!item) return;
+    const cv = previewRef.current;
+    const wrap = cv?.parentElement;
+    if (!wrap) return;
+    const wr = wrap.getBoundingClientRect();
+    setEditing({ key: item.key, value: opts.text?.overrides?.[item.key] ?? item.text, left: e.clientX - wr.left, top: e.clientY - wr.top });
+  };
+
+  const commitEdit = () => {
+    setEditing((ed) => {
+      if (!ed) return null;
+      const next = { ...(opts.text?.overrides ?? {}) };
+      const v = ed.value.trim();
+      if (!v) delete next[ed.key];
+      else next[ed.key] = v;
+      patchText({ overrides: next });
+      return null;
+    });
   };
 
   // 语言切换时同步导出物语言（图例/日期）
@@ -218,7 +293,26 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
               onPointerMove={onPreviewPointerMove}
               onPointerUp={onPreviewPointerUp}
               onPointerCancel={onPreviewPointerUp}
+              onDoubleClick={onPreviewDoubleClick}
             />
+            {editing && (
+              <input
+                className="exp-text-edit"
+                autoFocus
+                value={editing.value}
+                style={{ left: editing.left, top: editing.top }}
+                placeholder={t("输入文字，回车确认，Esc 取消")}
+                onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitEdit();
+                  if (e.key === "Escape") { editCancelRef.current = true; setEditing(null); }
+                }}
+                onBlur={() => {
+                  if (editCancelRef.current) { editCancelRef.current = false; return; }
+                  commitEdit();
+                }}
+              />
+            )}
             <div className="exp-preview-meta">{diagram.nodes.length} {t("节点")} · {diagram.pipes.length} {t("管路")}{opts.scale > 1 ? ` · ${opts.scale}x` : ""}</div>
           </div>
           <div className="exp-options">
@@ -297,10 +391,17 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                   <label><input type="checkbox" checked={opts.text?.halo !== false} onChange={(e) => patchText({ halo: e.target.checked })} /> {t("描边加强")}</label>
                   <label><input type="checkbox" checked={!!opts.text?.plates} onChange={(e) => patchText({ plates: e.target.checked })} /> {t("白色底板")}</label>
                 </div>
-                {Object.keys(opts.text?.offsets ?? {}).length > 0 && (
-                  <button className="btn ghost exp-reset" onClick={() => patchText({ offsets: {} })}>{t("重置位置")}</button>
+                {(Object.keys(opts.text?.offsets ?? {}).length > 0 || Object.keys(opts.text?.overrides ?? {}).length > 0) && (
+                  <div className="exp-reset-row">
+                    {Object.keys(opts.text?.offsets ?? {}).length > 0 && (
+                      <button className="btn ghost exp-reset" onClick={() => patchText({ offsets: {} })}>{t("重置位置")}</button>
+                    )}
+                    {Object.keys(opts.text?.overrides ?? {}).length > 0 && (
+                      <button className="btn ghost exp-reset" onClick={() => patchText({ overrides: {} })}>{t("重置文字")}</button>
+                    )}
+                  </div>
                 )}
-                <div className="exp-tip">{t("拖动预览里的文字可微调位置（仅导出物生效）")}</div>
+                <div className="exp-tip">{t("单击拖拽移动文字；双击修改文字内容（仅导出物生效）")}</div>
               </>
             ), "textcats")}
             {group(t("图例"), (

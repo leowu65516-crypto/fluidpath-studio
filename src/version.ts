@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.30.2";
+export const APP_VERSION = "1.30.3";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.3",
+    date: "2026-10-11",
+    highlights: [
+      "新建连线手感对齐重连：松手改用 16px 屏幕距离接近吸附（精确命中优先），落空时明确提示「未连接到端口，请拖到目标端口上」",
+      "拖动中实时合法性预览：合法端口绿圈 / 不可接端口红圈；靠近合法目标时预览线吸附到端口，非法时线条与目标标红（复用重连端子同一套校验与渲染）",
+      "以上均复用 validatePipeConnection 共用校验，非法连接仍由共用校验给出明确原因；新增松手解析专项测试 6 例",
+    ],
+  },
   {
     version: "1.30.2",
     date: "2026-10-11",

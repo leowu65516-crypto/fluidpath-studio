@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.30.0";
+export const APP_VERSION = "1.30.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.1",
+    date: "2026-10-11",
+    highlights: [
+      "导出文字增强补全：所有文字均可拖拽微调（含开关状态徽标整组）；双击任意文字即可逐条修改内容（管路标签/标注/介质、阀门/元器件标签、图例、自定义文字、徽标分段）——仅导出物生效，可一键重置",
+      "修复导出预览拖拽/双击的坐标偏差（预览画布居中留白布局下的命中错位）",
+      "导出文字增强回归测试扩展至 8 例（逐条改字、管路三段独立偏移、徽标整组偏移）",
+    ],
+  },
   {
     version: "1.30.0",
     date: "2026-10-11",

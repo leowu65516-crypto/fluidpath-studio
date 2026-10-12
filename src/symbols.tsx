@@ -24,9 +24,9 @@ const NODE_LABEL_EN: Partial<Record<NodeType, string>> = {
   tank: "Tank", pressureTank: "Pressure tank", syrupBottle: "Syrup bottle", boiler: "Boiler (legacy)",
   hotWaterBoiler: "Hot-water boiler", steamBoiler: "Steam boiler", pump: "Water pump", milkPump: "Milk pump",
   valve: "Shut-off valve", checkValve: "Check valve", solenoid2: "2-way solenoid", solenoid3: "3-way solenoid", airPump: "Air pump",
-  pulseAirValve: "Pulse air valve", safetyValve: "Safety valve", opv: "OPV relief valve", pressureRegulator: "Pressure regulator",
+  pulseAirValve: "Pulse air valve", safetyValve: "Safety valve", opv: "OPV relief valve", pressureRegulator: "Pressure-reducing valve", ballValve: "Ball valve",
   tee: "Tee fitting", teeY: "Y tee", teeF: "F tee", cross: "Cross fitting", elbow: "Elbow", coupling: "Coupling", metalCoupling: "Metal coupling",
-  heatExchanger: "Heat exchanger", filter: "Filter", metalFilter: "Metal mesh filter", brewChamber: "Brew chamber", powderMixer: "Powder mixer",
+  heatExchanger: "Heat exchanger", thermoblock: "Thermoblock", filter: "Filter", metalFilter: "Metal mesh filter", brewChamber: "Brew chamber", powderMixer: "Powder mixer",
   inlet: "Inlet", outlet: "Outlet", connector: "Connector", hotWaterWand: "Hot-water wand", steamWand: "Steam wand", groupHead: "Group head",
   coffeeOutlet: "Coffee outlet", milkOutlet: "Milk outlet", hotWaterOutlet: "Hot-water outlet", flowMeter: "Flow meter", pressureGauge: "Pressure gauge",
   pressureSensor: "Pressure sensor", pressureSwitch: "Inlet pressure switch", ntcProbe: "NTC probe", sensor: "Sensor",
@@ -55,7 +55,7 @@ export function nodeCanvasLabel(node: DiagramNode, lang: "zh" | "en") {
 export const NODE_DEFS: NodeDef[] = [
   // ===== 容器 =====
   { type: "tank", label: "储液罐", group: "容器", width: 110, height: 140, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }, { position: "top", direction: "in" }, { position: "bottom", direction: "out" }] },
-  { type: "pressureTank", label: "外置进水压力罐", group: "容器", width: 84, height: 110, fill: "#f0f4f9", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }] },
+  { type: "pressureTank", label: "外置进水压力罐", group: "容器", width: 84, height: 110, fill: "#f0f4f9", stroke: "#3d4c5e", ports: [{ position: "top", direction: "bidirectional" }] },
   { type: "syrupBottle", label: "糖浆瓶", group: "容器", width: 70, height: 100, fill: "#fff7f0", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "out" }] },
   // 锅炉：管路连接只使用上/下两端（热水锅炉进水在下、出水在上；蒸汽锅炉进水在上、出水在下）
   { type: "hotWaterBoiler", label: "热水锅炉", group: "容器", width: 120, height: 150, fill: "#fff7f2", stroke: "#3d4c5e", ports: [{ position: "bottom", offset: 0.3, direction: "in" }, { position: "top", offset: 0.5, direction: "out" }] },
@@ -74,7 +74,8 @@ export const NODE_DEFS: NodeDef[] = [
   { type: "pulseAirValve", label: "脉冲空气电磁阀", group: "控制", width: 74, height: 66, fill: "#f6fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.76, direction: "in" }, { position: "right", offset: 0.76, direction: "out" }] },
   { type: "safetyValve", label: "安全阀", group: "控制", width: 64, height: 84, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "right", offset: 0.4, direction: "out" }] },
   { type: "opv", label: "OPV 泄压阀", group: "控制", width: 64, height: 84, fill: "#fff4ec", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "right", offset: 0.35, direction: "out" }] },
-  { type: "pressureRegulator", label: "节流阀/减压阀", group: "控制", width: 74, height: 54, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.72, direction: "in" }, { position: "right", offset: 0.72, direction: "out" }] },
+  { type: "pressureRegulator", label: "减压阀", group: "控制", width: 74, height: 54, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.72, direction: "in" }, { position: "right", offset: 0.72, direction: "out" }] },
+  { type: "ballValve", label: "球阀", group: "控制", width: 78, height: 58, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.68, direction: "in" }, { position: "right", offset: 0.68, direction: "out" }] },
   { type: "tee", label: "三通接头", group: "控制", width: 64, height: 64, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", direction: "bidirectional" }, { position: "right", direction: "bidirectional" }, { position: "bottom", direction: "bidirectional" }] },
   { type: "teeY", label: "Y型三通", group: "控制", width: 64, height: 64, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", direction: "bidirectional" }, { position: "right", offset: 0.25, direction: "bidirectional" }, { position: "bottom", offset: 0.75, direction: "bidirectional" }] },
   { type: "teeF", label: "F型三通", group: "控制", width: 64, height: 80, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "top", direction: "bidirectional" }, { position: "bottom", direction: "bidirectional" }, { position: "right", offset: 0.25, direction: "bidirectional" }, { position: "right", offset: 0.75, direction: "bidirectional" }] },
@@ -84,6 +85,7 @@ export const NODE_DEFS: NodeDef[] = [
   { type: "metalCoupling", label: "金属两通接头", group: "控制", width: 64, height: 36, fill: "#d9dde3", stroke: "#3d4c5e", ports: [{ position: "left", direction: "bidirectional" }, { position: "right", direction: "bidirectional" }] },
   // ===== 处理 =====
   { type: "heatExchanger", label: "换热器", group: "处理", width: 140, height: 110, fill: "#f2f9f5", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }, { position: "top", direction: "in" }, { position: "bottom", direction: "out" }] },
+  { type: "thermoblock", label: "即热加热块", group: "处理", width: 112, height: 74, fill: "#fff8ef", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }] },
   { type: "filter", label: "过滤器", group: "处理", width: 84, height: 96, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.3, direction: "in" }, { position: "right", offset: 0.3, direction: "out" }] },
   { type: "metalFilter", label: "矩形金属滤网", group: "处理", width: 96, height: 56, fill: "#f3f5f7", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }] },
   { type: "brewChamber", label: "冲泡缸", group: "处理", width: 96, height: 140, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "top", direction: "out" }] },
@@ -161,8 +163,10 @@ export function createNode(type: NodeType, x: number, y: number, label?: string,
     ...(type === "hotWaterOutlet" ? { variant: "single", dispensing: true } : {}),
     ...(type === "groupHead" ? { dispensing: true } : {}),
     ...(type === "annotation" ? { pointerTarget: { x: x + def.width / 2 + 30, y: y + def.height + 60 } } : {}),
+    ...(type === "solenoid2" || type === "ballValve" ? { valveState: "open" as const } : {}),
+    ...(type === "solenoid3" ? { valvePath: "A" as const } : {}),
     // 阀/泵默认在画布上显示开关（可在属性中关闭）
-    ...(["solenoid2", "solenoid3", "pump", "milkPump"].includes(type) ? { showStateOnDiagram: true } : {})
+    ...(["solenoid2", "solenoid3", "ballValve", "pump", "milkPump", "airPump"].includes(type) ? { showStateOnDiagram: true } : {})
   };
 }
 
@@ -403,6 +407,19 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <path d={`M ${w - 2} ${cy - 16} L ${w / 2} ${cy} L ${w - 2} ${cy + 16} Z`} {...common} />
           <line x1={w / 2} y1={cy} x2={w / 2} y2={8} stroke={stroke} strokeWidth={sw} />
           <line x1={w / 2 - 12} y1={8} x2={w / 2 + 12} y2={8} stroke={stroke} strokeWidth={sw + 1} strokeLinecap="round" />
+        </g>
+      );
+    }
+    case "ballValve": {
+      const cy = h * 0.68;
+      const open = node.valveState !== "closed";
+      return (
+        <g>
+          <circle cx={w / 2} cy={cy} r={Math.min(w, h) * 0.25} {...common} />
+          <circle cx={w / 2} cy={cy} r={Math.min(w, h) * 0.08} fill={stroke} stroke="none" />
+          <line x1={w / 2} y1={cy} x2={open ? w * 0.79 : w * 0.5} y2={open ? h * 0.18 : h * 0.14} stroke={open ? "#3fae6a" : "#d9534f"} strokeWidth={3} strokeLinecap="round" />
+          <line x1={w * 0.13} y1={cy} x2={w * 0.3} y2={cy} stroke={stroke} strokeWidth={2} />
+          <line x1={w * 0.7} y1={cy} x2={w * 0.87} y2={cy} stroke={stroke} strokeWidth={2} />
         </g>
       );
     }
@@ -654,6 +671,17 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
         <g>
           <rect x={2} y={2} width={w - 4} height={h - 4} rx={10} {...common} />
           <path d={zig.join(" ")} fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        </g>
+      );
+    }
+    case "thermoblock": {
+      const cy = h / 2;
+      const turns = [0, 1, 2, 3, 4];
+      return (
+        <g>
+          <rect x={2} y={2} width={w - 4} height={h - 4} rx={8} {...common} />
+          <path d={`M 10 ${cy} H 24 V ${h * 0.28} H 43 V ${h * 0.72} H 62 V ${h * 0.28} H 81 V ${cy} H ${w - 10}`} fill="none" stroke={stroke} strokeWidth={2.1} strokeLinejoin="round" />
+          {turns.slice(0, 3).map((i) => <path key={i} d={`M ${w * 0.28 + i * 15} ${h * 0.16} q 3 -8 6 0`} fill="none" stroke="#e2694a" strokeWidth={1.7} strokeLinecap="round" />)}
         </g>
       );
     }

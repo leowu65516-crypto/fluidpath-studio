@@ -10,7 +10,7 @@ import type { Diagram } from "../types";
 function renderApp() { return render(<LangProvider><App /></LangProvider>); }
 
 describe("阀/泵默认显示画布开关", () => {
-  it("新建的电磁阀/泵默认 showStateOnDiagram=true", () => {
+  it("新建的可切换阀/泵默认显示状态，并写入可预测的阀位", () => {
     const s2 = createNode("solenoid2", 0, 0);
     expect(s2.showStateOnDiagram).toBe(true);
     const s3 = createNode("solenoid3", 0, 0);
@@ -19,6 +19,13 @@ describe("阀/泵默认显示画布开关", () => {
     expect(pump.showStateOnDiagram).toBe(true);
     const milkPump = createNode("milkPump", 0, 0);
     expect(milkPump.showStateOnDiagram).toBe(true);
+    const ball = createNode("ballValve", 0, 0);
+    expect(ball.showStateOnDiagram).toBe(true);
+    expect(ball.valveState).toBe("open");
+    // 二通阀未写 valveState 时引擎也按开启处理；新建节点显式写入，避免画布/引擎歧义。
+    expect(s2.valveState).toBe("open");
+    const airPump = createNode("airPump", 0, 0);
+    expect(airPump.showStateOnDiagram).toBe(true);
     // 普通节点无此字段
     const tank = createNode("tank", 0, 0);
     expect(tank.showStateOnDiagram).toBeUndefined();

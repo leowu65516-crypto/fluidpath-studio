@@ -237,6 +237,11 @@ export function setCachedPipes(pipes: Pipe[], nodes?: DiagramNode[]) {
         console.warn(`[fluidpath] engine recompute took ${dt.toFixed(1)}ms (${pipes.length} pipes, ${nodes.length} nodes)`);
       }
     }
+  } else {
+    // 调用方未提供完整节点图时不能安全复用旧工况的派生结果。
+    // 清空后由 pipeEffectiveDisabled 实时判断，避免前一张图/前一阀位污染当前结果。
+    _cachedDisabled = new Set();
+    _demand = new Set();
   }
 }
 
@@ -280,7 +285,7 @@ function hxChannelPartner(n: DiagramNode, portId: string): Port | undefined {
 /** 直通类节点（停流传播可穿过） */
 const PASS_THROUGH_TYPES = new Set([
   "shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "cross", "elbow",
-  "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "pump", "milkPump", "airPump",
+  "valve", "ballValve", "checkValve", "filter", "metalFilter", "heatExchanger", "thermoblock", "pump", "milkPump", "airPump",
   "solenoid2", "solenoid3", "pulseAirValve", "pressureRegulator", "flowMeter",
   "tank", "boiler", "hotWaterBoiler", "steamBoiler", "brewChamber",
 ]);
@@ -290,10 +295,17 @@ export function pumpEffectiveOn(n: DiagramNode): boolean {
   if (n.fault === "pumpStuck") return false;
   return n.pumpOn !== false;
 }
-export function valve2EffectiveOpen(n: DiagramNode): boolean {
+/** 两通开关阀（电磁阀 / 球阀）的工程有效导通状态。 */
+export function valveEffectiveOpen(n: DiagramNode): boolean {
   if (n.fault === "valveStuckOpen") return true;
   if (n.fault === "valveStuckClosed") return false;
   return n.valveState !== "closed";
+}
+/** @deprecated Use valveEffectiveOpen; retained for integrations built against older releases. */
+export const valve2EffectiveOpen = valveEffectiveOpen;
+
+function isTwoWayFlowValve(n: DiagramNode): boolean {
+  return n.type === "solenoid2" || n.type === "ballValve";
 }
 export function valve3EffectivePath(n: DiagramNode): "A" | "B" | "off" {
   if (n.fault === "valveStuckOpen") return "A";
@@ -360,7 +372,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         }
       }
     }
-    if (n.type === "solenoid2" && !valve2EffectiveOpen(n)) {
+    if (isTwoWayFlowValve(n) && !valveEffectiveOpen(n)) {
       // 阀关：只停其直接出侧管（与历史基线一致，不向更下游扩散）
       const outPort = n.ports.find((p) => p.direction === "out");
       if (outPort) {
@@ -439,7 +451,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       if (node.disabled) continue;
       if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") continue;
       if (!PASS_THROUGH_TYPES.has(node.type)) continue;
-      if (node.type === "solenoid2" && !valve2EffectiveOpen(node)) continue;
+      if (isTwoWayFlowValve(node) && !valveEffectiveOpen(node)) continue;
       if (node.type === "solenoid3" && valve3EffectivePath(node) === "off") continue;
       const portDirs = node.ports.map((p) => p.direction);
       const directed = portDirs.includes("in") && portDirs.includes("out");
@@ -505,7 +517,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       if (phase === "suck" && (node.type === "boiler" || node.type === "hotWaterBoiler" || node.type === "steamBoiler")) continue;
       if (!PASS_THROUGH_TYPES.has(node.type)) continue;
       // 阀状态门控
-      if (node.type === "solenoid2" && !valve2EffectiveOpen(node)) continue;
+      if (isTwoWayFlowValve(node) && !valveEffectiveOpen(node)) continue;
       if (node.type === "solenoid3" && valve3EffectivePath(node) === "off") continue;
       // 单向元件（有 in/out 端口定义）：push 只允许顺向（经 in 口进入）穿越；
       // suck 允许逆行（吸侧失压整链停流）；both 不限
@@ -591,7 +603,7 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
   function canEmit(u: DiagramNode, port: Port): boolean {
     if (u.disabled) return false;
     if (u.type === "pump" || u.type === "milkPump") return pumpEffectiveOn(u);
-    if (u.type === "solenoid2") return valve2EffectiveOpen(u);
+    if (isTwoWayFlowValve(u)) return valveEffectiveOpen(u);
     if (u.type === "solenoid3") {
       const path = valve3EffectivePath(u);
       if (path === "off") return false;
@@ -746,8 +758,8 @@ function pipeEffectiveDisabledRecursive(
       const outPort = n.ports.find((p) => p.direction === "out");
       if (inPort && outPort && ref.port.id === outPort.id && hasDisabledUpstream(inPort.id)) return true;
     }
-    if (n.type === "solenoid2") {
-      if (!valve2EffectiveOpen(n)) return true;
+    if (isTwoWayFlowValve(n)) {
+      if (!valveEffectiveOpen(n)) return true;
       // 阀门打开：出侧（direction=out）依赖入侧（direction=in）上游供液；入侧关闭则出侧也无介质
       const inPort = n.ports.find((p) => p.direction === "in");
       const outPort = n.ports.find((p) => p.direction === "out");
@@ -780,11 +792,11 @@ function pipeEffectiveDisabledRecursive(
     }
 
     // 经过中间节点传播（直通类元件：阀门、接头、容器、换热器、过滤器、泵、单向阀等）
-    // 注意：电磁阀（solenoid2/3）不在其中，避免阀门间环回；
+    // 注意：可切换阀（两通电磁阀、球阀、三通阀）需要专门的上游依赖逻辑；
     // 它们自身的停流通过上方专门分支 + 泵/阀的「上游依赖」逻辑处理。
     const passThrough = new Set(["shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "elbow",
-      "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "pump", "milkPump", "airPump",
-      "solenoid2", "solenoid3", "pulseAirValve", "pressureRegulator", "flowMeter",
+      "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "thermoblock", "pump", "milkPump", "airPump",
+      "solenoid2", "ballValve", "solenoid3", "pulseAirValve", "pressureRegulator", "flowMeter",
       "tank", "boiler", "hotWaterBoiler", "steamBoiler", "brewChamber"]);
     if (!passThrough.has(n.type)) return false;
 

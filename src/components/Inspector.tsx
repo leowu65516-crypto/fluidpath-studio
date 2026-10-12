@@ -479,8 +479,8 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               )}
             </Section>
             {node.type !== "label" && node.type !== "arrow" && <PortEditor node={node} />}
-            {node.type === "solenoid2" && (
-              <Section title={t("两通电磁阀")}>
+            {(node.type === "solenoid2" || node.type === "ballValve") && (
+              <Section title={node.type === "ballValve" ? t("球阀") : t("两通电磁阀")}>
                 <Row label={t("阀状态")}>
                   <div className="seg">
                     <button className={node.valveState !== "closed" ? "on" : ""} onClick={() => patchNode(node.id, { valveState: "open" })}>{t("开")}</button>
@@ -491,7 +491,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   <input type="checkbox" checked={!!node.showStateOnDiagram} onChange={(e) => patchNode(node.id, { showStateOnDiagram: e.target.checked })} />
                   <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("在画布上直接切换")}</span>
                 </Row>
-                <div className="insp-tip">{t("关闭时，串联的下游管路自动置灰、停止流动。勾选「画布显示」后，电磁阀下方出现可点击开关。")}</div>
+                <div className="insp-tip">{node.type === "ballValve" ? t("关闭时，下游管路会按工程状态停止流动。勾选「画布显示」后，球阀下方出现可点击开关。") : t("关闭时，串联的下游管路自动置灰、停止流动。勾选「画布显示」后，电磁阀下方出现可点击开关。")}</div>
               </Section>
             )}
             {node.type === "solenoid3" && (
@@ -532,7 +532,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               )}
               <button className="btn danger wide" onClick={deleteSelection}>{t("删除节点")}</button>
             </Section>
-            {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump" || node.type === "solenoid2" || node.type === "solenoid3") && (
+            {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump" || node.type === "solenoid2" || node.type === "ballValve" || node.type === "solenoid3") && (
               <Section title={`🔧 ${t("故障模拟（教学）")}`}>
                 <Row label={t("故障状态")}>
                   <select
@@ -541,7 +541,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   >
                     <option value="none">{t("无故障")}</option>
                     {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && <option value="pumpStuck">{t("泵卡死（不运转）")}</option>}
-                    {(node.type === "solenoid2" || node.type === "solenoid3") && (
+                    {(node.type === "solenoid2" || node.type === "ballValve" || node.type === "solenoid3") && (
                       <>
                         <option value="valveStuckOpen">{t("阀卡开（无法关闭）")}</option>
                         <option value="valveStuckClosed">{t("阀卡关（无法打开）")}</option>

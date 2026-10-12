@@ -112,10 +112,16 @@ export default function App() {
   // ===== 工作模式联动（edit / present / verify / fault）=====
   const mode = appState.ui.mode ?? "edit";
   const modeRef = useRef(mode);
+  const [modeNotice, setModeNotice] = useState<"edit" | "present" | "verify" | "fault" | null>(null);
+  const modeNoticeTimer = useRef<number | undefined>();
   useEffect(() => {
     const m = mode;
     if (modeRef.current === m) return;
     modeRef.current = m;
+    // 模式状态已持续显示在工具栏与状态栏；横幅仅在切换后用于确认权限变化。
+    setModeNotice(m);
+    if (modeNoticeTimer.current !== undefined) window.clearTimeout(modeNoticeTimer.current);
+    modeNoticeTimer.current = window.setTimeout(() => setModeNotice(null), 4200);
     if (m === "present") {
       setCollapsed((c) => ({ ...c, library: true, inspector: true, toolbar: false }));
       setShowAdvice(false);
@@ -141,6 +147,9 @@ export default function App() {
       if (hasActiveScenario()) exitScenario();
     }
   }, [mode]);
+  useEffect(() => () => {
+    if (modeNoticeTimer.current !== undefined) window.clearTimeout(modeNoticeTimer.current);
+  }, []);
   const togglePanel = (key: keyof typeof collapsed) => () =>
     setCollapsed((c) => {
       const next = { ...c, [key]: !c[key] };
@@ -284,20 +293,23 @@ export default function App() {
   if (!gateOk) {
     return <PasswordGate onPass={() => { setGateAuthed(); setGateOk(true); }} />;
   }
-  const modeInfo = mode === "present"
+  const shownMode = modeNotice ?? mode;
+  const modeInfo = shownMode === "present"
     ? { icon: "🎬", title: t("演示模式"), summary: t("可拨阀、微调和切换教学步骤"), lock: t("拓扑编辑已锁定") }
-    : mode === "verify"
+    : shownMode === "verify"
       ? { icon: "✓", title: t("验收模式"), summary: t("验收中 · 拓扑已锁定，可摆工况跑验收，切回编辑可修改"), lock: t("禁止手动改到通过") }
-      : mode === "fault"
+      : shownMode === "fault"
         ? { icon: "⚠", title: t("故障模式"), summary: t("选择故障码、绑定排查范围并模拟信号"), lock: t("拓扑编辑已锁定") }
         : { icon: "✏️", title: t("编辑模式"), summary: t("可修改拓扑、属性和工程状态"), lock: t("全部编辑操作可用") };
   return (
     <ErrorBoundary>
       <div className="app" data-mode={mode}>
-        <div className={`mode-banner mode-${mode}`} data-ui="1" data-testid="mode-banner">
-          <span className="mode-banner-main"><b>{modeInfo.icon} {modeInfo.title}</b><span>{modeInfo.summary}</span></span>
-          <span className="mode-banner-lock">{modeInfo.lock}</span>
-        </div>
+        {modeNotice && (
+          <div className={`mode-banner mode-${modeNotice}`} data-ui="1" data-testid="mode-banner" role="status" aria-live="polite">
+            <span className="mode-banner-main"><b>{modeInfo.icon} {modeInfo.title}</b><span>{modeInfo.summary}</span></span>
+            <span className="mode-banner-lock">{modeInfo.lock}</span>
+          </div>
+        )}
         <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowValidation(false); setShowAdvice((v) => !v); } }} onOpenValidation={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowValidation(true), 0); } else { setShowAdvice(false); setShowValidation((v) => !v); } }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />

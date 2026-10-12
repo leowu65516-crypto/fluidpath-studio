@@ -1,7 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { pipeEffectiveDisabled, setCachedPipes } from "../geometry";
 import { loadDiagram, patchPipe, store, syncFluidThroughChain } from "../store";
 import type { DiagramNode, Pipe, Port } from "../types";
+
+// 停流缓存是引擎级派生状态；每个例子必须从空缓存开始，避免不同工况互相污染。
+afterEach(() => setCachedPipes([], []));
 
 // ===== Helpers =====
 
@@ -55,6 +58,18 @@ function solenoid2(id: string, valveState: "open" | "closed"): DiagramNode {
   return makeNode({
     id,
     type: "solenoid2",
+    valveState,
+    ports: [
+      makePort({ id: `${id}_l`, nodeId: id, position: "left", direction: "in" }),
+      makePort({ id: `${id}_r`, nodeId: id, position: "right", direction: "out" }),
+    ],
+  });
+}
+
+function ballValve(id: string, valveState: "open" | "closed"): DiagramNode {
+  return makeNode({
+    id,
+    type: "ballValve",
     valveState,
     ports: [
       makePort({ id: `${id}_l`, nodeId: id, position: "left", direction: "in" }),
@@ -193,6 +208,29 @@ describe("流体传播：锅炉进水阀关闭 → 下游停流（即使出口�
     ];
     const pipe = makePipe("pipe", "inletValve_r", "tank_l");
     expect(pipeEffectiveDisabled(pipe, nodes)).toBe(true); // 直接连关闭阀门
+  });
+
+  it("球阀关闭时按工程状态切断下游，重新打开后恢复", () => {
+    const sink = makeNode({ id: "sink", type: "outlet", ports: [makePort({ id: "sink_in", nodeId: "sink", position: "left", direction: "in" })] });
+    const closedNodes = [ballValve("bv", "closed"), sink];
+    const closedPipe = makePipe("ball_out", "bv_r", "sink_in");
+    setCachedPipes([closedPipe], closedNodes);
+    expect(pipeEffectiveDisabled(closedPipe, closedNodes)).toBe(true);
+
+    const openNodes = [ballValve("bv", "open"), sink];
+    const openPipe = makePipe("ball_out", "bv_r", "sink_in");
+    setCachedPipes([openPipe], openNodes);
+    expect(pipeEffectiveDisabled(openPipe, openNodes)).toBe(false);
+  });
+
+  it("仅更新管路缓存时会清除旧工况的派生停流结果", () => {
+    const sink = makeNode({ id: "sink", type: "outlet", ports: [makePort({ id: "sink_in", nodeId: "sink", position: "left", direction: "in" })] });
+    const pipe = makePipe("cached_ball", "bv_r", "sink_in");
+    setCachedPipes([pipe], [ballValve("bv", "closed"), sink]);
+    expect(pipeEffectiveDisabled(pipe, [ballValve("bv", "closed"), sink])).toBe(true);
+
+    setCachedPipes([pipe]);
+    expect(pipeEffectiveDisabled(pipe, [ballValve("bv", "open"), sink])).toBe(false);
   });
 });
 

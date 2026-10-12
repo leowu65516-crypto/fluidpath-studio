@@ -52,6 +52,8 @@ const RULES: DeviceFluidRule[] = [
   { type: "hotWaterBoiler", in: ["coldWater"], inPreferred: "coldWater", out: ["hotWater"], outPreferred: "hotWater" },
   // 蒸汽锅炉：冷水/热水补给进、蒸汽出
   { type: "steamBoiler", in: ["coldWater", "hotWater"], inPreferred: "coldWater", out: ["steam"], outPreferred: "steam" },
+  // 即热块没有蓄水腔，冷水沿内部通道通过时被加热后直接输出热水。
+  { type: "thermoblock", in: ["coldWater"], inPreferred: "coldWater", out: ["hotWater"], outPreferred: "hotWater" },
   // 出口类
   { type: "coffeeOutlet", in: ["coffee"], inPreferred: "coffee" },
   { type: "groupHead", in: ["hotWater"], inPreferred: "hotWater", out: ["coffee"], outPreferred: "coffee" },

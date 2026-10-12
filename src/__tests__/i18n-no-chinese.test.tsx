@@ -133,7 +133,7 @@ describe("英文模式主要面板无中文残留", () => {
   });
 
   it("知识库英文条目无中文", () => {
-    for (const type of ["tank", "pump", "milkPump", "solenoid2", "solenoid3", "hotWaterBoiler", "steamBoiler", "checkValve", "brewChamber", "flowMeter"]) {
+    for (const type of ["tank", "pressureTank", "pressureRegulator", "ballValve", "thermoblock", "pump", "milkPump", "solenoid2", "solenoid3", "hotWaterBoiler", "steamBoiler", "checkValve", "brewChamber", "flowMeter"]) {
       const k = knowledgeOf(type, "en");
       expect(k, `缺少英文知识条目: ${type}`).toBeTruthy();
       const text = `${k!.role} ${k!.principle} ${k!.common ?? ""}`;

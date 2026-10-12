@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.30.3";
+export const APP_VERSION = "1.30.4";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.4",
+    date: "2026-10-12",
+    highlights: [
+      "元件库新增即热加热块（Thermoblock）与球阀：即热块校验冷水进、热水出；球阀具备开/关控制、工程停流、功能链、诊断、验收状态和故障教学联动",
+      "完善进水组件：减压阀统一命名与教学说明；压力罐改为三通支路常用的单接口双向语义，并补充 RO 稳压接法提示",
+      "修复状态一致性：新建两通阀、三通阀与球阀显式写入默认阀位；模式横幅仅在切换后短暂出现，当前模式仍由工具栏和状态栏持续显示",
+      "修复 setCachedPipes 的无节点缓存失效边界，避免旧工况派生结果污染实时判断；新增元件、阀位、缓存和模式提示回归测试",
+    ],
+  },
   {
     version: "1.30.3",
     date: "2026-10-11",

@@ -16,10 +16,11 @@
 import type { Diagram, FluidType, Pipe } from "./types";
 import type { Lang } from "./i18n";
 import { checkDiagramFluid, fluidLabel } from "./fluidRules";
-import { pipeEngineeringDisabled, pipeTeachingOverride, setCachedPipes, pumpEffectiveOn, valve2EffectiveOpen, valve3EffectivePath, findPort } from "./geometry";
+import { pipeEngineeringDisabled, pipeTeachingOverride, setCachedPipes, pumpEffectiveOn, valveEffectiveOpen, valve3EffectivePath, findPort } from "./geometry";
 
 /** 双语取值 */
 const L = (lang: Lang, zh: string, en: string): string => (lang === "zh" ? zh : en);
+const isTwoWayFlowValve = (type: string): boolean => type === "solenoid2" || type === "ballValve";
 
 /** 可执行的修复动作 */
 export type FixAction =
@@ -119,8 +120,8 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"):
           return { reason: L(lang, `「${n.label}」${why}，无法向下游供液`, `"${n.label}" is ${why} and cannot feed downstream`), ids: [n.id, p.id] };
         }
       }
-      if (n.type === "solenoid2") {
-        if (!valve2EffectiveOpen(n)) {
+      if (isTwoWayFlowValve(n.type)) {
+        if (!valveEffectiveOpen(n)) {
           const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "closed");
           return { reason: L(lang, `「${n.label}」${why}`, `"${n.label}" is ${why}`), ids: [n.id, p.id] };
         }
@@ -381,7 +382,7 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope, lang: Lang 
         });
       }
     }
-    if (n.type === "solenoid2" && !valve2EffectiveOpen(n)) {
+    if (isTwoWayFlowValve(n.type) && !valveEffectiveOpen(n)) {
       if (n.fault) {
         out.push({
           id: `fault_${n.id}`,
@@ -399,7 +400,7 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope, lang: Lang 
           severity: "info",
           category: "state",
           kind: "valve-closed",
-          title: L(lang, "电磁阀关闭", "Solenoid closed"),
+          title: n.type === "ballValve" ? L(lang, "球阀关闭", "Ball valve closed") : L(lang, "电磁阀关闭", "Solenoid closed"),
           message: L(lang, `「${n.label || n.type}」当前关闭，下游管路会停流。`, `"${n.label || n.type}" is closed; downstream pipes will stop flowing.`),
           fixLabel: L(lang, "打开阀门", "Open valve"),
           fix: { type: "openValve", nodeId: n.id },
@@ -413,7 +414,7 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope, lang: Lang 
   for (const n of diagram.nodes) {
     if (scoped && nodeIds && !nodeIds.has(n.id)) continue;
     if (!n.fault) continue;
-    if ((n.type === "pump" || n.type === "milkPump" || n.type === "airPump" || n.type === "solenoid2")) continue; // 已由 6) 覆盖
+    if ((n.type === "pump" || n.type === "milkPump" || n.type === "airPump" || isTwoWayFlowValve(n.type))) continue; // 已由 6) 覆盖
     out.push({
       id: `fault_${n.id}`,
       severity: "warning",
@@ -457,7 +458,7 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope, lang: Lang 
         if ((rootNode.type === "pump" || rootNode.type === "milkPump") && !pumpEffectiveOn(rootNode)) {
           fix = { type: "startPump", nodeId: rootNode.id };
           fixLabel = L(lang, "启动泵", "Start pump");
-        } else if (rootNode.type === "solenoid2" && !valve2EffectiveOpen(rootNode)) {
+        } else if (isTwoWayFlowValve(rootNode.type) && !valveEffectiveOpen(rootNode)) {
           fix = { type: "openValve", nodeId: rootNode.id };
           fixLabel = L(lang, "打开阀门", "Open valve");
         }

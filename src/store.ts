@@ -336,7 +336,7 @@ function expandScenarioNodes(diagram: Diagram, seeds: Set<string>): Set<string> 
 
 /**
  * 进入演示模式并跳到指定步骤：
- * 1. 首次进入：快照当前图纸，并把所有泵/阀复位到中性基线（泵停、两通关、三通 off），
+ * 1. 首次进入：快照当前图纸，并把所有泵/阀复位到中性基线（泵停、两通/球阀关、三通 off），
  *    保证演示不被图纸存档阀位干扰；
  * 2. 按元件角色在当前图纸解析节点，累积应用场景步骤的泵/阀状态；
  * 3. 计算高亮节点（种子 + 中间接头自动补齐）与高亮管路（两端都在激活集内）。
@@ -360,10 +360,10 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
   }
   updateDiagram((d) => {
     if (isNewEntry || rebuild) {
-      // 基线复位：所有泵停、两通阀关、三通阀 off（场景步骤只激活自己需要的）
+      // 基线复位：所有泵停、两通阀/球阀关、三通阀 off（场景步骤只激活自己需要的）
       for (const n of d.nodes) {
         if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = false;
-        else if (n.type === "solenoid2") n.valveState = "closed";
+        else if (n.type === "solenoid2" || n.type === "ballValve") n.valveState = "closed";
         else if (n.type === "solenoid3") n.valvePath = "off";
       }
     }

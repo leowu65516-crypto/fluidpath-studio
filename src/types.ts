@@ -26,7 +26,8 @@ export type NodeType =
   | "pulseAirValve" // 脉冲空气电磁阀
   | "safetyValve"
   | "opv" // OPV 过压保护阀（泄压/限压）
-  | "pressureRegulator" // 节流阀 / 减压阀（pressure regulator）
+  | "pressureRegulator" // 减压阀（pressure-reducing valve）
+  | "ballValve" // 手动球阀（工程开关阀）
   | "coupling"
   | "metalCoupling"
   | "tee"
@@ -35,6 +36,7 @@ export type NodeType =
   | "cross" // 十字四通
   | "elbow"
   | "heatExchanger"
+  | "thermoblock" // 即热加热块：水流经过即加热，不储水
   | "filter"
   | "metalFilter" // 矩形金属滤网（过滤大颗粒）
   | "powderMixer" // 粉料搅拌器

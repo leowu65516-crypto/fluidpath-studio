@@ -26,7 +26,7 @@ const ZH: Record<string, DeviceKnowledge> = {
   pressureTank: {
     role: "外置进水压力罐：蓄压并稳定进水压力，减少泵频繁启停",
     principle: "罐内气囊被压缩蓄能，压力下降时释放补充，稳定管路压力。",
-    common: "常见于进水管路，配合压力开关控制泵的启停。",
+    common: "常见于 RO 进水管路，通常通过三通接入主管而非串联；同一接口既可充水也可放水。",
   },
   syrupBottle: {
     role: "糖浆瓶：储存并定量供给糖浆/调味液",
@@ -96,9 +96,14 @@ const ZH: Record<string, DeviceKnowledge> = {
     common: "教学要点：OPV 是半自动机稳定萃取压力的关键，常见 9bar / 11bar。",
   },
   pressureRegulator: {
-    role: "节流阀 / 减压阀（pressure regulator）：稳定并降低下游压力",
+    role: "减压阀（pressure-reducing valve）：稳定并降低下游压力",
     principle: "通过弹簧与阀芯的平衡，把上游高压稳定到设定低压。",
-    common: "教学要点：减压阀用于把高压源降到设备可承受的压力。",
+    common: "教学要点：通常装在机器进水前，把高压供水降至设备可承受的压力；它不是用于替代截止阀的开关件。",
+  },
+  ballValve: {
+    role: "球阀：手动快速切断或接通液路",
+    principle: "旋转带孔球体 90°，孔道与管路同向时导通、垂直时关闭。",
+    common: "教学要点：常用于进水隔离、维修或旁通支路。关闭会参与工程停流与验收判定；画布下方开关可直接拨动。",
   },
   coupling: {
     role: "两通接头：连接两段管路",
@@ -139,6 +144,11 @@ const ZH: Record<string, DeviceKnowledge> = {
     role: "换热器：在两种介质间传递热量（冷热两侧互不混合）",
     principle: "冷热两路通过壁面换热，两侧介质各自独立。",
     common: "教学要点：奶泡混合器/预热器两侧介质不同是正常的。",
+  },
+  thermoblock: {
+    role: "即热加热块（Thermoblock）：水流经加热通道时即时升温，不以储水为工作方式",
+    principle: "加热元件把热量传给金属通道内流过的水；停泵后不再有连续出水，但块体仍可能保有温度。",
+    common: "教学要点：用于紧凑型半自动和全自动机。请用它表达按需加热，不要用储水锅炉或双通道换热器代替。",
   },
   filter: {
     role: "过滤器：拦截杂质、保护下游精密元件",
@@ -253,7 +263,7 @@ const EN: Record<string, DeviceKnowledge> = {
   pressureTank: {
     role: "External pressure tank: buffers and stabilizes inlet pressure, reducing pump cycling",
     principle: "An internal bladder stores energy; when pressure drops it releases water to keep line pressure stable.",
-    common: "Common on the inlet line, paired with a pressure switch to start/stop the pump.",
+    common: "Common on an RO inlet line, normally tee-connected rather than placed in series; its single connection can both charge and discharge.",
   },
   syrupBottle: {
     role: "Syrup bottle: stores and doses syrup / flavoring",
@@ -323,9 +333,14 @@ const EN: Record<string, DeviceKnowledge> = {
     common: "Teaching note: the OPV is key to stable extraction pressure; 9 bar / 11 bar are typical.",
   },
   pressureRegulator: {
-    role: "Throttle / pressure regulator: stabilizes and reduces downstream pressure",
+    role: "Pressure-reducing valve: stabilizes and lowers downstream pressure",
     principle: "A spring-and-diaphragm balance holds upstream high pressure down to the set low pressure.",
-    common: "Teaching note: regulators step a high-pressure source down to what the machine tolerates.",
+    common: "Teaching note: normally installed upstream of the machine to step supply pressure down; it is not a shut-off valve.",
+  },
+  ballValve: {
+    role: "Ball valve: manually isolates or connects a fluid line quickly",
+    principle: "A bored ball rotates 90°: bore aligned with the pipe is open; perpendicular is closed.",
+    common: "Teaching note: used for inlet isolation, service, or bypass branches. Its closed state affects engineering flow and validation; toggle it below the symbol.",
   },
   coupling: {
     role: "Straight coupling: joins two pipe segments",
@@ -366,6 +381,11 @@ const EN: Record<string, DeviceKnowledge> = {
     role: "Heat exchanger: transfers heat between two fluids (hot and cold sides never mix)",
     principle: "The two circuits exchange heat through a wall; each side keeps its own fluid.",
     common: "Teaching note: different fluids on each side of a foamer/preheater are normal.",
+  },
+  thermoblock: {
+    role: "Thermoblock: heats water on demand as it passes through a heated channel; it is not a storage vessel",
+    principle: "A heater transfers energy into water moving through a metal channel. With the pump stopped, there is no continuous outlet flow even though the block can remain hot.",
+    common: "Teaching note: common in compact semi-auto and full-auto machines. Use it for on-demand heating, not a storage boiler or dual-channel heat exchanger.",
   },
   filter: {
     role: "Filter: traps impurities and protects precision downstream parts",

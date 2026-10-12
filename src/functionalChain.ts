@@ -7,7 +7,7 @@
  */
 
 import type { Diagram, DiagramNode, Pipe, Port } from "./types";
-import { findPort, pumpEffectiveOn, valve2EffectiveOpen, valve3EffectivePath } from "./geometry";
+import { findPort, pumpEffectiveOn, valveEffectiveOpen, valve3EffectivePath } from "./geometry";
 
 /** 真源边界：上游回溯到此停止（泵/锅炉可穿过——它们的进水侧也是整机角色的一部分） */
 const SOURCE_BOUNDARY = new Set([
@@ -22,7 +22,7 @@ const SINK_BOUNDARY = new Set([
 
 /** 方向性元件：只走其进/出侧端口 */
 const DIRECTIONAL = new Set([
-  "pump", "milkPump", "airPump", "solenoid2", "solenoid3", "checkValve",
+  "pump", "milkPump", "airPump", "solenoid2", "ballValve", "solenoid3", "checkValve",
 ]);
 
 export interface FunctionalChain {
@@ -47,7 +47,7 @@ function effectiveEnds(diagram: Diagram, pipe: Pipe): Ends {
 function flowable(n: DiagramNode): boolean {
   if (n.disabled) return false;
   if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") return pumpEffectiveOn(n);
-  if (n.type === "solenoid2") return valve2EffectiveOpen(n);
+  if (n.type === "solenoid2" || n.type === "ballValve") return valveEffectiveOpen(n);
   if (n.type === "solenoid3") return valve3EffectivePath(n) !== "off";
   return true;
 }

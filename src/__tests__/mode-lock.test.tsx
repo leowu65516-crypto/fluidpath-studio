@@ -4,11 +4,12 @@
  * - 编辑模式：Delete 正常删除
  * - 提示条渲染
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, act } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
 import { loadDiagram, store, setWorkMode, overrideScenarioNode, enterScenario } from "../store";
+import { createNode } from "../symbols";
 import bcmtsRaw from "../../BCMTS.json";
 
 function toDiagram(json: any) {
@@ -42,6 +43,13 @@ describe("模式操作权限", () => {
     expect(store.get().diagram.nodes.find((n) => n.id === valve.id)!.valveState).toBe("open");
   });
 
+  it("演示基线会关闭未被步骤激活的球阀", () => {
+    const ball = createNode("ballValve", 100, 100, "进水隔离球阀");
+    store.get().diagram.nodes.push(ball);
+    act(() => { enterScenario("coffee", 0); });
+    expect(store.get().diagram.nodes.find((n) => n.id === ball.id)?.valveState).toBe("closed");
+  });
+
   it("验收模式：Delete 不删除节点，提示条渲染", () => {
     act(() => { setWorkMode("verify"); });
     const count = store.get().diagram.nodes.length;
@@ -51,6 +59,16 @@ describe("模式操作权限", () => {
     expect(store.get().diagram.nodes.length).toBe(count);
     expect(document.querySelector(".mode-banner")).toBeTruthy();
     expect(document.querySelector(".mode-banner")!.textContent).toContain("验收中");
+  });
+
+  it("模式横幅只在切换后短暂显示，常态不占用画布", () => {
+    vi.useFakeTimers();
+    expect(document.querySelector(".mode-banner")).toBeNull();
+    act(() => { setWorkMode("fault"); });
+    expect(document.querySelector(".mode-banner")).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(4200); });
+    expect(document.querySelector(".mode-banner")).toBeNull();
+    vi.useRealTimers();
   });
 
   it("编辑模式：Delete 正常删除", () => {

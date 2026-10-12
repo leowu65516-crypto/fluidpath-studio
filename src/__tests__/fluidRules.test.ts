@@ -50,6 +50,14 @@ describe("液路介质物理常识规则", () => {
     expect(checkPipeFluid(pipe("hotWater", "hb_t", undefined), [boiler])).toHaveLength(0);
   });
 
+  it("即热加热块要求冷水进入、热水流出", () => {
+    const block = node("thermoblock", "tb", [port("tb_in", "left", "in"), port("tb_out", "right", "out")]);
+    expect(checkPipeFluid(pipe("coldWater", undefined, "tb_in"), [block])).toHaveLength(0);
+    expect(checkPipeFluid(pipe("hotWater", "tb_out", undefined), [block])).toHaveLength(0);
+    expect(checkPipeFluid(pipe("hotWater", undefined, "tb_in"), [block]).length).toBeGreaterThan(0);
+    expect(checkPipeFluid(pipe("coldWater", "tb_out", undefined), [block]).length).toBeGreaterThan(0);
+  });
+
   it("蒸汽锅炉出水必须是蒸汽", () => {
     const boiler = node("steamBoiler", "sb", [port("sb_t", "top", "out")]);
     expect(checkPipeFluid(pipe("hotWater", "sb_t", undefined), [boiler]).length).toBeGreaterThan(0);

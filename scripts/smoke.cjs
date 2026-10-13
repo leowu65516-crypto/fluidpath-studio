@@ -64,6 +64,53 @@ app.whenReady().then(async () => {
     })()
   `);
 
+  // Three-way diaphragm selector: verify the real desktop UI exposes a shared port
+  // and two bidirectional routes, rather than positional A/C direction labels.
+  const selectorUi = await win.webContents.executeJavaScript(`
+    (() => {
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const language = document.querySelector('[data-testid="lang-toggle"]');
+      if (language?.textContent?.trim() === 'EN') language.click();
+      const edit = document.querySelector('[data-testid="mode-edit"]');
+      if (!edit) return Promise.resolve({ found: false });
+      edit.click();
+      return sleep(80).then(() => {
+        const library = document.querySelector('.library');
+        if (library?.classList.contains('collapsed')) library.querySelector('.panel-toggle')?.click();
+        return sleep(80);
+      }).then(() => {
+        const search = document.querySelector('.library input');
+        if (!search) return { found: false };
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        setter?.call(search, '3-way diaphragm selector');
+        search.dispatchEvent(new Event('input', { bubbles: true }));
+        return sleep(80).then(() => {
+          let item = [...document.querySelectorAll('.lib-item')].find((node) => node.textContent.includes('3-way diaphragm selector'));
+          if (item) return item;
+          document.querySelectorAll('.lib-group-title').forEach((group) => group.click());
+          return sleep(80).then(() => [...document.querySelectorAll('.lib-item')].find((node) => node.textContent.includes('3-way diaphragm selector')));
+        }).then((item) => {
+          if (!item) return { found: false };
+          item.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+          return sleep(120).then(() => {
+            const text = document.querySelector('.inspector')?.textContent || '';
+            const directions = [...document.querySelectorAll('.port-row')].map((row) => row.querySelector('select'));
+            return {
+              found: true,
+              sharedPort: text.includes('Shared port'),
+              routeA: text.includes('P3 ↔ P1'),
+              routeB: text.includes('P3 ↔ P2'),
+              noPositionalRoute: !text.includes('A→C') && !text.includes('B→C'),
+              directionsLocked: directions.length === 3 && directions.every((node) => node?.disabled),
+            };
+          });
+        });
+      });
+    })()
+  `);
+  const selectorScreenshot = await win.webContents.capturePage();
+  fs.writeFileSync("/tmp/fluidpath-selector-en.png", selectorScreenshot.toPNG());
+
   // English narrow-window regression: all three visible work-mode buttons must remain whole and usable.
   win.setBounds({ width: 512, height: 800 });
   await new Promise((r) => setTimeout(r, 80));
@@ -99,13 +146,16 @@ app.whenReady().then(async () => {
   console.log("SMOKE_RESULT " + JSON.stringify(result));
   console.log("SMOKE_HELP_MEMORY " + JSON.stringify({ firstRunHelp, helpSeen, repeatRunHelp }));
   console.log("SMOKE_FAULT_MODE " + JSON.stringify(faultMode));
+  console.log("SMOKE_DIAPHRAGM_SELECTOR " + JSON.stringify(selectorUi));
   console.log("SMOKE_ENGLISH_MODES " + JSON.stringify(compactMode));
   console.log("SMOKE_CONSOLE_ERRORS " + JSON.stringify(consoleErrors));
 
   const ok = result.rootChildren > 0 && result.hasApp && result.hasCanvas
     && firstRunHelp && helpSeen && !repeatRunHelp
     && faultMode.foundModeButton && faultMode.active && faultMode.panel && faultMode.aiTopbarButtons === 0
+    && selectorUi.found && selectorUi.sharedPort && selectorUi.routeA && selectorUi.routeB && selectorUi.noPositionalRoute && selectorUi.directionsLocked
     && compactMode.found && compactMode.groupVisible && compactMode.unclipped
     && compactMode.labels.join("|") === "✏️ Edit|🎬 Demo|⚠ Fault";
+  if (!ok) process.exitCode = 1;
   app.exit(ok ? 0 : 1);
 });

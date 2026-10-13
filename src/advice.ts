@@ -17,6 +17,7 @@ import type { Diagram, FluidType, Pipe } from "./types";
 import type { Lang } from "./i18n";
 import { checkDiagramFluid, fluidLabel } from "./fluidRules";
 import { pipeEngineeringDisabled, pipeTeachingOverride, setCachedPipes, pumpEffectiveOn, valveEffectiveOpen, valve3EffectivePath, findPort } from "./geometry";
+import { diaphragmRouteLabel, diaphragmValveRoute } from "./diaphragmValve";
 
 /** 双语取值 */
 const L = (lang: Lang, zh: string, en: string): string => (lang === "zh" ? zh : en);
@@ -146,12 +147,10 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"):
           const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "off");
           return { reason: L(lang, `「${n.label}」${why}`, `"${n.label}" is ${why}`), ids: [n.id, p.id] };
         }
-        const inputs = n.ports.filter((pp) => pp.direction === "in");
-        const inputA = inputs.find((pp) => pp.position === "left") ?? inputs[0];
-        const inputB = inputs.find((pp) => pp.position === "bottom") ?? inputs[1];
-        const inactive = path === "A" ? inputB : inputA;
-        if (inactive && u.port.id === inactive.id) {
-          return { reason: L(lang, `「${n.label}」当前导通 ${path}→C，另一入口支路未导通`, `"${n.label}" currently routes ${path}→C; the other inlet branch is not active`), ids: [n.id, p.id] };
+        const route = diaphragmValveRoute(n, path);
+        if (!route.activePortIds.has(u.port.id)) {
+          const current = diaphragmRouteLabel(n, path);
+          return { reason: L(lang, `「${n.label}」当前只连通 ${current}，该端口不在有效通路中`, `"${n.label}" currently connects only ${current}; this port is outside the active route`), ids: [n.id, p.id] };
         }
       }
       // 上游供液管停流 → 继续向上递归（AND 汇流：任一入侧流动即有供，故只在全部入侧停流时进来）

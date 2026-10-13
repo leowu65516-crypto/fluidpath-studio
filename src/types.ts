@@ -24,7 +24,7 @@ export type NodeType =
   | "solenoid2"
   | "solenoid3"
   | "diaphragmValve2" // 两通隔膜阀：开 / 关
-  | "diaphragmValve3" // 三通两位隔膜切换阀：A→C / B→C
+  | "diaphragmValve3" // 三口两位隔膜切换阀：两个双向通路共享一个可配置公共端
   | "pulseAirValve" // 脉冲空气电磁阀
   | "safetyValve"
   | "opv" // OPV 过压保护阀（泄压/限压）
@@ -99,8 +99,10 @@ export interface DiagramNode {
   displayDisabled?: boolean;
   /** 两通电磁阀状态：开 / 关 */
   valveState?: "open" | "closed";
-  /** 三通电磁阀导通路径：A=右侧出口 / B=底部出口 / off=关闭 */
+  /** 三通状态。对隔膜切换阀而言 A/B 是内部稳定状态槽，不表示端口方位或流向。 */
   valvePath?: "A" | "B" | "off";
+  /** 三口隔膜切换阀的公共端口 ID；两条有效通路均经过此端口。缺失时兼容旧图纸。 */
+  valveCommonPortId?: string;
   /** 电磁阀：是否在画布上直接显示开关状态并可点击切换 */
   showStateOnDiagram?: boolean;
   /** 水泵/奶泵：是否运行（关闭时前后液路停流） */

@@ -8,6 +8,7 @@
 
 import type { Diagram, DiagramNode, Pipe, Port } from "./types";
 import { findPort, pumpEffectiveOn, valveEffectiveOpen, valve3EffectivePath } from "./geometry";
+import { diaphragmValveRoute } from "./diaphragmValve";
 
 /** 真源边界：上游回溯到此停止（泵/锅炉可穿过——它们的进水侧也是整机角色的一部分） */
 const SOURCE_BOUNDARY = new Set([
@@ -22,7 +23,7 @@ const SINK_BOUNDARY = new Set([
 
 /** 方向性元件：只走其进/出侧端口 */
 const DIRECTIONAL = new Set([
-  "pump", "milkPump", "airPump", "solenoid2", "ballValve", "solenoid3", "diaphragmValve2", "diaphragmValve3", "checkValve",
+  "pump", "milkPump", "airPump", "solenoid2", "ballValve", "solenoid3", "diaphragmValve2", "checkValve",
 ]);
 
 export interface FunctionalChain {
@@ -60,14 +61,6 @@ function activeOutPort(n: DiagramNode): string | undefined {
   const outA = outs.find((p) => p.position === "right") ?? outs[0];
   const outB = outs.find((p) => p.position === "bottom") ?? outs[1];
   return (path === "A" ? outA : outB)?.id;
-}
-
-function diaphragmSelectorPorts(n: DiagramNode) {
-  const inputs = n.ports.filter((p) => p.direction === "in");
-  const inputA = inputs.find((p) => p.position === "left") ?? inputs[0];
-  const inputB = inputs.find((p) => p.position === "bottom") ?? inputs[1];
-  const outputC = n.ports.find((p) => p.direction === "out" && p.position === "right") ?? n.ports.find((p) => p.direction === "out");
-  return { inputA, inputB, outputC, activeInput: valve3EffectivePath(n) === "B" ? inputB : inputA };
 }
 
 /**
@@ -118,9 +111,7 @@ export function traceFunctionalChain(diagram: Diagram, seedNodeId?: string, seed
           if (port.id !== active) continue; // 非激活支路不穿越
         }
         if (n.type === "diaphragmValve3") {
-          const { activeInput, outputC } = diaphragmSelectorPorts(n);
-          if (downstream && port.id !== outputC?.id) continue;
-          if (!downstream && port.id !== activeInput?.id) continue;
+          if (!diaphragmValveRoute(n, valve3EffectivePath(n)).activePortIds.has(port.id)) continue;
         }
         const nextId = downstream ? v.node.id : u.node.id;
         addPipe(p.id);

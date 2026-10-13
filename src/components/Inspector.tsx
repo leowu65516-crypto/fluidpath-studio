@@ -40,8 +40,9 @@ import {
   setPipesForceFlow,
   setPipesForceStop,
 } from "../store";
-import { defOf, NodeSymbol } from "../symbols";
+import { defOf, NodeSymbol, nodeDisplayLabel } from "../symbols";
 import { findPort, portWorldPos, pipeEngineeringDisabled, pipeTeachingOverride } from "../geometry";
+import { diaphragmPortLabel, diaphragmRouteLabel, diaphragmValveRoute } from "../diaphragmValve";
 import { traceStopCause } from "../advice";
 import { traceFunctionalChain, chainPathSummary } from "../functionalChain";
 import { FLUID_PRESETS, MATERIAL_PRESETS } from "../types";
@@ -125,6 +126,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
   const node = ui.selection.nodes.length === 1 ? diagram.nodes.find((n) => n.id === ui.selection.nodes[0]) : undefined;
   const pipe = !node && ui.selection.pipes.length === 1 ? diagram.pipes.find((p) => p.id === ui.selection.pipes[0]) : undefined;
   const multi = ui.selection.nodes.length + ui.selection.pipes.length > 1;
+  const diaphragmRoute = node?.type === "diaphragmValve3" ? diaphragmValveRoute(node) : undefined;
   const pipeIssues = pipe ? checkPipeFluid(pipe, diagram.nodes, lang) : [];
   const pipeStallCause = useMemo(() => {
     if (!pipe || !pipeEngineeringDisabled(pipe, diagram.nodes)) return null;
@@ -228,7 +230,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                       if (!preset) return;
                       patchPipes(ids, { fluidType: preset.key, ...(preset.key !== "custom" ? { fluidColor: preset.color } : {}) });
                     }}>
-                      {FLUID_PRESETS.map((f) => (<option key={f.key} value={f.key}>{f.label}</option>))}
+                      {FLUID_PRESETS.map((f) => (<option key={f.key} value={f.key}>{t(f.label)}</option>))}
                     </select>
                   </Row>
                   <Row label={t("管材")}>
@@ -237,7 +239,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                       if (!preset) return;
                       patchPipes(ids, { material: preset.key, ...(preset.key !== "custom" ? { wallColor: preset.wallColor, wallOpacity: preset.wallOpacity } : {}) });
                     }}>
-                      {MATERIAL_PRESETS.map((m) => (<option key={m.key} value={m.key}>{m.label}</option>))}
+                      {MATERIAL_PRESETS.map((m) => (<option key={m.key} value={m.key}>{t(m.label)}</option>))}
                     </select>
                   </Row>
                   <Row label={t("管径")}>
@@ -315,7 +317,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <NodeSymbol node={node} />
               </svg>
               <div className="node-card-body">
-                <span className="node-card-type">{defOf(node.type, node.variant).label}</span>
+                <span className="node-card-type">{nodeDisplayLabel(defOf(node.type, node.variant), lang)}</span>
                 {kn && <div className="node-card-role">{kn.role}</div>}
               </div>
             </div>
@@ -342,7 +344,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 </Row>
               )}
               <Row label={t("类型")}>
-                <span className="insp-static">{defOf(node.type, node.variant).label}（{node.type}）</span>
+                <span className="insp-static">{nodeDisplayLabel(defOf(node.type, node.variant), lang)} ({node.type})</span>
               </Row>
               {node.type === "annotation" && (
                 <>
@@ -505,18 +507,30 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             )}
             {(node.type === "solenoid3" || node.type === "diaphragmValve3") && (
               <Section title={node.type === "diaphragmValve3" ? t("三通隔膜切换阀") : t("三通电磁阀")}>
-                <Row label={t("导通路径")}>
+                {node.type === "diaphragmValve3" ? <>
+                  <Row label={t("公共端口")}>
+                    <select value={node.valveCommonPortId ?? diaphragmRoute?.commonPort?.id ?? ""} onChange={(e) => patchNode(node.id, { valveCommonPortId: e.target.value })}>
+                      {node.ports.slice(0, 3).map((port) => <option key={port.id} value={port.id}>{diaphragmPortLabel(node, port)} · {t(port.position === "left" ? "左" : port.position === "right" ? "右" : port.position === "top" ? "上" : "下")}</option>)}
+                    </select>
+                  </Row>
+                  <Row label={t("导通路径")}>
+                    <div className="seg selector-routes">
+                      <button title={t("路径 I")} className={(node.valvePath ?? "A") === "A" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "A" })}>{diaphragmRouteLabel(node, "A")}</button>
+                      <button title={t("路径 II")} className={node.valvePath === "B" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "B" })}>{diaphragmRouteLabel(node, "B")}</button>
+                    </div>
+                  </Row>
+                </> : <Row label={t("导通路径")}>
                   <div className="seg">
-                    <button className={(node.valvePath ?? "A") === "A" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "A" })}>{node.type === "diaphragmValve3" ? "A→C" : t("右侧 (A)")}</button>
-                    <button className={node.valvePath === "B" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "B" })}>{node.type === "diaphragmValve3" ? "B→C" : t("下方 (B)")}</button>
-                    {node.type === "solenoid3" && <button className={node.valvePath === "off" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "off" })}>{t("关闭")}</button>}
+                    <button className={(node.valvePath ?? "A") === "A" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "A" })}>{t("右侧 (A)")}</button>
+                    <button className={node.valvePath === "B" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "B" })}>{t("下方 (B)")}</button>
+                    <button className={node.valvePath === "off" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "off" })}>{t("关闭")}</button>
                   </div>
-                </Row>
+                </Row>}
                 <Row label={t("画布显示")}>
                   <input type="checkbox" checked={!!node.showStateOnDiagram} onChange={(e) => patchNode(node.id, { showStateOnDiagram: e.target.checked })} />
                   <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("在画布上直接切换")}</span>
                 </Row>
-                <div className="insp-tip">{node.type === "diaphragmValve3" ? t("这是三口两位切换阀：只能 A→C 或 B→C 导通，没有关闭档；另一入口支路会按工程状态停止流动。") : t("仅导通所选路径：右侧(A) / 下方(B)；未选中的出口所连管路自动置灰、停止流动。勾选「画布显示」后，电磁阀下方出现可点击三档选择。")}</div>
+                <div className="insp-tip">{node.type === "diaphragmValve3" ? t("三口两位隔膜阀有且仅有两条双向通路；两条通路都经过所选公共端口。切换路径不会定义固定入口或出口，未选通的第三端对应管路按工程状态停止流动。") : t("仅导通所选路径：右侧(A) / 下方(B)；未选中的出口所连管路自动置灰、停止流动。勾选「画布显示」后，电磁阀下方出现可点击三档选择。")}</div>
               </Section>
             )}
             {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && (
@@ -691,7 +705,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   }}
                 >
                   {FLUID_PRESETS.map((f) => (
-                    <option key={f.key} value={f.key}>{f.label}</option>
+                    <option key={f.key} value={f.key}>{t(f.label)}</option>
                   ))}
                 </select>
               </Row>
@@ -708,7 +722,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   }}
                 >
                   {MATERIAL_PRESETS.map((m) => (
-                    <option key={m.key} value={m.key}>{m.label}</option>
+                    <option key={m.key} value={m.key}>{t(m.label)}</option>
                   ))}
                 </select>
               </Row>
@@ -960,7 +974,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 onChange={(e) => { if (e.target.value) { applyStylePreset(e.target.value, [node.id]); e.target.value = ""; } }}
               >
                 <option value="">{t("选择样式…")}</option>
-                {getStylePresets().map((name) => (<option key={name} value={name}>{name}</option>))}
+                {getStylePresets().map((name) => (<option key={name} value={name}>{t(name)}</option>))}
               </select>
             </Row>
           </Section>

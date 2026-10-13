@@ -20,6 +20,7 @@ import {
   pipeTeachingOverride
 } from "../geometry";
 import { NodeSymbol, spoutTips, defOf, nodeCanvasLabel } from "../symbols";
+import { diaphragmRouteLabel } from "../diaphragmValve";
 import { MiniMap } from "./MiniMap";
 import { PipeView } from "./PipeView";
 import { FaultHighlightOverlay } from "./FaultHighlightOverlay";
@@ -983,7 +984,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
       if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") return node.pumpOn !== false ? t("运行") : t("停止");
       if (node.type === "solenoid2" || node.type === "ballValve" || node.type === "diaphragmValve2") return node.valveState !== "closed" ? t("开") : t("关");
       if (node.type === "solenoid3") return node.valvePath === "A" ? t("A 路") : node.valvePath === "B" ? t("B 路") : t("关");
-      if (node.type === "diaphragmValve3") return node.valvePath === "B" ? "B→C" : "A→C";
+      if (node.type === "diaphragmValve3") return diaphragmRouteLabel(node, node.valvePath === "B" ? "B" : "A");
       return "";
     })();
     if (!rectsIntersect(nodeBBox(node), cullRect)) return null;
@@ -1177,7 +1178,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                   return (
                     <g key={val} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id, val); }}>
                       <rect x={bx - 8} y={node.height + 24} width={16} height={16} rx={3} fill={active ? colors[val] : "#eef2f7"} stroke={active ? colors[val] : "#b9c6d4"} strokeWidth={1.2} />
-                      <text x={bx} y={node.height + 36} textAnchor="middle" fontSize={10} fill={active ? "#fff" : "#6b7787"} fontFamily="system-ui, sans-serif" fontWeight={600} pointerEvents="none">{val === "off" ? t("关") : node.type === "diaphragmValve3" ? `${val}→C` : val}</text>
+                      <title>{node.type === "diaphragmValve3" ? diaphragmRouteLabel(node, val) : val === "off" ? t("关") : val}</title>
+                      <text x={bx} y={node.height + 36} textAnchor="middle" fontSize={10} fill={active ? "#fff" : "#6b7787"} fontFamily="system-ui, sans-serif" fontWeight={600} pointerEvents="none">{val === "off" ? t("关") : node.type === "diaphragmValve3" ? (val === "A" ? "I" : "II") : val}</text>
                     </g>
                   );
                 })}

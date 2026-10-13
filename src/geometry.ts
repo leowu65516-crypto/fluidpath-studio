@@ -1,4 +1,5 @@
 import type { DiagramNode, Pipe, Port, Pt } from "./types";
+import { diaphragmValveRoute } from "./diaphragmValve";
 
 export const PORT_STUB = 24;
 
@@ -317,16 +318,6 @@ function isThreeWayFlowValve(n: DiagramNode): boolean {
   return n.type === "solenoid3" || n.type === "diaphragmValve3";
 }
 
-/** 三通隔膜切换阀固定为两进一出：A→C 或 B→C，没有独立 off 档。 */
-function diaphragmSelectorPorts(n: DiagramNode) {
-  const inputs = n.ports.filter((p) => p.direction === "in");
-  const inputA = inputs.find((p) => p.position === "left") ?? inputs[0];
-  const inputB = inputs.find((p) => p.position === "bottom") ?? inputs[1];
-  const outputC = n.ports.find((p) => p.direction === "out" && p.position === "right") ?? n.ports.find((p) => p.direction === "out");
-  const path = valve3EffectivePath(n);
-  return { inputA, inputB, outputC, activeInput: path === "A" ? inputA : path === "B" ? inputB : undefined };
-}
-
 /**
  * 预计算停流管路：「断点 + 相位传播」模型。
  * 断点源 = pumpOn=false 的泵 / valveState=closed / valvePath=off / disabled 节点。
@@ -426,22 +417,18 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
     }
     if (n.type === "diaphragmValve3") {
       const path = valve3EffectivePath(n);
-      const { inputA, inputB, outputC, activeInput } = diaphragmSelectorPorts(n);
+      const route = diaphragmValveRoute(n, path);
       if (path === "off") {
         // 故障卡关时阀体没有任何通路；所有相连管段停流，但不把状态误扩散到无关支路。
-        for (const port of [inputA, inputB, outputC]) {
-          if (!port) continue;
+        for (const port of n.ports) {
           for (const pipe of pipes) {
             if (pipe.fromPortId === port.id || pipe.toPortId === port.id) disabledPipes.add(pipe.id);
           }
         }
-      } else {
-        // 未被选中的入口仅停自身支路：例如 A→C 时，B 入口的供液支路不能被显示为通流。
-        const inactiveInput = activeInput?.id === inputA?.id ? inputB : inputA;
-        if (inactiveInput) {
-          for (const pipe of pipes) {
-            if (pipe.fromPortId === inactiveInput.id || pipe.toPortId === inactiveInput.id) isolatedDisabled.add(pipe.id);
-          }
+      } else if (route.inactiveBranch) {
+        // 两位阀的未选通支路仅停自身，不向公共端或另一条有效通路扩散。
+        for (const pipe of pipes) {
+          if (pipe.fromPortId === route.inactiveBranch.id || pipe.toPortId === route.inactiveBranch.id) isolatedDisabled.add(pipe.id);
         }
       }
     }
@@ -499,11 +486,14 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         const activeOutId3 = path === "A" ? outA3?.id : path === "B" ? outB3?.id : undefined;
         if (e.v.port.direction === "out" && e.v.port.id !== activeOutId3) continue;
       }
-      if (node.type === "diaphragmValve3" && e.v.port.id !== diaphragmSelectorPorts(node).activeInput?.id) continue;
+      if (node.type === "diaphragmValve3" && !diaphragmValveRoute(node, valve3EffectivePath(node)).activePortIds.has(e.v.port.id)) continue;
       for (const op of pipes) {
         if (op.id === pid2) continue;
         const oe = edgeOf(op);
-        const match = hxPartner ? !!(oe.u && oe.u.port.id === hxPartner.id) : !!(oe.u && oe.u.node.id === node.id);
+        const selector = node.type === "diaphragmValve3" ? diaphragmValveRoute(node, valve3EffectivePath(node)) : undefined;
+        const match = hxPartner
+          ? !!(oe.u && oe.u.port.id === hxPartner.id)
+          : !!(oe.u && oe.u.node.id === node.id && (!selector || selector.activePortIds.has(oe.u.port.id)));
         if (match) pq.push(op.id);
       }
     }
@@ -570,20 +560,21 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         const activeOutId3 = path === "A" ? outA3?.id : path === "B" ? outB3?.id : undefined;
         if (arr.port.direction === "out" && arr.port.id !== activeOutId3) continue;
       }
-      if (node.type === "diaphragmValve3" && arr.port.direction === "in" && arr.port.id !== diaphragmSelectorPorts(node).activeInput?.id) continue;
+      if (node.type === "diaphragmValve3" && !diaphragmValveRoute(node, valve3EffectivePath(node)).activePortIds.has(arr.port.id)) continue;
       // 扩散到 node 的其他管路（隔离停流不参与扩散；换热器限同通道配对端口）
       for (const op of pipes) {
         if (op.id === pid || isolatedDisabled.has(op.id)) continue;
         const oe = edgeOf(op);
+        const selector = node.type === "diaphragmValve3" ? diaphragmValveRoute(node, valve3EffectivePath(node)) : undefined;
         if (phase === "push") {
           // 顺流向：op 必须从 node 流出
-          const match = hxPartner ? !!(oe.u && oe.u.port.id === hxPartner.id) : !!(oe.u && oe.u.node.id === node.id);
+          const match = hxPartner ? !!(oe.u && oe.u.port.id === hxPartner.id) : !!(oe.u && oe.u.node.id === node.id && (!selector || selector.activePortIds.has(oe.u.port.id)));
           if (match) queue.push({ pid: op.id, phase: "push" });
         } else if (phase === "suck") {
           // 逆流向：op 必须流入 node（继续向上游追溯）；
           // 但从运行中/任何泵流出的管不得被 suck 污染（泵是独立动力源，其出侧由自身维持）；
           // 压力域（其他运行泵正压供液的管路）同样不得被污染
-          const match = hxPartner ? !!(oe.v && oe.v.port.id === hxPartner.id) : !!(oe.v && oe.v.node.id === node.id);
+          const match = hxPartner ? !!(oe.v && oe.v.port.id === hxPartner.id) : !!(oe.v && oe.v.node.id === node.id && (!selector || selector.activePortIds.has(oe.v.port.id)));
           if (match) {
             const srcNode = oe.u?.node;
             if (srcNode && (srcNode.type === "pump" || srcNode.type === "milkPump")) continue;
@@ -593,7 +584,8 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         } else {
           const touches = hxPartner
             ? !!(oe.u && oe.u.port.id === hxPartner.id) || !!(oe.v && oe.v.port.id === hxPartner.id)
-            : !!(oe.u && oe.u.node.id === node.id) || !!(oe.v && oe.v.node.id === node.id);
+            : !!(oe.u && oe.u.node.id === node.id && (!selector || selector.activePortIds.has(oe.u.port.id)))
+              || !!(oe.v && oe.v.node.id === node.id && (!selector || selector.activePortIds.has(oe.v.port.id)));
           if (touches) {
             queue.push({ pid: op.id, phase: "both" });
           }
@@ -652,8 +644,8 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
       return port.id === activeOutId;
     }
     if (u.type === "diaphragmValve3") {
-      const { outputC } = diaphragmSelectorPorts(u);
-      return valve3EffectivePath(u) !== "off" && port.id === outputC?.id;
+      const path = valve3EffectivePath(u);
+      return path !== "off" && diaphragmValveRoute(u, path).activePortIds.has(port.id);
     }
     // 直通/接头/容器/单向件等：允许（单向件顺向由 edgeOf 保证）
     return true;
@@ -689,7 +681,7 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
         if (!e.v || e.v.node.id !== n.id) continue; // 该管流入 n
         if (!e.u) continue;
         if (partnerId && e.v.port.id !== partnerId) continue; // 换热器跨通道隔离
-        if (n.type === "diaphragmValve3" && e.v.port.id !== diaphragmSelectorPorts(n).activeInput?.id) continue;
+        if (n.type === "diaphragmValve3" && !diaphragmValveRoute(n, valve3EffectivePath(n)).activePortIds.has(e.v.port.id)) continue;
         if (e.u.node.id === root.id && DEMAND_BOUNDARY_TYPES.has(e.u.node.type)) continue; // 根自身出侧回环 → 跳过
         if (!canEmit(e.u.node, e.u.port)) continue; // 上游源不放流 → 无需求
         if (demand.has(pipe.id)) continue;
@@ -835,10 +827,10 @@ function pipeEffectiveDisabledRecursive(
     if (n.type === "diaphragmValve3") {
       const path = valve3EffectivePath(n);
       if (path === "off") return true;
-      const { inputA, inputB, outputC, activeInput } = diaphragmSelectorPorts(n);
-      const inactiveInput = activeInput?.id === inputA?.id ? inputB : inputA;
-      if (inactiveInput && ref.port.id === inactiveInput.id) return true;
-      if (outputC && ref.port.id === outputC.id && activeInput && hasDisabledUpstream(activeInput.id)) return true;
+      const route = diaphragmValveRoute(n, path);
+      if (!route.activePortIds.has(ref.port.id)) return true;
+      const pairedPort = ref.port.id === route.commonPort?.id ? route.activeBranch : route.commonPort;
+      if (pairedPort && hasDisabledUpstream(pairedPort.id)) return true;
     }
 
     // 经过中间节点传播（直通类元件：阀门、接头、容器、换热器、过滤器、泵、单向阀等）

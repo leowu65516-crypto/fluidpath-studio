@@ -1,5 +1,7 @@
 import type { DiagramNode, NodeType, Port, PortDirection, PortPosition, ShapeVariant } from "./types";
 import { uid } from "./types";
+import { diaphragmPortLabel, diaphragmRouteLabel, diaphragmValveRoute } from "./diaphragmValve";
+import { portLocalPos } from "./geometry";
 
 interface PortTemplate {
   position: PortPosition;
@@ -72,7 +74,7 @@ export const NODE_DEFS: NodeDef[] = [
   { type: "solenoid2", label: "两通电磁阀", group: "控制", width: 74, height: 66, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.76, direction: "in" }, { position: "right", offset: 0.76, direction: "out" }] },
   { type: "solenoid3", label: "三通电磁阀", group: "控制", width: 78, height: 74, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.62, direction: "in" }, { position: "right", offset: 0.62, direction: "out" }, { position: "bottom", offset: 0.5, direction: "out" }] },
   { type: "diaphragmValve2", label: "两通隔膜阀", group: "控制", width: 78, height: 66, fill: "#f7fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.76, direction: "in" }, { position: "right", offset: 0.76, direction: "out" }] },
-  { type: "diaphragmValve3", label: "三通隔膜切换阀", group: "控制", width: 92, height: 80, fill: "#f7fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.62, direction: "in" }, { position: "bottom", offset: 0.5, direction: "in" }, { position: "right", offset: 0.62, direction: "out" }] },
+  { type: "diaphragmValve3", label: "三通隔膜切换阀", group: "控制", width: 92, height: 80, fill: "#f7fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.62, direction: "bidirectional" }, { position: "bottom", offset: 0.5, direction: "bidirectional" }, { position: "right", offset: 0.62, direction: "bidirectional" }] },
   { type: "pulseAirValve", label: "脉冲空气电磁阀", group: "控制", width: 74, height: 66, fill: "#f6fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.76, direction: "in" }, { position: "right", offset: 0.76, direction: "out" }] },
   { type: "safetyValve", label: "安全阀", group: "控制", width: 64, height: 84, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "right", offset: 0.4, direction: "out" }] },
   { type: "opv", label: "OPV 泄压阀", group: "控制", width: 64, height: 84, fill: "#fff4ec", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "right", offset: 0.35, direction: "out" }] },
@@ -167,6 +169,7 @@ export function createNode(type: NodeType, x: number, y: number, label?: string,
     ...(type === "annotation" ? { pointerTarget: { x: x + def.width / 2 + 30, y: y + def.height + 60 } } : {}),
     ...(type === "solenoid2" || type === "ballValve" || type === "diaphragmValve2" ? { valveState: "open" as const } : {}),
     ...(type === "solenoid3" || type === "diaphragmValve3" ? { valvePath: "A" as const } : {}),
+    ...(type === "diaphragmValve3" ? { valveCommonPortId: ports.find((port) => port.position === "right")?.id } : {}),
     // 阀/泵默认在画布上显示开关（可在属性中关闭）
     ...(["solenoid2", "solenoid3", "diaphragmValve2", "diaphragmValve3", "ballValve", "pump", "milkPump", "airPump"].includes(type) ? { showStateOnDiagram: true } : {})
   };
@@ -490,24 +493,27 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
       const cy = h * 0.62;
       const path = node.valvePath === "B" ? "B" : "A";
       const color = path === "A" ? "#3fae6a" : "#2f7fd6";
-      const inputA = { x: 3, y: cy };
-      const inputB = { x: w / 2, y: h - 3 };
-      const outputC = { x: w - 3, y: cy };
-      const active = path === "A" ? inputA : inputB;
+      const center = { x: w / 2, y: cy };
+      const route = diaphragmValveRoute(node, path);
+      const portPoints = node.ports.slice(0, 3).map((port) => ({ port, point: portLocalPos(node, port) }));
+      const activePoint = route.activeBranch ? portLocalPos(node, route.activeBranch) : undefined;
+      const commonPoint = route.commonPort ? portLocalPos(node, route.commonPort) : undefined;
       return (
         <g>
-          <path d={`M ${inputA.x} ${cy - 13} L ${w / 2} ${cy} L ${inputA.x} ${cy + 13} Z`} {...common} />
-          <path d={`M ${outputC.x} ${cy - 13} L ${w / 2} ${cy} L ${outputC.x} ${cy + 13} Z`} {...common} />
-          <path d={`M ${w / 2 - 13} ${inputB.y} L ${w / 2} ${cy} L ${w / 2 + 13} ${inputB.y} Z`} {...common} />
+          {portPoints.map(({ port, point }) => <line key={port.id} x1={center.x} y1={center.y} x2={point.x} y2={point.y} stroke={stroke} strokeWidth={sw} />)}
+          <circle cx={center.x} cy={center.y} r={14} fill={fill} stroke={stroke} strokeWidth={sw} />
           <path d={`M ${w / 2 - 18} ${cy - 5} Q ${w / 2} ${cy - 13} ${w / 2 + 18} ${cy - 5}`} fill="none" stroke={stroke} strokeWidth={2} />
           <path d={`M ${w / 2} ${cy - 4} V ${h * 0.24}`} stroke={stroke} strokeWidth={sw} />
           <rect x={w / 2 - 15} y={2} width={30} height={h * 0.2} rx={5} fill="#eaf1f8" stroke={stroke} strokeWidth={1.5} />
-          <path d={`M ${active.x} ${active.y} L ${w / 2} ${cy} L ${outputC.x} ${outputC.y}`} fill="none" stroke={color} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" opacity={0.78} />
-          <text x={9} y={cy - 18} textAnchor="middle" fontSize={10} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={700}>A</text>
-          <text x={w / 2} y={h - 8} textAnchor="middle" fontSize={10} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={700}>B</text>
-          <text x={w - 9} y={cy - 18} textAnchor="middle" fontSize={10} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={700}>C</text>
+          {commonPoint && activePoint && <path d={`M ${commonPoint.x} ${commonPoint.y} L ${center.x} ${center.y} L ${activePoint.x} ${activePoint.y}`} fill="none" stroke={color} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" opacity={0.78} />}
+          {portPoints.map(({ port, point }) => {
+            const dx = point.x < center.x - 4 ? 8 : point.x > center.x + 4 ? -8 : 0;
+            const dy = point.y < center.y - 4 ? 11 : point.y > center.y + 4 ? -8 : -8;
+            return <text key={port.id} x={point.x + dx} y={point.y + dy} textAnchor={dx > 0 ? "start" : dx < 0 ? "end" : "middle"} fontSize={9} fill={route.commonPort?.id === port.id ? color : stroke} fontFamily="system-ui, sans-serif" fontWeight={700}>{diaphragmPortLabel(node, port)}</text>;
+          })}
           <circle cx={w - 8} cy={7} r={4} fill={color} stroke="#fff" strokeWidth={1.2} />
-          <text x={w - 8} y={20} textAnchor="middle" fontSize={8} fill={color} fontFamily="system-ui, sans-serif" fontWeight={700}>{path}→C</text>
+          <text x={w - 8} y={20} textAnchor="middle" fontSize={8} fill={color} fontFamily="system-ui, sans-serif" fontWeight={700}>{path === "A" ? "I" : "II"}</text>
+          <title>{diaphragmRouteLabel(node, path)}</title>
         </g>
       );
     }

@@ -361,7 +361,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
   updateDiagram((d) => {
     if (isNewEntry || rebuild) {
       // 基线复位：所有泵停、两通阀/球阀关、常规三通阀 off。
-      // 三通隔膜切换阀没有 off 档，保留其 A→C / B→C 的合法切换状态。
+      // 三通隔膜切换阀没有 off 档，保留其两条共享公共端口的合法切换状态。
       for (const n of d.nodes) {
         if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = false;
         else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2") n.valveState = "closed";
@@ -950,6 +950,10 @@ export function addPort(nodeId: string, direction: PortDirection, position?: Por
   updateDiagram((d) => {
     const node = d.nodes.find((n) => n.id === nodeId);
     if (!node) return;
+    if (node.type === "diaphragmValve3") {
+      toast(L(sysLang(), "三通隔膜切换阀固定为三个双向端口，不能增添端口", "A 3-way diaphragm selector has exactly three bidirectional ports and cannot add ports"));
+      return;
+    }
     if (node.ports.length >= MAX_PORTS_PER_NODE) {
       const lang = sysLang();
       toast(L(lang, `端口已达上限 ${MAX_PORTS_PER_NODE} 个，无法继续添加`, `Port limit reached (${MAX_PORTS_PER_NODE}); cannot add more`));
@@ -973,6 +977,10 @@ export function removePort(nodeId: string, portId: string) {
   updateDiagram((d) => {
     const node = d.nodes.find((n) => n.id === nodeId);
     if (!node) return;
+    if (node.type === "diaphragmValve3") {
+      toast(L(sysLang(), "三通隔膜切换阀固定为三个双向端口，不能删除端口", "A 3-way diaphragm selector has exactly three bidirectional ports and cannot remove ports"));
+      return;
+    }
     node.ports = node.ports.filter((p) => p.id !== portId);
     d.pipes = d.pipes.filter((p) => p.fromPortId !== portId && p.toPortId !== portId);
   });
@@ -989,6 +997,7 @@ export function patchPort(
     const node = d.nodes.find((n) => n.id === nodeId);
     const port = node?.ports.find((p) => p.id === portId);
     if (!node || !port) return;
+    if (node.type === "diaphragmValve3" && patch.direction) patch = { ...patch, direction: "bidirectional" };
     // 锅炉端口只允许上/下端
     if (BOILER_TYPES.has(node.type) && patch.position && patch.position !== "top" && patch.position !== "bottom") {
       const { position: _drop, ...rest } = patch;

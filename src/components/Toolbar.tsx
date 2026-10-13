@@ -438,7 +438,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       {/* 工作模式：编辑 / 演示 / 故障排查（验收由验收工作流进入，入口暂不展示） */}
       <div className="tb-group tb-group-mode" role="group" aria-label={t("工作模式") }>
       <div className="tb-mode seg" role="group" aria-label={t("工作模式")}>
-        <button aria-pressed={mode === "edit"} className={mode === "edit" ? "on" : ""} title={t("编辑模式：画图、接线、属性编辑")} onClick={() => setWorkMode("edit")}>✏️ {t("编辑")}</button>
+        <button data-testid="mode-edit" aria-pressed={mode === "edit"} className={mode === "edit" ? "on" : ""} title={t("编辑模式：画图、接线、属性编辑")} onClick={() => setWorkMode("edit")}>✏️ {t("编辑")}</button>
         <button aria-pressed={mode === "present"} className={mode === "present" ? "on" : ""} title={t("演示模式：收起面板，按场景步骤讲解")} onClick={() => setWorkMode("present")}>🎬 {t("演示")}</button>
         <button data-testid="mode-fault" aria-pressed={mode === "fault"} className={mode === "fault" ? "on" : ""} title={t("故障模式：拓扑已锁定；可配置代码、关联排查范围并模拟信号")} onClick={() => setWorkMode("fault")}>⚠ {t("故障")}</button>
       </div>

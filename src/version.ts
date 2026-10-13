@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.30.7";
+export const APP_VERSION = "1.30.9";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.9",
+    date: "2026-10-13",
+    highlights: [
+      "三通隔膜切换阀改为三个固定双向端口和一个可选公共端口；两个状态分别连通公共端与其余两个端口，不再把 A/B/C 或左右上下当作物理流向",
+      "工程停流、需求域、压力域、功能链、停流因果链、画布符号和属性面板统一按同一条公共端规则判定；旧图纸自动保留原右侧公共端行为",
+    ],
+  },
   {
     version: "1.30.7",
     date: "2026-10-13",

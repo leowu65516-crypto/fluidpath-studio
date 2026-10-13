@@ -18,7 +18,8 @@ import { ContextMenu } from "../components/ContextMenu";
 import { ExportDialog } from "../components/ExportDialog";
 import { ShortcutsPanel } from "../components/ShortcutsPanel";
 import { ShortcutSettings } from "../components/ShortcutSettings";
-import { loadDiagram, store } from "../store";
+import { loadDiagram, selectNode, store } from "../store";
+import { createNode } from "../symbols";
 import { knowledgeOf } from "../knowledge";
 import { collectAdvice } from "../advice";
 import { fluidLabel } from "../fluidRules";
@@ -105,6 +106,16 @@ describe("英文模式主要面板无中文残留", () => {
     const t3 = renderEn(<Inspector />);
     expectNoChinese(t3.container, "Inspector");
     t3.unmount();
+  });
+
+  it("三通隔膜切换阀的公共端与路径在英文模式无中文残留", () => {
+    const selector = createNode("diaphragmValve3", 0, 0, "Selector");
+    const d: Diagram = { ...enMiniDiagram(), nodes: [selector], pipes: [] };
+    loadDiagram(d);
+    selectNode(selector.id);
+    const { container } = renderEn(<Inspector />);
+    expect(container.textContent).toContain("P3 ↔ P1");
+    expectNoChinese(container, "Diaphragm selector Inspector");
   });
 
   it("ContextMenu（右键菜单条目构建后）英文无中文", () => {

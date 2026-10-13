@@ -906,6 +906,13 @@ function migrateNode(n: any): void {
     if (n.stroke === undefined) n.stroke = n.style.stroke ?? "#3d4c5e";
     delete n.style;
   }
+  if (n.type === "diaphragmValve3" && Array.isArray(n.ports)) {
+    const ports: any[] = n.ports.slice(0, 3);
+    for (const port of ports) port.direction = "bidirectional";
+    const fallback = ports.find((port) => port.position === "right") ?? ports[ports.length - 1];
+    if (!ports.some((port) => port.id === n.valveCommonPortId)) n.valveCommonPortId = fallback?.id;
+    if (n.valvePath !== "A" && n.valvePath !== "B") n.valvePath = "A";
+  }
 }
 
 /** 迁移旧版管路：{ connection:{from,to}, style:{...}, flow:{...} } → 扁平字段 */
@@ -952,7 +959,8 @@ export function parseDiagramJSON(text: string): Diagram {
   // Recognize the envelope before migration; old nested coordinates are valid migration input.
   if (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.nodes) && Array.isArray(data.pipes)) {
     migrateDiagramToCurrent(data);
-    data.nodes.filter(isOldFormatNode).forEach(migrateNode);
+    // 端口语义也可能随图纸协议演进；该迁移是幂等的，因此每次导入都归一化一次。
+    data.nodes.forEach(migrateNode);
   }
   // 轻量 schema 校验：给出可理解的错误信息，而不是让字段缺失静默传播
   const errors = validateDiagramShape(data);
@@ -1005,6 +1013,12 @@ export function validateDiagramShape(raw: unknown): string[] {
       if (typeof node.id !== "string" || !node.id) errors.push(`nodes[${i}].id 缺失`);
       if (typeof node.type !== "string" || !node.type) errors.push(`nodes[${i}].type 缺失`);
       if (typeof node.x !== "number" || typeof node.y !== "number") errors.push(`nodes[${i}].x/y 坐标缺失`);
+      if (node.type === "diaphragmValve3") {
+        const ports = Array.isArray(node.ports) ? node.ports as Array<Record<string, unknown>> : [];
+        if (ports.length !== 3) errors.push(`nodes[${i}] 三通隔膜切换阀必须有 3 个端口`);
+        if (ports.some((port) => port.direction !== "bidirectional")) errors.push(`nodes[${i}] 三通隔膜切换阀端口必须为双向`);
+        if (ports.length === 3 && !ports.some((port) => port.id === node.valveCommonPortId)) errors.push(`nodes[${i}] 三通隔膜切换阀缺少有效公共端口`);
+      }
     });
   }
   if (Array.isArray(d.pipes)) {

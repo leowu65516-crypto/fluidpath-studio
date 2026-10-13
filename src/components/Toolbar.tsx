@@ -35,7 +35,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenValidation }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenValidation?: () => void }) {
+export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void }) {
   const { diagram, ui } = useAppState();
   const { t, lang, setLang } = useT();
   const mode = ui.mode ?? "edit";
@@ -320,11 +320,11 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" title={t("打开 JSON")} onClick={openJsonFromDesktop}>
         <Icon d="M3 8l3-4h5l2 3h8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />{t("打开 JSON")}
       </button>
-      <button className="tb-btn" title={t("导入机型包（图纸+验收+说明一次恢复）")} onClick={() => packRef.current?.click()}>
+      <button className="tb-btn" title={t("导入机型包（图纸+场景+说明一次恢复）")} onClick={() => packRef.current?.click()}>
         <Icon d="M21 8l-9-5-9 5v8l9 5 9-5zM12 3v18M3 8l9 5 9-5" />{t("导入机型包")}
       </button>
-      <button className="tb-btn" title={t("导出机型包（图纸+场景+验收一次打包）")} onClick={() => {
-        try { if (!localStorage.getItem("fluidpath.packHintShown")) { toast(t("机型包 = 图纸 + 验收案例 + 元数据一次打包，对方导入即可打开完整工作现场")); localStorage.setItem("fluidpath.packHintShown", "1"); } } catch { /* ignore */ }
+      <button className="tb-btn" title={t("导出机型包（图纸+场景+说明一次打包）")} onClick={() => {
+        try { if (!localStorage.getItem("fluidpath.packHintShown")) { toast(t("机型包 = 图纸 + 场景 + 元数据一次打包，对方导入即可打开完整工作现场")); localStorage.setItem("fluidpath.packHintShown", "1"); } } catch { /* ignore */ }
         const fn = exportMachinePack(diagram);
         toast(t("机型包已导出") + ": " + fn);
       }}>
@@ -426,9 +426,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className={`tb-btn${condOpen ? " active" : ""}`} onClick={() => setCondOpen((v) => !v)} title={t("工况：把当前阀位/泵开关存成方案，一键切换对比")}>
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M8 12h8" />{t("工况")}
       </button>
-      <button className="tb-btn" onClick={onOpenValidation} title={t("定义并运行图纸工况验收")}>
-        <Icon d="M5 12l4 4L19 6" />{t("验收")}
-      </button>
       {condOpen && <ConditionPanel onClose={() => setCondOpen(false)} />}
       <div className="layer-wrap" ref={layerRef}>
         <button className={`tb-btn${layerOpen ? " active" : ""}`} onClick={() => setLayerOpen((v) => !v)} title={t("图层管理")}>
@@ -438,12 +435,11 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       </div>
       </div>
       <div className="tb-sep" />
-      {/* 工作模式：编辑 / 演示 / 验收 / 故障排查 */}
+      {/* 工作模式：编辑 / 演示 / 故障排查（验收入口暂不展示，逻辑保留） */}
       <div className="tb-group tb-group-mode" role="group" aria-label={t("工作模式") }>
       <div className="tb-mode seg" role="group" aria-label={t("工作模式")}>
         <button aria-pressed={mode === "edit"} className={mode === "edit" ? "on" : ""} title={t("编辑模式：画图、接线、属性编辑")} onClick={() => setWorkMode("edit")}>✏️ {t("编辑")}</button>
         <button aria-pressed={mode === "present"} className={mode === "present" ? "on" : ""} title={t("演示模式：收起面板，按场景步骤讲解")} onClick={() => setWorkMode("present")}>🎬 {t("演示")}</button>
-        <button aria-pressed={mode === "verify"} className={mode === "verify" ? "on" : ""} title={t("验收模式：工况快照与验收矩阵")} onClick={() => setWorkMode("verify")}>✓ {t("验收")}</button>
         <button data-testid="mode-fault" aria-pressed={mode === "fault"} className={mode === "fault" ? "on" : ""} title={t("故障模式：拓扑已锁定；可配置代码、关联排查范围并模拟信号")} onClick={() => setWorkMode("fault")}>⚠ {t("故障")}</button>
       </div>
       </div>

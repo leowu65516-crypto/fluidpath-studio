@@ -92,6 +92,38 @@ describe("自定义演示场景", () => {
     expect(getScenario(id!, store.get().diagram)).toBeUndefined();
   });
 
+  it("步骤切换：闪烁 = 与上一步相比变化的元件（含关闭），未变化的不闪", () => {
+    const PUMP = "n_ms7jr4mj2wu7sw";
+    const INLET_VALVE = "n_ms7jsb6764ggp8";
+    act(() => {
+      const d = store.get().diagram;
+      d.nodes.find((n) => n.id === PUMP)!.pumpOn = false;
+      d.nodes.find((n) => n.id === COLD_VALVE)!.valveState = "open";
+      d.nodes.find((n) => n.id === INLET_VALVE)!.valveState = "closed";
+    });
+    act(() => { saveWorkCondition("甲"); });
+    act(() => {
+      const d = store.get().diagram;
+      d.nodes.find((n) => n.id === COLD_VALVE)!.valveState = "closed";
+      d.nodes.find((n) => n.id === PUMP)!.pumpOn = true;
+    });
+    act(() => { saveWorkCondition("乙"); });
+    let id: string | null = null;
+    act(() => { id = createCustomScenarioFromConditions(["甲", "乙"], "zh"); });
+    // 第 1 步（相对全关基线）：只有冷水阀被打开 → 它闪，泵与入水阀不闪
+    act(() => { enterScenario(id!, 0); });
+    let blink = store.get().ui.blink?.ids ?? [];
+    expect(blink).toContain(COLD_VALVE);
+    expect(blink).not.toContain(PUMP);
+    expect(blink).not.toContain(INLET_VALVE);
+    // 第 2 步（与第 1 步相比）：冷水阀关了、泵开了 → 两者都闪；未变化的入水阀不闪
+    act(() => { setScenarioStep(1); });
+    blink = store.get().ui.blink?.ids ?? [];
+    expect(blink).toContain(COLD_VALVE);
+    expect(blink).toContain(PUMP);
+    expect(blink).not.toContain(INLET_VALVE);
+  });
+
   it("回归：自定义场景进入后，面板直接显示步骤讲述界面（不能停在挑选页）", () => {
     act(() => { saveWorkCondition("甲"); });
     act(() => {

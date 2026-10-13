@@ -106,6 +106,6 @@ app.whenReady().then(async () => {
     && firstRunHelp && helpSeen && !repeatRunHelp
     && faultMode.foundModeButton && faultMode.active && faultMode.panel && faultMode.aiTopbarButtons === 0
     && compactMode.found && compactMode.groupVisible && compactMode.unclipped
-    && compactMode.labels.join("|") === "✏️ Edit|🎬 Demo|✓ Verify|⚠ Fault";
+    && compactMode.labels.join("|") === "✏️ Edit|🎬 Demo|⚠ Fault";
   app.exit(ok ? 0 : 1);
 });

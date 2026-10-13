@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.30.6";
+export const APP_VERSION = "1.30.7";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.7",
+    date: "2026-10-13",
+    highlights: [
+      "工况支持自定义命名：列表里点 ✏️ 或双击名字即可重命名（重名/空名拒绝）",
+      "工况快照以当前设置为准：除泵/阀开关外，同时记录并还原管路介质（类型+颜色）——切回工况时介质一并回到保存时状态；仅介质变化也会高亮提示",
+      "演示步骤切换的闪烁改为「与上一步相比变化的元件/阀门」（含关闭与路径切换），未变化的不再闪烁；首步相对全关基线对比",
+      "验收功能与验收模式暂不展示：工具栏与模式入口隐藏（引擎、面板与测试代码完整保留）；机型包/使用指南同步去除相关文案",
+    ],
+  },
   {
     version: "1.30.6",
     date: "2026-10-13",

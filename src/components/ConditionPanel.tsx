@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useAppState, saveWorkCondition, applyWorkCondition, deleteWorkCondition, listWorkConditions } from "../store";
+import { PromptDialog } from "./PromptDialog";
+import { useAppState, saveWorkCondition, applyWorkCondition, renameWorkCondition, deleteWorkCondition, listWorkConditions } from "../store";
 import { useT } from "../i18n";
 import { toast } from "../toast";
 
@@ -12,6 +13,7 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
   useAppState(); // 订阅图纸变化
   const { t } = useT();
   const [name, setName] = useState("");
+  const [renaming, setRenaming] = useState<string | null>(null);
   const list = listWorkConditions();
 
   function save() {
@@ -59,12 +61,27 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
         <div className="cond-list">
           {list.map((c) => (
             <div key={c.name} className="cond-row">
-              <span className="cond-name">{c.name}</span>
+              <span className="cond-name" title={t("双击或点 ✏️ 重命名")} onDoubleClick={() => setRenaming(c.name)}>{c.name}</span>
+              <button className="btn ghost sq" title={t("重命名")} onClick={() => setRenaming(c.name)}>✏️</button>
               <button className="btn" onClick={() => apply(c.name)}>▶ {t("恢复")}</button>
               <button className="btn ghost sq" title={t("删除")} onClick={() => { if (confirm(t("删除方案「{name}」？").replace("{name}", c.name))) deleteWorkCondition(c.name); }}>✕</button>
             </div>
           ))}
         </div>
+      )}
+      {renaming !== null && (
+        <PromptDialog
+          title={t("重命名工况")}
+          label={t("输入新的工况名称")}
+          defaultValue={renaming}
+          submitLabel={t("保存")}
+          onSubmit={(v) => {
+            const ok = renameWorkCondition(renaming, v);
+            if (!ok) toast(t("重命名失败：名称无效或已存在"), "error");
+            else toast(t("已重命名为「{name}」").replace("{name}", v.trim()));
+          }}
+          onClose={() => setRenaming(null)}
+        />
       )}
 
       <div className="cond-note">

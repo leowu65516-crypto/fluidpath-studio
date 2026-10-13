@@ -4,7 +4,7 @@
  * 只保留一份快照/应用逻辑，避免两处各自实现导致漂移。
  */
 
-import type { Diagram } from "./types";
+import type { Diagram, FluidType } from "./types";
 
 export interface PresetState {
   pumpOn?: boolean;
@@ -53,6 +53,43 @@ export function stateEntryCount(state: PresetStateMap): number {
 
 /** 两份状态之间发生变化的节点 id（用于切换工况后高亮差异） */
 export function diffStateIds(prev: PresetStateMap, next: PresetStateMap): string[] {
+  const ids = new Set([...Object.keys(prev), ...Object.keys(next)]);
+  const changed: string[] = [];
+  for (const id of ids) {
+    if (JSON.stringify(prev[id] ?? null) !== JSON.stringify(next[id] ?? null)) changed.push(id);
+  }
+  return changed;
+}
+
+// ===== v1.30.7：工况快照扩展——管路介质（以当前设置为准，切回工况时一并还原） =====
+
+export interface PresetPipeState {
+  fluidType?: FluidType;
+  fluidColor?: string;
+}
+
+/** pipeId → 单管路介质状态 */
+export type PresetPipeMap = Record<string, PresetPipeState>;
+
+/** 快照当前图全部管路的介质（类型 + 颜色） */
+export function snapshotPipeStates(diagram: Diagram): PresetPipeMap {
+  const st: PresetPipeMap = {};
+  for (const p of diagram.pipes) st[p.id] = { fluidType: p.fluidType, fluidColor: p.fluidColor };
+  return st;
+}
+
+/** 把一套管路介质状态应用到图（就地改管路；调用方负责包一层 updateDiagram） */
+export function applyPipeStates(diagram: Diagram, state: PresetPipeMap): void {
+  for (const p of diagram.pipes) {
+    const s = state[p.id];
+    if (!s) continue;
+    if (s.fluidType !== undefined) p.fluidType = s.fluidType;
+    if (s.fluidColor !== undefined) p.fluidColor = s.fluidColor;
+  }
+}
+
+/** 两份介质快照之间发生变化的管路 id（用于切换工况后高亮差异） */
+export function diffPipeStateIds(prev: PresetPipeMap, next: PresetPipeMap): string[] {
   const ids = new Set([...Object.keys(prev), ...Object.keys(next)]);
   const changed: string[] = [];
   for (const id of ids) {

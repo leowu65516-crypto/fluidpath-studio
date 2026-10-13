@@ -25,7 +25,7 @@ describe("工作模式", () => {
     expect(store.get().ui.mode).toBe("edit");
   });
 
-  it("Toolbar 渲染四个模式按钮且高亮当前模式", () => {
+  it("Toolbar 渲染三个模式按钮且高亮当前模式", () => {
     const svgRef = { current: null } as React.MutableRefObject<SVGSVGElement | null>;
     const { container } = render(
       <LangProvider>
@@ -35,7 +35,7 @@ describe("工作模式", () => {
     const seg = container.querySelector(".tb-mode");
     expect(seg).toBeTruthy();
     const btns = Array.from(seg!.querySelectorAll("button"));
-    expect(btns.length).toBe(4);
+    expect(btns.length).toBe(3);
     const onCount = () => btns.filter((b) => b.classList.contains("on")).length;
     expect(onCount()).toBe(1);
     expect(btns.filter((b) => b.getAttribute("aria-pressed") === "true")).toHaveLength(1);
@@ -47,11 +47,11 @@ describe("工作模式", () => {
     expect(onCount()).toBe(1);
   });
 
-  it("英文模式使用紧凑且完整的四个模式名称", () => {
+  it("英文模式使用紧凑且完整的三个模式名称", () => {
     localStorage.setItem("fluidpath.lang", "en");
     const svgRef = { current: null } as React.MutableRefObject<SVGSVGElement | null>;
     const { container } = render(<LangProvider><Toolbar svgRef={svgRef} /></LangProvider>);
     const labels = Array.from(container.querySelectorAll(".tb-mode button")).map((button) => button.textContent?.trim());
-    expect(labels).toEqual(["✏️ Edit", "🎬 Demo", "✓ Verify", "⚠ Fault"]);
+    expect(labels).toEqual(["✏️ Edit", "🎬 Demo", "⚠ Fault"]);
   });
 });

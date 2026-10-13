@@ -17,8 +17,8 @@ import { createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagra
 import { createNode } from "./symbols";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { connectionErrorMessage, validatePipeConnection } from "./connection";
-import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsToPreset } from "./scenarios";
-import { snapshotStates, applyStates, diffStateIds, type PresetState } from "./presets";
+import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsToPreset, type ValveAction } from "./scenarios";
+import { snapshotStates, applyStates, diffStateIds, snapshotPipeStates, applyPipeStates, diffPipeStateIds, type PresetState } from "./presets";
 import { toast } from "./toast";
 import type { FixAction } from "./advice";
 import { resetDiagnosticSession, syncDiagnosticDiagram } from "./fault-codes/session";
@@ -377,13 +377,27 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
     // 会话叠加层（未保存的微调）最后应用（覆盖场景预设与已保存值）
     if (sameScenario && Object.keys(overrides).length > 0) applyStates(d, overrides as Parameters<typeof applyStates>[1]);
   }, false);
-  // 闪烁定位本步新增的元件（换步骤时脉冲高亮新激活项，便于快速找到）
-  if (isNewEntry) {
-    blinkElements([...activeNodes]);
-  } else {
-    const prevSeeds = collectScenarioState(scenario, stepIndex - 1, resolved, nodeIds).activeNodes;
-    const newIds = [...activeNodes].filter((id) => !prevSeeds.has(id));
-    if (newIds.length) blinkElements(newIds);
+  // 闪烁定位「与上一步相比变化的元件/阀门」（含关闭与路径切换；第 0 步以「全关基线」对比）
+  {
+    const baselineAction = (id: string): ValveAction | undefined => {
+      const n = state.diagram.nodes.find((x) => x.id === id);
+      if (!n) return undefined;
+      if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") return "pump-stop";
+      if (n.type === "solenoid2" || n.type === "ballValve") return "closed";
+      if (n.type === "solenoid3") return "off";
+      return undefined;
+    };
+    const prevState = stepIndex > 0 ? collectScenarioState(scenario, stepIndex - 1, resolved, nodeIds) : null;
+    const prevValves: Record<string, ValveAction | undefined> = prevState
+      ? prevState.valves
+      : Object.fromEntries(Object.keys(valves).map((id) => [id, baselineAction(id)]));
+    const prevActive = prevState ? prevState.activeNodes : new Set<string>();
+    const changedIds = new Set<string>();
+    for (const id of new Set([...Object.keys(prevValves), ...Object.keys(valves)])) {
+      if (prevValves[id] !== valves[id]) changedIds.add(id);
+    }
+    for (const id of activeNodes) if (!prevActive.has(id)) changedIds.add(id);
+    if (changedIds.size) blinkElements([...changedIds]);
   }
   // 高亮：种子节点 + 经接头类元件补齐
   const seedIds = new Set([...activeNodes].filter((id) => state.diagram.nodes.some((n) => n.id === id)));
@@ -444,39 +458,66 @@ export function exitScenario() {
 
 export type WorkConditionState = PresetState;
 
-/** 保存当前全部泵/阀状态为命名的工况 */
+/** 保存当前全部泵/阀状态 + 管路介质为命名的工况（以当前设置为准） */
 export function saveWorkCondition(name: string) {
   const d = state.diagram;
   const state2 = snapshotStates(d);
+  const pipes2 = snapshotPipeStates(d);
   updateDiagram((draft) => {
     const list = draft.settings.workConditions ?? [];
     const idx = list.findIndex((c) => c.name === name);
-    if (idx >= 0) list[idx] = { name, state: state2 };
-    else list.push({ name, state: state2 });
+    if (idx >= 0) list[idx] = { name, state: state2, pipes: pipes2 };
+    else list.push({ name, state: state2, pipes: pipes2 });
     draft.settings.workConditions = list;
   });
 }
 
-/** 应用工况：恢复该工况记录的泵/阀状态（进入撤销历史，可 Ctrl+Z） */
+/** 应用工况：恢复该工况记录的泵/阀状态与管路介质（进入撤销历史，可 Ctrl+Z） */
 export function applyWorkCondition(name: string) {
   const cond = state.diagram.settings.workConditions?.find((c) => c.name === name);
   if (!cond) return;
   const prev = snapshotStates(state.diagram);
+  const prevPipes = snapshotPipeStates(state.diagram);
   updateDiagram((d) => {
     applyStates(d, cond.state);
+    if (cond.pipes) applyPipeStates(d, cond.pipes);
   });
-  // 差异对比：只高亮本次切换发生变化的元件，并给出变化摘要
+  // 差异对比：只高亮本次切换发生变化的元件/管路，并给出变化摘要
   const changed = diffStateIds(prev, cond.state);
-  if (changed.length === 0) {
-    const lang = sysLang();
+  const changedPipes = cond.pipes ? diffPipeStateIds(prevPipes, cond.pipes) : [];
+  const lang = sysLang();
+  if (changed.length === 0 && changedPipes.length === 0) {
     toast(L(lang, `「${name}」与当前开关状态一致，没有变化`, `"${name}" matches the current switches — no change`));
     return;
   }
-  blinkElements(changed);
+  blinkElements([...changed, ...changedPipes]);
   const byId = new Map(state.diagram.nodes.map((n) => [n.id, n.label || n.type]));
   const sample = changed.slice(0, 3).map((id) => byId.get(id)).filter(Boolean).join("、");
-  const lang = sysLang();
-  toast(L(lang, `已切换到「${name}」：${changed.length} 个开关变化（${sample}${changed.length > 3 ? "…" : ""}），橙色高亮即改动处`, `Switched to "${name}": ${changed.length} switch change(s) (${sample}${changed.length > 3 ? "…" : ""}); orange highlights mark the changes`));
+  const parts: string[] = [];
+  if (changed.length) parts.push(L(lang, `${changed.length} 个开关`, `${changed.length} switch(es)`));
+  if (changedPipes.length) parts.push(L(lang, `${changedPipes.length} 条管路介质`, `${changedPipes.length} pipe fluid(s)`));
+  const detail = changed.length ? `（${sample}${changed.length > 3 ? "…" : ""}）` : "";
+  toast(L(
+    lang,
+    `已切换到「${name}」：${parts.join("、")} 变化${detail}，橙色高亮即改动处`,
+    `Switched to "${name}": ${parts.join(", ")} changed${detail}; orange highlights mark the changes`
+  ));
+}
+
+/** 重命名工况（自定义命名；重名或无效时拒绝并返回 false） */
+export function renameWorkCondition(oldName: string, newName: string): boolean {
+  const nn = newName.trim();
+  if (!nn || nn === oldName) return false;
+  let ok = false;
+  updateDiagram((d) => {
+    const list = d.settings.workConditions ?? [];
+    if (list.some((c) => c.name === nn)) return;
+    const c = list.find((x) => x.name === oldName);
+    if (!c) return;
+    c.name = nn;
+    ok = true;
+  });
+  return ok;
 }
 
 /** 删除工况 */

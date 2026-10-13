@@ -250,10 +250,12 @@ export interface DiagramSettings {
   backgroundType?: "dot" | "grid" | "solid";
   /** 记录保存时的应用版本（预留：版本历史/兼容迁移用） */
   appVersion?: string;
-  /** 工况快照：命名的阀位/泵态组合，一键恢复做「按工况验证」（随图纸保存/分享） */
+  /** 工况快照：命名的阀位/泵态组合 + 管路介质（以保存时的当前设置为准），一键恢复做「按工况验证」（随图纸保存/分享） */
   workConditions?: Array<{
     name: string;
     state: Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>;
+    /** v1.30.7：管路介质快照（fluidType + fluidColor），切回工况时一并还原 */
+    pipes?: Record<string, { fluidType?: FluidType; fluidColor?: string }>;
   }>;
   /** 图纸验收工况：预设泵阀状态 + 必须流动/停止的管路，用于回归验证。 */
   validationCases?: ValidationCase[];

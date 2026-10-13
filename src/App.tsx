@@ -310,7 +310,7 @@ export default function App() {
             <span className="mode-banner-lock">{modeInfo.lock}</span>
           </div>
         )}
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowValidation(false); setShowAdvice((v) => !v); } }} onOpenValidation={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowValidation(true), 0); } else { setShowAdvice(false); setShowValidation((v) => !v); } }} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowValidation(false); setShowAdvice((v) => !v); } }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <div className="canvas-anchor">

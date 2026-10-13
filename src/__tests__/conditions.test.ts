@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { saveWorkCondition, applyWorkCondition, deleteWorkCondition, listWorkConditions, loadDiagram, store } from "../store";
+import { saveWorkCondition, applyWorkCondition, deleteWorkCondition, renameWorkCondition, listWorkConditions, loadDiagram, store } from "../store";
 import { parseDiagramJSON } from "../export";
 import { diffStateIds } from "../presets";
 import bcmtsRaw from "../../BCMTS.json";
@@ -68,5 +68,56 @@ describe("工况随 JSON/分享码持久化", () => {
     loadDiagram(reopened);
     expect(listWorkConditions().some((c) => c.name === "做咖啡")).toBe(true);
     deleteWorkCondition("做咖啡");
+  });
+});
+
+describe("工况重命名（自定义命名）", () => {
+  it("重命名成功；重名/无效/同名拒绝", () => {
+    loadDiagram(toDiagram(bcmtsRaw));
+    saveWorkCondition("冲煮");
+    saveWorkCondition("清洗");
+    expect(renameWorkCondition("冲煮", "做美式")).toBe(true);
+    const names = listWorkConditions().map((c) => c.name);
+    expect(names).toContain("做美式");
+    expect(names).not.toContain("冲煮");
+    // 重名/空名/同名拒绝
+    expect(renameWorkCondition("做美式", "清洗")).toBe(false);
+    expect(renameWorkCondition("做美式", "  ")).toBe(false);
+    expect(renameWorkCondition("做美式", "做美式")).toBe(false);
+    deleteWorkCondition("做美式");
+    deleteWorkCondition("清洗");
+  });
+});
+
+describe("工况快照扩展：管路介质以当前设置为准", () => {
+  it("保存含介质的工况 → 改介质 → 应用工况后介质一并还原", () => {
+    loadDiagram(toDiagram(bcmtsRaw));
+    const d0 = store_diagram();
+    const pipe = d0.pipes[0];
+    pipe.fluidType = "coldWater";
+    pipe.fluidColor = "#2f7fd6";
+    saveWorkCondition("介质A");
+    // 改成另一种介质 + 颜色
+    const d1 = store_diagram();
+    d1.pipes[0].fluidType = "hotWater";
+    d1.pipes[0].fluidColor = "#e8890c";
+    applyWorkCondition("介质A");
+    const after = store_diagram();
+    expect(after.pipes[0].fluidType).toBe("coldWater");
+    expect(after.pipes[0].fluidColor).toBe("#2f7fd6");
+    deleteWorkCondition("介质A");
+  });
+
+  it("仅介质变化时：切换工况仍会高亮变化的管路", () => {
+    loadDiagram(toDiagram(bcmtsRaw));
+    const d0 = store_diagram();
+    d0.pipes[0].fluidType = "coldWater";
+    saveWorkCondition("甲");
+    const d1 = store_diagram();
+    d1.pipes[0].fluidType = "hotWater";
+    applyWorkCondition("甲");
+    const blinkIds = store.get().ui.blink?.ids ?? [];
+    expect(blinkIds).toContain(store_diagram().pipes[0].id);
+    deleteWorkCondition("甲");
   });
 });

@@ -23,6 +23,8 @@ export type NodeType =
   | "checkValve"
   | "solenoid2"
   | "solenoid3"
+  | "diaphragmValve2" // 两通隔膜阀：开 / 关
+  | "diaphragmValve3" // 三通两位隔膜切换阀：A→C / B→C
   | "pulseAirValve" // 脉冲空气电磁阀
   | "safetyValve"
   | "opv" // OPV 过压保护阀（泄压/限压）

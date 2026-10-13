@@ -46,7 +46,6 @@ export default function App() {
   const [showScenario, setShowScenario] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
-  const [showValidation, setShowValidation] = useState(false);
   const [gateOk, setGateOk] = useState(() => !shouldGate() || gateAuthed());
   // 状态栏诊断徽章点击 → 打开回路诊断面板
   useEffect(() => {
@@ -125,24 +124,20 @@ export default function App() {
     if (m === "present") {
       setCollapsed((c) => ({ ...c, library: true, inspector: true, toolbar: false }));
       setShowAdvice(false);
-      setShowValidation(false);
       setShowScenario(true);
     } else if (m === "verify") {
       setCollapsed((c) => ({ ...c, library: true, inspector: false, toolbar: false }));
       setShowAdvice(false);
-      setShowValidation(true);
       setShowScenario(false);
       if (hasActiveScenario()) exitScenario();
     } else if (m === "fault") {
       setCollapsed((c) => ({ ...c, library: true, inspector: false, toolbar: false }));
       setShowAdvice(false);
-      setShowValidation(false);
       setShowScenario(false);
       if (hasActiveScenario()) exitScenario();
     } else {
       setCollapsed((c) => ({ ...c, library: false, inspector: false, toolbar: false }));
       setShowAdvice(false);
-      setShowValidation(false);
       setShowScenario(false);
       if (hasActiveScenario()) exitScenario();
     }
@@ -310,7 +305,7 @@ export default function App() {
             <span className="mode-banner-lock">{modeInfo.lock}</span>
           </div>
         )}
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowValidation(false); setShowAdvice((v) => !v); } }} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <div className="canvas-anchor">
@@ -326,7 +321,7 @@ export default function App() {
             </div>
           )}
           </div>
-          {mode === "fault" ? <FaultCodePanel onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }} /> : showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : showValidation ? <ValidationPanel onClose={() => setShowValidation(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
+          {mode === "fault" ? <FaultCodePanel onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }} /> : mode === "verify" ? <ValidationPanel onClose={() => setWorkMode("edit")} /> : showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
         </div>
         <StatusBar />
       </div>

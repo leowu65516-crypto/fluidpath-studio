@@ -22,7 +22,7 @@ const SINK_BOUNDARY = new Set([
 
 /** 方向性元件：只走其进/出侧端口 */
 const DIRECTIONAL = new Set([
-  "pump", "milkPump", "airPump", "solenoid2", "ballValve", "solenoid3", "checkValve",
+  "pump", "milkPump", "airPump", "solenoid2", "ballValve", "solenoid3", "diaphragmValve2", "diaphragmValve3", "checkValve",
 ]);
 
 export interface FunctionalChain {
@@ -47,8 +47,8 @@ function effectiveEnds(diagram: Diagram, pipe: Pipe): Ends {
 function flowable(n: DiagramNode): boolean {
   if (n.disabled) return false;
   if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") return pumpEffectiveOn(n);
-  if (n.type === "solenoid2" || n.type === "ballValve") return valveEffectiveOpen(n);
-  if (n.type === "solenoid3") return valve3EffectivePath(n) !== "off";
+  if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2") return valveEffectiveOpen(n);
+  if (n.type === "solenoid3" || n.type === "diaphragmValve3") return valve3EffectivePath(n) !== "off";
   return true;
 }
 
@@ -60,6 +60,14 @@ function activeOutPort(n: DiagramNode): string | undefined {
   const outA = outs.find((p) => p.position === "right") ?? outs[0];
   const outB = outs.find((p) => p.position === "bottom") ?? outs[1];
   return (path === "A" ? outA : outB)?.id;
+}
+
+function diaphragmSelectorPorts(n: DiagramNode) {
+  const inputs = n.ports.filter((p) => p.direction === "in");
+  const inputA = inputs.find((p) => p.position === "left") ?? inputs[0];
+  const inputB = inputs.find((p) => p.position === "bottom") ?? inputs[1];
+  const outputC = n.ports.find((p) => p.direction === "out" && p.position === "right") ?? n.ports.find((p) => p.direction === "out");
+  return { inputA, inputB, outputC, activeInput: valve3EffectivePath(n) === "B" ? inputB : inputA };
 }
 
 /**
@@ -108,6 +116,11 @@ export function traceFunctionalChain(diagram: Diagram, seedNodeId?: string, seed
         if (n.type === "solenoid3" && downstream) {
           const active = activeOutPort(n);
           if (port.id !== active) continue; // 非激活支路不穿越
+        }
+        if (n.type === "diaphragmValve3") {
+          const { activeInput, outputC } = diaphragmSelectorPorts(n);
+          if (downstream && port.id !== outputC?.id) continue;
+          if (!downstream && port.id !== activeInput?.id) continue;
         }
         const nextId = downstream ? v.node.id : u.node.id;
         addPipe(p.id);

@@ -20,7 +20,7 @@ import { pipeEngineeringDisabled, pipeTeachingOverride, setCachedPipes, pumpEffe
 
 /** 双语取值 */
 const L = (lang: Lang, zh: string, en: string): string => (lang === "zh" ? zh : en);
-const isTwoWayFlowValve = (type: string): boolean => type === "solenoid2" || type === "ballValve";
+const isTwoWayFlowValve = (type: string): boolean => type === "solenoid2" || type === "ballValve" || type === "diaphragmValve2";
 
 /** 可执行的修复动作 */
 export type FixAction =
@@ -138,6 +138,20 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"):
         const activeId = path === "A" ? outA?.id : outB?.id;
         if (u.port.direction === "out" && u.port.id !== activeId) {
           return { reason: L(lang, `「${n.label}」当前导通 ${path} 路，未导通该支路`, `"${n.label}" currently routes path ${path}; this branch is not active`), ids: [n.id, p.id] };
+        }
+      }
+      if (n.type === "diaphragmValve3") {
+        const path = valve3EffectivePath(n);
+        if (path === "off") {
+          const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "off");
+          return { reason: L(lang, `「${n.label}」${why}`, `"${n.label}" is ${why}`), ids: [n.id, p.id] };
+        }
+        const inputs = n.ports.filter((pp) => pp.direction === "in");
+        const inputA = inputs.find((pp) => pp.position === "left") ?? inputs[0];
+        const inputB = inputs.find((pp) => pp.position === "bottom") ?? inputs[1];
+        const inactive = path === "A" ? inputB : inputA;
+        if (inactive && u.port.id === inactive.id) {
+          return { reason: L(lang, `「${n.label}」当前导通 ${path}→C，另一入口支路未导通`, `"${n.label}" currently routes ${path}→C; the other inlet branch is not active`), ids: [n.id, p.id] };
         }
       }
       // 上游供液管停流 → 继续向上递归（AND 汇流：任一入侧流动即有供，故只在全部入侧停流时进来）

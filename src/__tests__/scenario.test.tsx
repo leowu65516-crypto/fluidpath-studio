@@ -154,14 +154,11 @@ describe("演示/讲述模式（角色自适应）", () => {
     }
   });
 
-  it("进入场景：本步新增元件触发定位闪烁（blink）", () => {
+  it("进入场景首步：建立教学画面但不触发元件闪烁", () => {
     renderApp();
     act(() => { loadDiagram(toDiagram(bcmtsRaw)); });
     act(() => { enterScenario("coffee", 0); });
-    const b = store.get().ui.blink;
-    expect(b).toBeTruthy();
-    expect(b!.ids).toContain(ID.pump);
-    expect(b!.ids).toContain(ID.inletValve);
+    expect(store.get().ui.blink).toBeNull();
   });
 
   it("退出场景：恢复进入前的阀位快照（不再全部打成全开）", () => {

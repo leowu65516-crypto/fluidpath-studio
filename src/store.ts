@@ -360,10 +360,11 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
   }
   updateDiagram((d) => {
     if (isNewEntry || rebuild) {
-      // 基线复位：所有泵停、两通阀/球阀关、三通阀 off（场景步骤只激活自己需要的）
+      // 基线复位：所有泵停、两通阀/球阀关、常规三通阀 off。
+      // 三通隔膜切换阀没有 off 档，保留其 A→C / B→C 的合法切换状态。
       for (const n of d.nodes) {
         if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = false;
-        else if (n.type === "solenoid2" || n.type === "ballValve") n.valveState = "closed";
+        else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2") n.valveState = "closed";
         else if (n.type === "solenoid3") n.valvePath = "off";
       }
     }
@@ -377,14 +378,15 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
     // 会话叠加层（未保存的微调）最后应用（覆盖场景预设与已保存值）
     if (sameScenario && Object.keys(overrides).length > 0) applyStates(d, overrides as Parameters<typeof applyStates>[1]);
   }, false);
-  // 闪烁定位「与上一步相比变化的元件/阀门」（含关闭与路径切换；第 0 步以「全关基线」对比）
-  {
+  // 闪烁只用于同一演示内的“步骤变化”。首步是建立画面，不应用闪烁干扰阅读。
+  if (stepIndex > 0 && sameScenario) {
     const baselineAction = (id: string): ValveAction | undefined => {
       const n = state.diagram.nodes.find((x) => x.id === id);
       if (!n) return undefined;
       if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") return "pump-stop";
-      if (n.type === "solenoid2" || n.type === "ballValve") return "closed";
+      if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2") return "closed";
       if (n.type === "solenoid3") return "off";
+      if (n.type === "diaphragmValve3") return "A";
       return undefined;
     };
     const prevState = stepIndex > 0 ? collectScenarioState(scenario, stepIndex - 1, resolved, nodeIds) : null;
@@ -1028,7 +1030,7 @@ const FLUID_COLOR: Record<string, string> = Object.fromEntries(
 const PASS_THROUGH_TYPES = new Set([
   "shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "cross", "elbow",
   "valve", "checkValve", "filter", "pump", "flowMeter", "pressureGauge",
-  "ntcProbe", "pressureSensor", "sensor", "safetyValve", "solenoid2", "solenoid3",
+  "ntcProbe", "pressureSensor", "sensor", "safetyValve", "solenoid2", "solenoid3", "diaphragmValve2", "diaphragmValve3",
 ]);
 
 function findNodeByPort(diagram: Diagram, portId: string): DiagramNode | null {

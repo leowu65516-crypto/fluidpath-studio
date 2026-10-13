@@ -73,8 +73,12 @@ export function runValidationCase(diagram: Diagram, validationCase: ValidationCa
     const node = draft.nodes.find(n => n.id === id);
     if (!node) { issues.push(`INVALID_STATE_REFERENCE: ${id}`); continue; }
     if (state.pumpOn !== undefined && (!["pump", "milkPump", "airPump"].includes(node.type) || typeof state.pumpOn !== "boolean")) issues.push(`INVALID_PUMP_STATE: ${id}`);
-    if (state.valveState !== undefined && (!["solenoid2", "pulseAirValve", "ballValve"].includes(node.type) || !["open", "closed"].includes(state.valveState))) issues.push(`INVALID_VALVE_STATE: ${id}`);
-    if (state.valvePath !== undefined && (node.type !== "solenoid3" || !["A", "B", "off"].includes(state.valvePath))) issues.push(`INVALID_VALVE_PATH: ${id}`);
+    if (state.valveState !== undefined && (!["solenoid2", "pulseAirValve", "ballValve", "diaphragmValve2"].includes(node.type) || !["open", "closed"].includes(state.valveState))) issues.push(`INVALID_VALVE_STATE: ${id}`);
+    if (state.valvePath !== undefined && (
+      (node.type === "solenoid3" && !["A", "B", "off"].includes(state.valvePath)) ||
+      (node.type === "diaphragmValve3" && !["A", "B"].includes(state.valvePath)) ||
+      (node.type !== "solenoid3" && node.type !== "diaphragmValve3")
+    )) issues.push(`INVALID_VALVE_PATH: ${id}`);
   }
   applyStates(draft, validationCase.state);
   setCachedPipes(draft.pipes, draft.nodes);

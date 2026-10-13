@@ -110,12 +110,10 @@ describe("自定义演示场景", () => {
     act(() => { saveWorkCondition("乙"); });
     let id: string | null = null;
     act(() => { id = createCustomScenarioFromConditions(["甲", "乙"], "zh"); });
-    // 第 1 步（相对全关基线）：只有冷水阀被打开 → 它闪，泵与入水阀不闪
+    // 第 1 步只建立教学画面，不用闪烁分散注意力。
     act(() => { enterScenario(id!, 0); });
     let blink = store.get().ui.blink?.ids ?? [];
-    expect(blink).toContain(COLD_VALVE);
-    expect(blink).not.toContain(PUMP);
-    expect(blink).not.toContain(INLET_VALVE);
+    expect(blink).toEqual([]);
     // 第 2 步（与第 1 步相比）：冷水阀关了、泵开了 → 两者都闪；未变化的入水阀不闪
     act(() => { setScenarioStep(1); });
     blink = store.get().ui.blink?.ids ?? [];

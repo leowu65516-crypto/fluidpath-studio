@@ -20,8 +20,8 @@ export function snapshotStates(diagram: Diagram): PresetStateMap {
   const st: PresetStateMap = {};
   for (const n of diagram.nodes) {
     if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") st[n.id] = { pumpOn: n.pumpOn !== false };
-    else if (n.type === "solenoid2" || n.type === "ballValve") st[n.id] = { valveState: n.valveState !== "closed" ? "open" : "closed" };
-    else if (n.type === "solenoid3") st[n.id] = { valvePath: n.valvePath ?? "A" };
+    else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2") st[n.id] = { valveState: n.valveState !== "closed" ? "open" : "closed" };
+    else if (n.type === "solenoid3" || n.type === "diaphragmValve3") st[n.id] = { valvePath: n.valvePath ?? "A" };
   }
   return st;
 }
@@ -32,8 +32,9 @@ export function applyStates(diagram: Diagram, state: PresetStateMap): void {
     const s = state[n.id];
     if (!s) continue;
     if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = s.pumpOn !== false;
-    else if (n.type === "solenoid2" || n.type === "ballValve") n.valveState = s.valveState === "open" ? "open" : "closed";
+    else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2") n.valveState = s.valveState === "open" ? "open" : "closed";
     else if (n.type === "solenoid3") n.valvePath = s.valvePath ?? "A";
+    else if (n.type === "diaphragmValve3") n.valvePath = s.valvePath === "B" ? "B" : "A";
   }
 }
 

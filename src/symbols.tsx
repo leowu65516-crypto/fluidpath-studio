@@ -23,7 +23,7 @@ export interface NodeDef {
 const NODE_LABEL_EN: Partial<Record<NodeType, string>> = {
   tank: "Tank", pressureTank: "Pressure tank", syrupBottle: "Syrup bottle", boiler: "Boiler (legacy)",
   hotWaterBoiler: "Hot-water boiler", steamBoiler: "Steam boiler", pump: "Water pump", milkPump: "Milk pump",
-  valve: "Shut-off valve", checkValve: "Check valve", solenoid2: "2-way solenoid", solenoid3: "3-way solenoid", airPump: "Air pump",
+  valve: "Shut-off valve", checkValve: "Check valve", solenoid2: "2-way solenoid", solenoid3: "3-way solenoid", diaphragmValve2: "2-way diaphragm valve", diaphragmValve3: "3-way diaphragm selector", airPump: "Air pump",
   pulseAirValve: "Pulse air valve", safetyValve: "Safety valve", opv: "OPV relief valve", pressureRegulator: "Pressure-reducing valve", ballValve: "Ball valve",
   tee: "Tee fitting", teeY: "Y tee", teeF: "F tee", cross: "Cross fitting", elbow: "Elbow", coupling: "Coupling", metalCoupling: "Metal coupling",
   heatExchanger: "Heat exchanger", thermoblock: "Thermoblock", filter: "Filter", metalFilter: "Metal mesh filter", brewChamber: "Brew chamber", powderMixer: "Powder mixer",
@@ -71,6 +71,8 @@ export const NODE_DEFS: NodeDef[] = [
   { type: "checkValve", label: "单向阀", group: "控制", width: 70, height: 48, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", direction: "in" }, { position: "right", direction: "out" }] },
   { type: "solenoid2", label: "两通电磁阀", group: "控制", width: 74, height: 66, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.76, direction: "in" }, { position: "right", offset: 0.76, direction: "out" }] },
   { type: "solenoid3", label: "三通电磁阀", group: "控制", width: 78, height: 74, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.62, direction: "in" }, { position: "right", offset: 0.62, direction: "out" }, { position: "bottom", offset: 0.5, direction: "out" }] },
+  { type: "diaphragmValve2", label: "两通隔膜阀", group: "控制", width: 78, height: 66, fill: "#f7fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.76, direction: "in" }, { position: "right", offset: 0.76, direction: "out" }] },
+  { type: "diaphragmValve3", label: "三通隔膜切换阀", group: "控制", width: 92, height: 80, fill: "#f7fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.62, direction: "in" }, { position: "bottom", offset: 0.5, direction: "in" }, { position: "right", offset: 0.62, direction: "out" }] },
   { type: "pulseAirValve", label: "脉冲空气电磁阀", group: "控制", width: 74, height: 66, fill: "#f6fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.76, direction: "in" }, { position: "right", offset: 0.76, direction: "out" }] },
   { type: "safetyValve", label: "安全阀", group: "控制", width: 64, height: 84, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "right", offset: 0.4, direction: "out" }] },
   { type: "opv", label: "OPV 泄压阀", group: "控制", width: 64, height: 84, fill: "#fff4ec", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "right", offset: 0.35, direction: "out" }] },
@@ -163,10 +165,10 @@ export function createNode(type: NodeType, x: number, y: number, label?: string,
     ...(type === "hotWaterOutlet" ? { variant: "single", dispensing: true } : {}),
     ...(type === "groupHead" ? { dispensing: true } : {}),
     ...(type === "annotation" ? { pointerTarget: { x: x + def.width / 2 + 30, y: y + def.height + 60 } } : {}),
-    ...(type === "solenoid2" || type === "ballValve" ? { valveState: "open" as const } : {}),
-    ...(type === "solenoid3" ? { valvePath: "A" as const } : {}),
+    ...(type === "solenoid2" || type === "ballValve" || type === "diaphragmValve2" ? { valveState: "open" as const } : {}),
+    ...(type === "solenoid3" || type === "diaphragmValve3" ? { valvePath: "A" as const } : {}),
     // 阀/泵默认在画布上显示开关（可在属性中关闭）
-    ...(["solenoid2", "solenoid3", "ballValve", "pump", "milkPump", "airPump"].includes(type) ? { showStateOnDiagram: true } : {})
+    ...(["solenoid2", "solenoid3", "diaphragmValve2", "diaphragmValve3", "ballValve", "pump", "milkPump", "airPump"].includes(type) ? { showStateOnDiagram: true } : {})
   };
 }
 
@@ -449,6 +451,21 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
         </g>
       );
     }
+    case "diaphragmValve2": {
+      const cy = h * 0.76;
+      const open = node.valveState !== "closed";
+      return (
+        <g>
+          <path d={`M 2 ${cy - 14} L ${w / 2} ${cy} L 2 ${cy + 14} Z`} {...common} />
+          <path d={`M ${w - 2} ${cy - 14} L ${w / 2} ${cy} L ${w - 2} ${cy + 14} Z`} {...common} />
+          <path d={`M ${w / 2 - 18} ${cy - 5} Q ${w / 2} ${cy - 13} ${w / 2 + 18} ${cy - 5}`} fill="none" stroke={stroke} strokeWidth={2} />
+          <path d={`M ${w / 2} ${cy - 4} V ${h * 0.3}`} stroke={stroke} strokeWidth={sw} />
+          <rect x={w / 2 - 15} y={2} width={30} height={h * 0.26} rx={5} fill="#eaf1f8" stroke={stroke} strokeWidth={1.5} />
+          <circle cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />
+          <text x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>
+        </g>
+      );
+    }
     case "solenoid3": {
       const cy = h * 0.62;
       const path = node.valvePath ?? "A";
@@ -466,6 +483,31 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           {path === "B" && <path d={`M ${w / 2 - 13} ${h - 2} L ${w / 2} ${cy} L ${w / 2 + 13} ${h - 2} Z`} fill="none" stroke={color} strokeWidth={3} opacity={0.5} strokeLinejoin="round" />}
           <circle cx={w - 8} cy={7} r={4} fill={color} stroke="#fff" strokeWidth={1.2} />
           <text x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={color} fontFamily="system-ui, sans-serif" fontWeight={600}>{label}</text>
+        </g>
+      );
+    }
+    case "diaphragmValve3": {
+      const cy = h * 0.62;
+      const path = node.valvePath === "B" ? "B" : "A";
+      const color = path === "A" ? "#3fae6a" : "#2f7fd6";
+      const inputA = { x: 3, y: cy };
+      const inputB = { x: w / 2, y: h - 3 };
+      const outputC = { x: w - 3, y: cy };
+      const active = path === "A" ? inputA : inputB;
+      return (
+        <g>
+          <path d={`M ${inputA.x} ${cy - 13} L ${w / 2} ${cy} L ${inputA.x} ${cy + 13} Z`} {...common} />
+          <path d={`M ${outputC.x} ${cy - 13} L ${w / 2} ${cy} L ${outputC.x} ${cy + 13} Z`} {...common} />
+          <path d={`M ${w / 2 - 13} ${inputB.y} L ${w / 2} ${cy} L ${w / 2 + 13} ${inputB.y} Z`} {...common} />
+          <path d={`M ${w / 2 - 18} ${cy - 5} Q ${w / 2} ${cy - 13} ${w / 2 + 18} ${cy - 5}`} fill="none" stroke={stroke} strokeWidth={2} />
+          <path d={`M ${w / 2} ${cy - 4} V ${h * 0.24}`} stroke={stroke} strokeWidth={sw} />
+          <rect x={w / 2 - 15} y={2} width={30} height={h * 0.2} rx={5} fill="#eaf1f8" stroke={stroke} strokeWidth={1.5} />
+          <path d={`M ${active.x} ${active.y} L ${w / 2} ${cy} L ${outputC.x} ${outputC.y}`} fill="none" stroke={color} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" opacity={0.78} />
+          <text x={9} y={cy - 18} textAnchor="middle" fontSize={10} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={700}>A</text>
+          <text x={w / 2} y={h - 8} textAnchor="middle" fontSize={10} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={700}>B</text>
+          <text x={w - 9} y={cy - 18} textAnchor="middle" fontSize={10} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={700}>C</text>
+          <circle cx={w - 8} cy={7} r={4} fill={color} stroke="#fff" strokeWidth={1.2} />
+          <text x={w - 8} y={20} textAnchor="middle" fontSize={8} fill={color} fontFamily="system-ui, sans-serif" fontWeight={700}>{path}→C</text>
         </g>
       );
     }

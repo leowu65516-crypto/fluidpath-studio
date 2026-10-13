@@ -539,6 +539,7 @@ body {
 .insp-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px 12px 20px;
   background: var(--surface-2);
 }
@@ -618,8 +619,14 @@ body {
   background: var(--input-bg);
 }
 
-/* English labels such as "Choose template…" need a stable readable width. */
-.template-row .insp-ctrl { min-width: 118px; }
+/* 模板名在英文下较长：标签单独占行，选择器永远使用检查器完整内容宽度。 */
+.template-row {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 4px;
+}
+.template-row > label { width: auto; }
+.template-row .insp-ctrl { width: 100%; min-width: 0; }
 
 .insp-ctrl input:focus,
 .insp-ctrl select:focus {
@@ -1971,12 +1978,12 @@ body[data-theme="dark"] .welcome-overlay {
 }
 .advice-export:hover { background: var(--surface-2); color: var(--text); }
 
-/* ===== 三态工作模式切换器（P1 v1.17） ===== */
+/* ===== 三态工作模式切换器 ===== */
 .tb-mode.seg {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  width: 352px;
-  min-width: 352px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 306px;
+  min-width: 306px;
   height: 32px;
   box-sizing: border-box;
   border: 1px solid var(--border);

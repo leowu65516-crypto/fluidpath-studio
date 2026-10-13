@@ -64,7 +64,7 @@ app.whenReady().then(async () => {
     })()
   `);
 
-  // English narrow-window regression: all four work-mode buttons must remain whole and usable.
+  // English narrow-window regression: all three visible work-mode buttons must remain whole and usable.
   win.setBounds({ width: 512, height: 800 });
   await new Promise((r) => setTimeout(r, 80));
   const compactMode = await win.webContents.executeJavaScript(`

@@ -333,6 +333,7 @@ const EN: Record<string, string> = {
   "复制以下分享链接：": "Copy this share link:",
   "已分享": "Shared",
   "介质标签": "Fluid labels",
+  "显示": "Display", "元器件名称": "Component names", "管路名称": "Pipe names", "管径（DN）": "Pipe size (DN)", "介质颜色": "Fluid colors", "重置全部文字位置": "Reset all label positions", "文字位置": "Label position", "默认（可在画布上拖动文字）": "Default (drag the label on canvas)", "重置": "Reset", "标签可直接在画布上拖动微调位置；双击标签编辑文字。此处开关同样作用于导出（导出面板另有独立选项）。": "Drag labels on the canvas to fine-tune their position; double-click a label to edit its text. These switches also affect exports (the export dialog has its own options).",
   "镜像翻转": "Mirror",
   "水平镜像": "Mirror H",
   "垂直镜像": "Mirror V",
@@ -419,12 +420,11 @@ const EN: Record<string, string> = {
 
   // 弹窗
   "确定": "OK",
-  "量感粒子密度": "Flow-sense density",
-  "支路流量小则粒子稀（主路密、支路疏）": "Thin branches render sparser particles (trunk dense, branches sparse)",
-  "压力域着色": "Pressure-domain tint",
-  "运行泵/锅炉可达管加淡色描边": "Tint pipes reachable from running pumps / boilers",
-  "相对流量": "Relative flow",
-  "手动指定相对流量（覆盖量感自动计算）": "Manual relative flow (overrides the automatic flow-sense)",
+
+
+
+
+
   "自动": "Auto",
   "自定义": "Custom",
   "选择工况（按点选顺序编排步骤）": "Pick conditions (steps follow tap order)",

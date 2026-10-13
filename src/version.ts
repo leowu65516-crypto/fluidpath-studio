@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.30.4";
+export const APP_VERSION = "1.30.5";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.5",
+    date: "2026-10-13",
+    highlights: [
+      "全局属性检查器新增「显示」组：元器件名称、管路名称（管路xx）、管径（DNxx，可单独开关）、介质标签、介质颜色、元器件文字大小，以及「重置全部文字位置」；清洁导出模式/恢复全部显示同步覆盖",
+      "元器件文字可在画布上直接拖动微调位置（文字放大后不再拥挤/重叠），节点属性面板与全局均可一键重置",
+      "移除「量感粒子密度」与「压力域着色」，并移除管路「相对流量」手填项（粒子按管路自身密度属性显示）",
+      "新增管路中段标签组合回归测试 6 例",
+    ],
+  },
   {
     version: "1.30.4",
     date: "2026-10-12",

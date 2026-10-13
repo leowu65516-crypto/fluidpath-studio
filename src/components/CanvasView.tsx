@@ -69,7 +69,6 @@ import { patchNode, patchPipe } from "../store";
 import { parseDiagramJSON } from "../export";
 import { toast } from "../toast";
 import { checkDiagramFluid, checkPipeFluid, fluidLabel, fluidColor } from "../fluidRules";
-import { computeRelativeFlow, computePressureDomain } from "../relativeFlow";
 import { connectionErrorMessage, resolveConnectDrop, validatePipeConnection, type ConnectionError } from "../connection";
 
 type DragState =
@@ -81,6 +80,7 @@ type DragState =
   | { type: "port"; nodeId: string; portId: string; moved: boolean }
   | { type: "terminal"; pipeId: string; end: "from" | "to"; startWorld: Pt; moved: boolean }
   | { type: "resize"; nodeId: string; corner: string; start: { x: number; y: number; w: number; h: number }; startWorld: Pt; moved: boolean; startRot: number; startAngle: number }
+  | { type: "node-label"; nodeId: string; start: { x: number; y: number }; startWorld: Pt; moved: boolean }
   | { type: "annotation-target"; nodeId: string; startWorld: Pt; moved: boolean };
 
 export interface CanvasHandle {
@@ -112,15 +112,6 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   const chainPathSet = new Set(ui.chainPath?.pipeIds ?? []);
   // 介质物理常识校验：实时计算冲突，供画布感叹号与修复菜单使用
   const fluidIssues = useMemo(() => checkDiagramFluid(diagram, lang), [diagram, lang]);
-  // 量感层：相对流量因子（设置可关）+ 压力域（默认关）
-  const flowFactors = useMemo(
-    () => (diagram.settings.flowSense === false ? new Map<string, number>() : computeRelativeFlow(diagram.pipes, diagram.nodes)),
-    [diagram.pipes, diagram.nodes, diagram.settings.flowSense]
-  );
-  const pressureSet = useMemo(
-    () => (diagram.settings.pressureShading ? computePressureDomain(diagram.pipes, diagram.nodes) : null),
-    [diagram.pipes, diagram.nodes, diagram.settings.pressureShading]
-  );
   // 模式权限：仅编辑模式可改拓扑（拖动/连线/删除/标签编辑）；演示/验收保留拨阀与视角
   const canEdit = (ui.mode ?? "edit") === "edit";
   // 出视区 skip 渲染：视口外 + 200px 缓冲的节点/管路不渲染（为 150+ 管大图纸兜底）
@@ -528,6 +519,38 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             n.width = snap(w, 4);
             n.height = snap(h, 4);
           }
+        }, false);
+      },
+      () => (dragRef.current = null)
+    );
+  }
+
+  // ===== 元器件文字拖动（标签与元件分离，避免文字放大后拥挤/重叠） =====
+  function onNodeLabelMouseDown(e: React.MouseEvent, node: DiagramNode) {
+    if (e.button !== 0 || spaceRef.current) return;
+    if (ui.styleBrush) { onNodeMouseDown(e, node); return; }
+    e.stopPropagation();
+    selectNode(node.id, e.shiftKey);
+    if (!canEdit) return;
+    dragRef.current = {
+      type: "node-label",
+      nodeId: node.id,
+      start: { ...(node.labelOffset ?? { x: 0, y: 0 }) },
+      startWorld: screenToWorld(e.clientX, e.clientY),
+      moved: false
+    };
+    beginWindowDrag(
+      (ev) => {
+        const d = dragRef.current;
+        if (d?.type !== "node-label") return;
+        const cur = screenToWorld(ev.clientX, ev.clientY);
+        const dx = cur.x - d.startWorld.x;
+        const dy = cur.y - d.startWorld.y;
+        if (!d.moved && Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+        if (!d.moved) { pushHistory(); d.moved = true; }
+        updateDiagram((draft) => {
+          const n = draft.nodes.find((nn) => nn.id === d.nodeId);
+          if (n) n.labelOffset = { x: Math.round(d.start.x + dx), y: Math.round(d.start.y + dy) };
         }, false);
       },
       () => (dragRef.current = null)
@@ -1169,19 +1192,24 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             </g>
           )}
         </g>
-        {/* 节点标签 — 永远在旋转组外，保持水平 */}
-        {diagram.settings.showNodeLabels !== false && node.type !== "label" && node.type !== "shape" && (
-          <text
-            x={node.x + node.width / 2} y={node.y + node.height + 18}
-            textAnchor="middle" className="fp-node-label" fontSize={node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13} fill="var(--node-label)"
-            fontFamily="system-ui, -apple-system, sans-serif"
-            data-ui="1"
-            data-node-id={node.id}
-            data-node-kind={node.type}
-            style={{ cursor: "text" }}
-            onDoubleClick={(e) => { e.stopPropagation(); beginLabelEdit("node", node.id, node.x + node.width / 2, node.y + node.height + 18, node.label); }}
-          >{nodeCanvasLabel(node, lang)}</text>
-        )}
+        {/* 节点标签 — 永远在旋转组外，保持水平；可拖动微调位置 */}
+        {diagram.settings.showNodeLabels !== false && node.type !== "label" && node.type !== "shape" && (() => {
+          const lx = node.x + node.width / 2 + (node.labelOffset?.x ?? 0);
+          const ly = node.y + node.height + 18 + (node.labelOffset?.y ?? 0);
+          return (
+            <text
+              x={lx} y={ly}
+              textAnchor="middle" className="fp-node-label" fontSize={node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13} fill="var(--node-label)"
+              fontFamily="system-ui, -apple-system, sans-serif"
+              data-ui="1"
+              data-node-id={node.id}
+              data-node-kind={node.type}
+              style={{ cursor: "move" }}
+              onMouseDown={(e) => onNodeLabelMouseDown(e, node)}
+              onDoubleClick={(e) => { e.stopPropagation(); beginLabelEdit("node", node.id, lx, ly, node.label); }}
+            >{nodeCanvasLabel(node, lang)}</text>
+          );
+        })()}
       </g>
     );
   }
@@ -1330,8 +1358,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                 onLabelDoubleClick={(pid, x, y, label) => beginLabelEdit("pipe", pid, x, y, label)}
                 issues={fluidIssues.get(p.id)}
                 onFluidIssueClick={handleFluidIssueClick}
-                flowFactor={flowFactors.get(p.id)}
-                pressureHalo={!!pressureSet?.has(p.id)}
+                showPipeDiameters={diagram.settings.showPipeDiameters !== false}
                 lang={lang}
               />
             );

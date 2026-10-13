@@ -83,6 +83,8 @@ export interface DiagramNode {
   variant?: ShapeVariant;
   /** 自定义图形内文字大小 */
   fontSize?: number;
+  /** 元器件标签手动偏移（画布上拖动文字微调位置，避免与元件/其它文字重叠） */
+  labelOffset?: { x: number; y: number };
   /** 咖啡出口：是否显示出液（咖啡滴落）动画 */
   dispensing?: boolean;
   /** 组 ID：同组节点选中时联动、一起移动 */
@@ -173,8 +175,6 @@ export interface Pipe {
   forceStop?: boolean;
   /** 管路中段标注文字（如直径/介质/编号） */
   annotation?: string;
-  /** 相对流量手填 override（0–100；未设置时由量感层自动计算） */
-  relativeFlow?: number;
 }
 
 export interface FluidPreset {
@@ -232,10 +232,6 @@ export interface DiagramSettings {
   showAlignmentGuides?: boolean;
   /** 全局流速倍率（0.5–2.5，仅影响动画播放速度） */
   flowScale?: number;
-  /** 量感层：相对流量级联衰减驱动粒子密度（默认开启） */
-  flowSense?: boolean;
-  /** 压力域着色：运行泵/锅炉出侧可达管加淡色 halo（默认关闭） */
-  pressureShading?: boolean;
   /** 演示微调持久化：scenarioId → stepIndex → nodeId → 阀/泵状态。「从此步生效」，随图纸保存/分享/机型包 */
   scenarioOverrides?: Record<string, Record<number, Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>>>;
   /** 自定义演示场景（从工况导入或用户创建），随图纸保存 */
@@ -245,6 +241,8 @@ export interface DiagramSettings {
   /** 导出整理：是否显示元器件名称、管路编号与介质颜色。 */
   showNodeLabels?: boolean;
   showPipeLabels?: boolean;
+  /** 管路中段标签：是否显示管径（DNxx），与编号可分开开关。 */
+  showPipeDiameters?: boolean;
   showFluidColors?: boolean;
   /** 全局元器件名称字号（单个元件未设置专属字号时使用）。 */
   nodeLabelFontSize?: number;

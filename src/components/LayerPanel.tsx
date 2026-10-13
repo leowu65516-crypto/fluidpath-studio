@@ -75,8 +75,8 @@ export function LayerPanel({ onClose }: { onClose: () => void }) {
         <label><input type="checkbox" checked={diagram.settings.showPipeLabels !== false} onChange={(e) => updateDiagram((d) => { d.settings.showPipeLabels = e.target.checked; }, false)} /> {t("显示管路编号属性")}</label>
         <label><input type="checkbox" checked={diagram.settings.showFluidLabels === true} onChange={(e) => updateDiagram((d) => { d.settings.showFluidLabels = e.target.checked; }, false)} /> {t("显示介质文字")}</label>
         <label><input type="checkbox" checked={diagram.settings.showFluidColors !== false} onChange={(e) => updateDiagram((d) => { d.settings.showFluidColors = e.target.checked; }, false)} /> {t("显示介质颜色")}</label>
-        <button className="btn wide" onClick={() => updateDiagram((d) => { d.settings.showNodeLabels = false; d.settings.showPipeLabels = false; d.settings.showFluidLabels = false; d.settings.showFluidColors = false; }, false)}>{t("清洁导出模式")}</button>
-        <button className="btn ghost wide" onClick={() => updateDiagram((d) => { d.settings.showNodeLabels = true; d.settings.showPipeLabels = true; d.settings.showFluidLabels = true; d.settings.showFluidColors = true; }, false)}>{t("恢复全部显示")}</button>
+        <button className="btn wide" onClick={() => updateDiagram((d) => { d.settings.showNodeLabels = false; d.settings.showPipeLabels = false; d.settings.showPipeDiameters = false; d.settings.showFluidLabels = false; d.settings.showFluidColors = false; }, false)}>{t("清洁导出模式")}</button>
+        <button className="btn ghost wide" onClick={() => updateDiagram((d) => { d.settings.showNodeLabels = true; d.settings.showPipeLabels = true; d.settings.showPipeDiameters = true; d.settings.showFluidLabels = true; d.settings.showFluidColors = true; }, false)}>{t("恢复全部显示")}</button>
       </div>
       <div className="layer-add">
         <input

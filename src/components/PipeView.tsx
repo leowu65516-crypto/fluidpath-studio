@@ -15,13 +15,19 @@ import {
 } from "../geometry";
 import type { HopObstacle } from "../geometry";
 import { FLUID_PRESETS } from "../types";
-import { downscaleDensity } from "../relativeFlow";
-
 /** 管路标签显示名：英文界面下默认名「管路 N」显示为 Pipe N（数据保持不变） */
 function pipeDisplayLabel(label: string, lang: "zh" | "en"): string {
   if (lang !== "en") return label;
   const m = label.match(/^管路 (\d+)$/);
   return m ? `Pipe ${m[1]}` : label;
+}
+
+/** 管路中段标签组合：编号（管路xx）与管径（DNxx）可分别开关；两者都关时不渲染标签 */
+export function composePipeMidLabel(label: string | undefined, nominalDiameter: string | undefined, showName: boolean, showDn: boolean, lang: "zh" | "en"): string {
+  const parts: string[] = [];
+  if (showName && label) parts.push(pipeDisplayLabel(label, lang));
+  if (showDn && nominalDiameter) parts.push(nominalDiameter);
+  return parts.join(" · ");
 }
 import type { FluidIssue } from "../fluidRules";
 
@@ -44,6 +50,8 @@ interface PipeViewProps {
   funcChain: boolean;            // 元件→整机功能链高亮
   showFluidLabels: boolean;
   showPipeLabels: boolean;
+  /** 管路中段标签中的管径（DNxx）显示开关 */
+  showPipeDiameters: boolean;
   showFluidColors: boolean;
   animationPlaying?: boolean;
   flowRefMap: Map<string, SVGPathElement>;
@@ -54,10 +62,6 @@ interface PipeViewProps {
   onLabelDoubleClick: (pipeId: string, x: number, y: number, label: string) => void;
   issues?: FluidIssue[];
   onFluidIssueClick?: (pipe: Pipe, e: React.MouseEvent) => void;
-  /** 量感层：相对流量因子 0–1（未设置 = 1） */
-  flowFactor?: number;
-  /** 压力域着色：运行泵/锅炉可达管加淡色 halo */
-  pressureHalo?: boolean;
   /** 界面语言（管路默认名显示用） */
   lang?: "zh" | "en";
 }
@@ -100,12 +104,12 @@ function pipesForNode(nodeId: string, nodes: DiagramNode[], allPipes: Pipe[]): P
 
 function PipeViewImpl({
   pipe, index, nodes, allPipes, selected, crossHop, allPolys,
-  scenarioActive, scenarioDim, blink, blinkStamp, showFluidLabels, showPipeLabels, showFluidColors,
+  scenarioActive, scenarioDim, blink, blinkStamp, showFluidLabels, showPipeLabels, showPipeDiameters, showFluidColors,
   animationPlaying = true,
   chainGlow, chainStamp, lintMsg, onLintClick, funcChain,
   flowRefMap, onPipeBodyMouseDown, onVertexMouseDown, onContextMenu, onRemoveVertex, onLabelDoubleClick,
   issues, onFluidIssueClick,
-  flowFactor, pressureHalo, lang,
+  lang,
 }: PipeViewProps) {
   const pts = pipePolyline(pipe, nodes);
   if (!pts || pts.length < 2) return null;
@@ -137,11 +141,8 @@ function PipeViewImpl({
   }
   const fluidW = Math.max(2, pipe.visualDiameter);
   const dashLen = Math.max(6, pipe.visualDiameter * 1.5);
-  // 量感层：手填 relativeFlow 优先，否则用自动计算的流量因子降档粒子密度
-  const manualFactor = pipe.relativeFlow != null ? Math.max(0, Math.min(100, pipe.relativeFlow)) / 100 : undefined;
-  const effFactor = manualFactor ?? flowFactor ?? 1;
-  const effDensity = downscaleDensity(pipe.particleDensity, effFactor);
-  const gapMul = effDensity === "high" ? 1.1 : effDensity === "medium" ? 2.1 : 3.6;
+  // 粒子间隔：按管路自身「粒子密度」属性（量为不再级联降档）
+  const gapMul = pipe.particleDensity === "high" ? 1.1 : pipe.particleDensity === "medium" ? 2.1 : 3.6;
   const dash = `${dashLen} ${Math.round(dashLen * gapMul)}`;
   const len = polylineLength(pts);
   const mid = pointAtLength(pts, len / 2);
@@ -180,9 +181,6 @@ function PipeViewImpl({
         <path d={d} fill="none" stroke="#2f7fd6" strokeWidth={wallW + 8} strokeOpacity={0.18} strokeLinejoin="round" strokeLinecap="round" pointerEvents="none" />
       )}
       <g opacity={dimOpacity}>
-        {pressureHalo && !disabled && (
-          <path d={d} fill="none" stroke="var(--accent)" strokeOpacity={0.14} strokeWidth={wallW + 9} strokeLinejoin="round" strokeLinecap="round" pointerEvents="none" />
-        )}
         <path d={d} fill="none" stroke="#7d8b99" strokeOpacity={0.55} strokeWidth={wallW + 2.4} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={pipe.wallColor} strokeOpacity={wallOpacity} strokeWidth={wallW} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={visibleFluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" />
@@ -192,10 +190,16 @@ function PipeViewImpl({
             <path d={`M ${wallW * 0.9 + 4} 0 L ${-wallW * 0.25} ${-wallW * 0.62 - 3} L ${-wallW * 0.25} ${wallW * 0.62 + 3} Z`} fill={visibleFluidColor} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />
           </g>
         )}
-        {/* 管路文字标签（双击就地编辑） */}
-        {showPipeLabels && pipe.label && <text x={mid.pt.x} y={labelY} textAnchor="middle" fontSize={11} fill={disabled ? "#8a9ba8" : "var(--text)"} fontFamily="system-ui, sans-serif" fontWeight={500} stroke="var(--canvas-label-halo)" strokeWidth={3} paintOrder="stroke" style={{ cursor: "text" }} data-ui="1" data-pipe-id={pipe.id} onDoubleClick={(e) => { e.stopPropagation(); onLabelDoubleClick(pipe.id, mid.pt.x, labelY, pipe.label); }}>
-            {`${pipeDisplayLabel(pipe.label, lang ?? "zh")}${pipe.nominalDiameter ? " · " + pipe.nominalDiameter : ""}`}
-          </text>}
+        {/* 管路文字标签（双击就地编辑；编号与管径可分别开关） */}
+        {(() => {
+          const midLabel = composePipeMidLabel(pipe.label, pipe.nominalDiameter, showPipeLabels, showPipeDiameters, lang ?? "zh");
+          if (!midLabel) return null;
+          return (
+            <text x={mid.pt.x} y={labelY} textAnchor="middle" fontSize={11} fill={disabled ? "#8a9ba8" : "var(--text)"} fontFamily="system-ui, sans-serif" fontWeight={500} stroke="var(--canvas-label-halo)" strokeWidth={3} paintOrder="stroke" style={{ cursor: "text" }} data-ui="1" data-pipe-id={pipe.id} onDoubleClick={(e) => { e.stopPropagation(); onLabelDoubleClick(pipe.id, mid.pt.x, labelY, pipe.label); }}>
+              {midLabel}
+            </text>
+          );
+        })()}
         {/* 结构问题即时 lint 红点（标签右侧，编辑时实时提示） */}
         {lintMsg && (
           <g data-ui="1" transform={`translate(${mid.pt.x + 30} ${labelY})`} style={{ cursor: "pointer" }}

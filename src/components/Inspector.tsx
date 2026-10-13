@@ -332,6 +332,15 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   <input value={node.label} onChange={(e) => patchNode(node.id, { label: e.target.value })} />
                 )}
               </Row>
+              {node.type !== "label" && node.type !== "shape" && (
+                <Row label={t("文字位置")}>
+                  {node.labelOffset ? (
+                    <button className="btn ghost" onClick={() => patchNode(node.id, { labelOffset: undefined }, true)}>{t("重置")}</button>
+                  ) : (
+                    <span className="insp-static">{t("默认（可在画布上拖动文字）")}</span>
+                  )}
+                </Row>
+              )}
               <Row label={t("类型")}>
                 <span className="insp-static">{defOf(node.type, node.variant).label}（{node.type}）</span>
               </Row>
@@ -764,26 +773,6 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   <button className={pipe.direction === "reverse" ? "on" : ""} onClick={() => patchPipe(pipe.id, { direction: "reverse" })}>{t("反向")}</button>
                 </div>
               </Row>
-              <Row label={t("相对流量")}>
-                <div style={{ display: "flex", gap: 6, alignItems: "center", width: "100%" }}>
-                  <input
-                    type="checkbox"
-                    checked={pipe.relativeFlow != null}
-                    title={t("手动指定相对流量（覆盖量感自动计算）")}
-                    onChange={(e) => patchPipe(pipe.id, { relativeFlow: e.target.checked ? 100 : undefined }, true)}
-                  />
-                  <input
-                    type="range"
-                    min={10}
-                    max={100}
-                    value={pipe.relativeFlow ?? 100}
-                    disabled={pipe.relativeFlow == null}
-                    onChange={(e) => patchPipe(pipe.id, { relativeFlow: Number(e.target.value) }, false)}
-                    onMouseUp={() => patchPipe(pipe.id, {}, true)}
-                  />
-                  <span style={{ fontSize: 11, color: "var(--text-dim)", width: 36, flexShrink: 0 }}>{pipe.relativeFlow ?? t("自动")}</span>
-                </div>
-              </Row>
               <Row label={`${t("流速")} ${pipe.flowSpeed.toFixed(1)} m/s`}>
                 <input
                   type="range"
@@ -884,30 +873,6 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <option value="solid">{t("纯色")}</option>
               </select>
             </Row>
-            <Row label={t("量感粒子密度")}>
-              <input
-                type="checkbox"
-                checked={diagram.settings.flowSense !== false}
-                onChange={(e) =>
-                  updateDiagram((d) => {
-                    d.settings.flowSense = e.target.checked;
-                  }, false)
-                }
-              />
-              <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("支路流量小则粒子稀（主路密、支路疏）")}</span>
-            </Row>
-            <Row label={t("压力域着色")}>
-              <input
-                type="checkbox"
-                checked={diagram.settings.pressureShading === true}
-                onChange={(e) =>
-                  updateDiagram((d) => {
-                    d.settings.pressureShading = e.target.checked;
-                  }, false)
-                }
-              />
-              <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("运行泵/锅炉可达管加淡色描边")}</span>
-            </Row>
             <Row label={t("交叉跨线")}>
               <input
                 type="checkbox"
@@ -929,18 +894,36 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             <Row label={t("对齐辅助线")}>
               <input type="checkbox" checked={diagram.settings.showAlignmentGuides !== false} onChange={(e) => updateDiagram((d) => { d.settings.showAlignmentGuides = e.target.checked; }, false)} />
             </Row>
-            <Row label={t("介质标签")}>
-              <input type="checkbox" checked={diagram.settings.showFluidLabels === true} onChange={(e) => updateDiagram((d) => { d.settings.showFluidLabels = e.target.checked; }, false)} />
-            </Row>
-            <Row label={`${t("元器件文字大小")} ${diagram.settings.nodeLabelFontSize ?? 13}px`}>
-              <input
-                type="range"
-                min={8}
-                max={32}
-                value={diagram.settings.nodeLabelFontSize ?? 13}
-                onChange={(e) => updateDiagram((d) => { d.settings.nodeLabelFontSize = Number(e.target.value); }, false)}
-              />
-            </Row>
+            <Section title={t("显示")}>
+              <Row label={t("元器件名称")}>
+                <input type="checkbox" checked={diagram.settings.showNodeLabels !== false} onChange={(e) => updateDiagram((d) => { d.settings.showNodeLabels = e.target.checked; }, false)} />
+              </Row>
+              <Row label={t("管路名称")}>
+                <input type="checkbox" checked={diagram.settings.showPipeLabels !== false} onChange={(e) => updateDiagram((d) => { d.settings.showPipeLabels = e.target.checked; }, false)} />
+              </Row>
+              <Row label={t("管径（DN）")}>
+                <input type="checkbox" checked={diagram.settings.showPipeDiameters !== false} onChange={(e) => updateDiagram((d) => { d.settings.showPipeDiameters = e.target.checked; }, false)} />
+              </Row>
+              <Row label={t("介质标签")}>
+                <input type="checkbox" checked={diagram.settings.showFluidLabels === true} onChange={(e) => updateDiagram((d) => { d.settings.showFluidLabels = e.target.checked; }, false)} />
+              </Row>
+              <Row label={t("介质颜色")}>
+                <input type="checkbox" checked={diagram.settings.showFluidColors !== false} onChange={(e) => updateDiagram((d) => { d.settings.showFluidColors = e.target.checked; }, false)} />
+              </Row>
+              <Row label={`${t("元器件文字大小")} ${diagram.settings.nodeLabelFontSize ?? 13}px`}>
+                <input
+                  type="range"
+                  min={8}
+                  max={32}
+                  value={diagram.settings.nodeLabelFontSize ?? 13}
+                  onChange={(e) => updateDiagram((d) => { d.settings.nodeLabelFontSize = Number(e.target.value); }, false)}
+                />
+              </Row>
+              {diagram.nodes.some((n) => n.labelOffset) && (
+                <button className="btn ghost wide" onClick={() => updateDiagram((d) => { for (const n of d.nodes) delete n.labelOffset; }, true)}>{t("重置全部文字位置")}</button>
+              )}
+              <div className="insp-tip">{t("标签可直接在画布上拖动微调位置；双击标签编辑文字。此处开关同样作用于导出（导出面板另有独立选项）。")}</div>
+            </Section>
             <Section title={t("操作")}>
               <div className="btn-row">
                 <button className="btn wide" onClick={() => generateLegend(100, 100)}>{t("📊 生成图例")}</button>

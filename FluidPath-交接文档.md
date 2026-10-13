@@ -547,7 +547,8 @@ GitHub Pages URL: https://<user>.github.io/<repo>/
 
 ### 9.7 发布记录（滚动最近一条）
 
-- 2026-10-13 发布 **1.30.5**（显示开关组 + 元件文字拖拽 + 移除量感/压力域）：`origin/main` = `8b405d5`；Check + Deploy 均 **success**；线上 bundle `assets/index-DKdfgGEE.js` 与本地构建 sha256 一致（`f6ae19ab…`），线上版本常量 1.30.5；DMG：`release/FluidPath Studio-1.30.5-arm64.dmg`（约 122.6 MB；包内提取 bundle sha256 与线上一致，`verify:asar` 通过）。
+- 2026-10-13 发布 **1.30.6**（修复演示模式：自定义演示选择后不进步骤讲述界面）：`origin/main` = `f569fa9`；线上 bundle `assets/index-07jXpuuG.js` 与本地构建 sha256 一致（`48670206…`，完整下载比对），线上版本常量 1.30.6；DMG：`release/FluidPath Studio-1.30.6-arm64.dmg`（包内提取 bundle sha256 与本地一致，`verify:asar` 通过）。当晚 GitHub/Pages 网络多次抖动，推送与线上核对经重试完成。
+- 2026-10-13 发布 **1.30.5**（显示开关组 + 元件文字拖拽 + 移除量感/压力域）：线上 bundle `assets/index-DKdfgGEE.js`（`f6ae19ab…`）；网页端 + DMG 均已发布。
 - 2026-10-12 发布 **1.30.4**（即热加热块 + 球阀）：`origin/main` = `5045af6`；线上 bundle `assets/index-kuRzbC89.js`（`fd65c610…`）；网页端 + DMG 均已发布。
 - 2026-10-11 发布 **1.30.3**（新建连线 P0/P1）：`origin/main` = `0b9d806`；线上 bundle `assets/index-CFsjFzy6.js`（`316a9e1c…`）；网页端 + DMG 均已发布。
 - 2026-10-11 发布 **1.30.2**（导出预览工作台：缩放/平移/加字/字号）：`origin/main` = `80a1a46`；线上 bundle `assets/index-DFJVW2rI.js`（`0d997f52…`）；网页端 + DMG 均已发布。

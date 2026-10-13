@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
+import { ScenarioPanel } from "../components/ScenarioPanel";
 import { loadDiagram, store, enterScenario, setScenarioStep, saveScenarioOverridesToStep, createCustomScenarioFromConditions, saveWorkCondition, overrideScenarioNode } from "../store";
 import { availableScenariosForDiagram, getScenario } from "../scenarios";
 import bcmtsRaw from "../../BCMTS.json";
@@ -89,5 +90,22 @@ describe("自定义演示场景", () => {
       d.settings.customScenarios = (d.settings.customScenarios ?? []).filter((s) => s.id !== id);
     });
     expect(getScenario(id!, store.get().diagram)).toBeUndefined();
+  });
+
+  it("回归：自定义场景进入后，面板直接显示步骤讲述界面（不能停在挑选页）", () => {
+    act(() => { saveWorkCondition("甲"); });
+    act(() => {
+      const d = store.get().diagram;
+      d.nodes.find((n) => n.id === COLD_VALVE)!.valveState = "open";
+    });
+    act(() => { saveWorkCondition("乙"); });
+    let id: string | null = null;
+    act(() => { id = createCustomScenarioFromConditions(["甲", "乙"], "zh"); });
+    act(() => { enterScenario(id!, 0); });
+    // 模拟面板在场景已激活时渲染（真实入口：工具栏「演示」打开）
+    const view = render(<LangProvider><ScenarioPanel onClose={() => { /* noop */ }} /></LangProvider>);
+    expect(view.container.textContent).toContain("上一步");
+    expect(view.container.textContent).toContain("下一步");
+    expect(view.container.textContent).not.toContain("选择一个场景");
   });
 });

@@ -15,7 +15,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   const [pickedConditions, setPickedConditions] = useState<string[]>([]);
   const condNames = useMemo(() => (diagram.settings.workConditions ?? []).map((c) => c.name), [diagram.settings.workConditions]);
 
-  const scenario = ui.scenario ? getScenario(ui.scenario.scenarioId) : undefined;
+  const scenario = ui.scenario ? getScenario(ui.scenario.scenarioId, diagram) : undefined;
   const stepIndex = ui.scenario?.stepIndex ?? 0;
   const step = scenario?.steps[stepIndex];
   const isLast = scenario ? stepIndex >= scenario.steps.length - 1 : false;

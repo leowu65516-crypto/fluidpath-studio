@@ -35,7 +35,7 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 65 个测试文件 / 430 通过 + 4 跳过（共 434），见 §6 |
+| `src/__tests__/` | 65 个测试文件 / 434 通过 + 4 跳过（共 438），见 §6 |
 | `/Users/leo/Desktop/Fluidpath studio/` | 机型图纸与协议文档目录（含统超定制系列图纸、图纸规范 v0.2 及增补），见 §4.7 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
@@ -414,7 +414,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：65 文件（63 通过 + 2 本机专属跳过）/ 434 用例（430 通过 + 4 跳过），tsc 无错误。**
+**当前全量：65 文件（63 通过 + 2 本机专属跳过）/ 438 用例（434 通过 + 4 跳过），tsc 无错误。**
 
 ---
 
@@ -446,6 +446,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.30.7 | 2026-10-13 | 工况自定义命名（✏️/双击重命名）；工况快照以当前设置为准（含管路介质类型+颜色，切回时还原）；演示步骤闪烁改为「与上一步相比的变化项」；验收功能与模式入口暂不展示（代码保留）。 |
 | 1.30.6 | 2026-10-13 | 修复演示模式：自定义演示（从工况创建）选择后不进入步骤讲述界面（1/2/3 步骤导航缺失）——ScenarioPanel 的 getScenario 补传图纸上下文；新增回归测试。 |
 | 1.30.5 | 2026-10-13 | 全局「显示」组（元器件/管路名称、管径 DN 可单独开关、介质标签、介质颜色、元器件文字大小、重置全部文字位置）；元器件文字可在画布拖拽微调 + 单点/全局重置；移除量感粒子密度、压力域着色与管路相对流量手填；专项测试 6 例。 |
 | 1.30.4 | 2026-10-12 | 元件库新增即热加热块（Thermoblock，冷水进/热水出校验）与球阀（开/关、画布拨动、工程停流、功能链、诊断、验收、故障教学联动）；进水组件语义完善（减压阀命名、压力罐单接口双向、RO 稳压提示）；状态一致性修复（新建两通/三通/球阀显式默认阀位；模式横幅仅切换后短暂显示）；setCachedPipes 无节点缓存失效修复；回归测试 +5（435 用例）。 |

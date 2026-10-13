@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.30.5";
+export const APP_VERSION = "1.30.6";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.6",
+    date: "2026-10-13",
+    highlights: [
+      "修复演示模式：从工况创建的自定义演示（及已有的自定义演示）选择后不再停留在挑选页，直接进入步骤讲述界面（1/2/3 步骤导航、上一步/下一步）",
+      "根因：ScenarioPanel 调用 getScenario 时未传入图纸上下文，自定义场景（非内置）恒查不到；已补上并新增回归测试",
+    ],
+  },
   {
     version: "1.30.5",
     date: "2026-10-13",

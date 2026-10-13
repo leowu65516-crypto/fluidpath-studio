@@ -4,7 +4,14 @@
  * 只保留一份快照/应用逻辑，避免两处各自实现导致漂移。
  */
 
-import type { Diagram, FluidType } from "./types";
+import type {
+  Diagram,
+  FluidType,
+  WorkCondition,
+  WorkConditionDisplaySettings,
+  WorkConditionNodeProperties,
+  WorkConditionPipeProperties,
+} from "./types";
 
 export interface PresetState {
   pumpOn?: boolean;
@@ -97,4 +104,115 @@ export function diffPipeStateIds(prev: PresetPipeMap, next: PresetPipeMap): stri
     if (JSON.stringify(prev[id] ?? null) !== JSON.stringify(next[id] ?? null)) changed.push(id);
   }
   return changed;
+}
+
+// ===== v1.31：完整工况快照 =====
+// 工况是“运行/讲解画面”的版本，不是历史版本管理：它故意不恢复对象增删或端口绑定。
+// 这样保存工况以后仍能继续改图，而不会因切换工况回滚新画出来的结构。
+
+const NODE_PROPERTY_KEYS = [
+  "label", "x", "y", "width", "height", "rotation", "fill", "stroke", "variant", "fontSize",
+  "labelOffset", "dispensing", "groupId", "exportKind", "disabled", "displayDisabled", "valveState",
+  "valvePath", "valveCommonPortId", "showStateOnDiagram", "pumpOn", "fault", "pointerTarget", "imageData", "layerId",
+] as const;
+
+const PIPE_PROPERTY_KEYS = [
+  "label", "points", "nominalDiameter", "visualDiameter", "wallColor", "fluidColor", "fluidOpacity",
+  "direction", "flowSpeed", "particleDensity", "animated", "showArrow", "fluidType", "declaredMedium",
+  "resolvedMedium", "material", "wallOpacity", "routing", "cornerRadius", "disabled", "displayDisabled",
+  "fault", "teachingOverride", "forceFlow", "forceStop", "annotation",
+] as const;
+
+const DISPLAY_SETTING_KEYS = [
+  "showGrid", "background", "globalAnimationPlaying", "crossoverHops", "layers", "currentLayerId",
+  "snapToGrid", "showAlignmentGuides", "flowScale", "showFluidLabels", "showNodeLabels", "showPipeLabels",
+  "showPipeDiameters", "showFluidColors", "nodeLabelFontSize", "backgroundType",
+] as const;
+
+type MutableRecord = Record<string, unknown>;
+
+function clone<T>(value: T): T {
+  return structuredClone(value);
+}
+
+function snapshotNodeProperties(diagram: Diagram): Record<string, WorkConditionNodeProperties> {
+  const result: Record<string, WorkConditionNodeProperties> = {};
+  for (const node of diagram.nodes) {
+    const copy = clone(node) as unknown as MutableRecord;
+    delete copy.id;
+    delete copy.type;
+    delete copy.ports;
+    result[node.id] = copy as WorkConditionNodeProperties;
+  }
+  return result;
+}
+
+function snapshotPipeProperties(diagram: Diagram): Record<string, WorkConditionPipeProperties> {
+  const result: Record<string, WorkConditionPipeProperties> = {};
+  for (const pipe of diagram.pipes) {
+    const copy = clone(pipe) as unknown as MutableRecord;
+    delete copy.id;
+    delete copy.fromPortId;
+    delete copy.toPortId;
+    delete copy.fromPoint;
+    delete copy.toPoint;
+    result[pipe.id] = copy as WorkConditionPipeProperties;
+  }
+  return result;
+}
+
+function snapshotDisplaySettings(diagram: Diagram): WorkConditionDisplaySettings {
+  const source = diagram.settings as unknown as MutableRecord;
+  const result: MutableRecord = {};
+  for (const key of DISPLAY_SETTING_KEYS) result[key] = clone(source[key]);
+  return result as WorkConditionDisplaySettings;
+}
+
+function restoreProperties(target: MutableRecord, source: MutableRecord, keys: readonly string[]) {
+  // 删除在快照中不存在的可选字段，才能把“取消覆盖/取消故障”也真正还原。
+  for (const key of keys) {
+    if (!(key in source)) delete target[key];
+  }
+  for (const [key, value] of Object.entries(source)) target[key] = clone(value);
+}
+
+/** 保存工况所需的完整非拓扑状态。旧版消费者仍可只读取 state/pipes。 */
+export function snapshotWorkCondition(diagram: Diagram): Omit<WorkCondition, "name"> {
+  return {
+    state: snapshotStates(diagram),
+    pipes: snapshotPipeStates(diagram),
+    componentProperties: snapshotNodeProperties(diagram),
+    pipeProperties: snapshotPipeProperties(diagram),
+    displaySettings: snapshotDisplaySettings(diagram),
+  };
+}
+
+/** 应用完整工况；无 v1.31 扩展字段的旧工况自动按旧的泵阀/介质语义兼容。 */
+export function applyWorkConditionSnapshot(diagram: Diagram, condition: WorkCondition): void {
+  applyStates(diagram, condition.state);
+  if (condition.pipes) applyPipeStates(diagram, condition.pipes);
+
+  if (condition.componentProperties) {
+    const nodes = new Map(diagram.nodes.map((node) => [node.id, node]));
+    for (const [id, source] of Object.entries(condition.componentProperties)) {
+      const node = nodes.get(id);
+      if (node) restoreProperties(node as unknown as MutableRecord, source as unknown as MutableRecord, NODE_PROPERTY_KEYS);
+    }
+  }
+  if (condition.pipeProperties) {
+    const pipes = new Map(diagram.pipes.map((pipe) => [pipe.id, pipe]));
+    for (const [id, source] of Object.entries(condition.pipeProperties)) {
+      const pipe = pipes.get(id);
+      if (pipe) restoreProperties(pipe as unknown as MutableRecord, source as unknown as MutableRecord, PIPE_PROPERTY_KEYS);
+    }
+  }
+  if (condition.displaySettings) {
+    restoreProperties(diagram.settings as unknown as MutableRecord, condition.displaySettings as MutableRecord, DISPLAY_SETTING_KEYS);
+  }
+}
+
+/** 任意按 ID 保存的属性快照之间的变化对象，用于切换后的定位反馈。 */
+export function diffPropertyIds<T>(prev: Record<string, T>, next: Record<string, T>): string[] {
+  const ids = new Set([...Object.keys(prev), ...Object.keys(next)]);
+  return [...ids].filter((id) => JSON.stringify(prev[id] ?? null) !== JSON.stringify(next[id] ?? null));
 }

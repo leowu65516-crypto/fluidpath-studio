@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { NODE_DEFS, NODE_GROUPS, NodeSymbol, createNode, nodeDisplayLabel } from "../symbols";
-import { addNodeAt } from "../store";
+import { addNodeAt, patchNode } from "../store";
 import { useT } from "../i18n";
 import type { NodeDef } from "../symbols";
 
@@ -34,6 +34,10 @@ function LibraryItem({ def, lang }: { def: NodeDef; lang: "zh" | "en" }) {
 
 export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle?: () => void }) {
   const [search, setSearch] = useState("");
+  const [quickType, setQuickType] = useState<"label" | "annotation">("label");
+  const [quickText, setQuickText] = useState("");
+  const [quickFontSize, setQuickFontSize] = useState(16);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const { t, lang } = useT();
   const [closedGroups, setClosedGroups] = useState<Set<string>>(() => {
     try {
@@ -66,6 +70,19 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
         items: NODE_DEFS.filter((d) => d.group === g),
       }));
 
+  const insertQuickText = () => {
+    const type = quickType;
+    const node = addNodeAt(type, 300 + Math.random() * 120, 220 + Math.random() * 120);
+    patchNode(node.id, { label: quickText.trim() || (type === "label" ? (lang === "en" ? "Text" : "文字标签") : (lang === "en" ? "Note" : "标注说明")), fontSize: quickFontSize });
+  };
+
+  const insertImage = (file: File) => {
+    const node = addNodeAt("image", 300 + Math.random() * 120, 220 + Math.random() * 120);
+    const reader = new FileReader();
+    reader.onload = () => patchNode(node.id, { imageData: reader.result as string, label: file.name, width: 180, height: 120 });
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className={`library${collapsed ? " collapsed" : ""}`}>
       <div className={`panel-title${collapsed ? " vertical" : ""}`}>
@@ -95,6 +112,42 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
               color: "var(--text)",
             }}
           />
+        </div>
+      )}
+      {!collapsed && (
+        <div className="library-quick-add" data-ui="1">
+          <div className="library-quick-title">{t("快速内容")}</div>
+          <div className="library-quick-tabs" role="group" aria-label={t("插入内容类型")}>
+            <button className={quickType === "label" ? "on" : ""} onClick={() => { setQuickType("label"); setQuickFontSize(16); }}>{t("文字标签")}</button>
+            <button className={quickType === "annotation" ? "on" : ""} onClick={() => { setQuickType("annotation"); setQuickFontSize(14); }}>{t("引线标注")}</button>
+          </div>
+          <input
+            className="library-quick-text"
+            value={quickText}
+            onChange={(event) => setQuickText(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter") insertQuickText(); }}
+            placeholder={quickType === "label" ? t("输入标签文字") : t("输入标注内容")}
+          />
+          <div className="library-quick-size">
+            <label>{t("文字大小")}</label>
+            <input type="range" min={8} max={48} value={quickFontSize} onChange={(event) => setQuickFontSize(Number(event.target.value))} />
+            <output>{quickFontSize}px</output>
+          </div>
+          <div className="library-quick-actions">
+            <button className="btn" onClick={insertQuickText}>＋ {t("插入")}</button>
+            <button className="btn ghost" onClick={() => imageInputRef.current?.click()}>▣ {t("插入图片")}</button>
+            <input
+              ref={imageInputRef}
+              className="library-image-input"
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) insertImage(file);
+                event.target.value = "";
+              }}
+            />
+          </div>
         </div>
       )}
       {!collapsed && (

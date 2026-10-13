@@ -375,6 +375,18 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   </Row>
                 </>
               )}
+              {(node.type === "label" || node.type === "annotation") && (
+                <Row label={`${t("文字大小")} ${node.fontSize ?? (node.type === "label" ? 16 : 14)}px`}>
+                  <input
+                    type="range"
+                    min={8}
+                    max={48}
+                    value={node.fontSize ?? (node.type === "label" ? 16 : 14)}
+                    onChange={(e) => patchNode(node.id, { fontSize: Number(e.target.value) }, false)}
+                    onMouseUp={() => patchNode(node.id, {}, true)}
+                  />
+                </Row>
+              )}
               {node.type === "coffeeOutlet" && (
                 <>
                   <Row label={t("出液口")}>

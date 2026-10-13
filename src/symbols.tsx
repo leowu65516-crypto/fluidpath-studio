@@ -1114,7 +1114,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
     }
     case "label":
       return (
-        <text x={w / 2} y={h / 2 + 5} textAnchor="middle" fontSize={16} fill={node.stroke} fontFamily="system-ui, sans-serif" fontWeight={500}>
+        <text x={w / 2} y={h / 2 + (node.fontSize ?? 16) * 0.32} textAnchor="middle" fontSize={node.fontSize ?? 16} fill={node.stroke} fontFamily="system-ui, sans-serif" fontWeight={500}>
           {node.label}
         </text>
       );
@@ -1137,7 +1137,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <rect x={2} y={2} width={w - 4} height={h - 4} rx={8} fill={fill} stroke={stroke} strokeWidth={1.8} />
           {/* 折角标记 */}
           <path d={`M ${w - 18} 2 L ${w - 2} ${18} L ${w - 2} ${h - 4} Q ${w - 2} ${h - 2} ${w - 4} ${h - 2} L ${w - 18} ${h - 2} Z`} stroke="none" fill={stroke} opacity={0.06} />
-          <text x={w / 2} y={h / 2 + 5} textAnchor="middle" fontSize={14} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={500} pointerEvents="none">
+          <text x={w / 2} y={h / 2 + (node.fontSize ?? 14) * 0.32} textAnchor="middle" fontSize={node.fontSize ?? 14} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={500} pointerEvents="none">
             {node.label}
           </text>
         </g>

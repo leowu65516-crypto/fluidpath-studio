@@ -6,11 +6,11 @@
  * - 删除
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, act } from "@testing-library/react";
+import { render, act, fireEvent } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
 import { ScenarioPanel } from "../components/ScenarioPanel";
-import { loadDiagram, store, enterScenario, setScenarioStep, saveScenarioOverridesToStep, createCustomScenarioFromConditions, saveWorkCondition, overrideScenarioNode } from "../store";
+import { loadDiagram, store, enterScenario, setScenarioStep, saveScenarioOverridesToStep, createCustomScenarioFromConditions, saveWorkCondition, overrideScenarioNode, updateCustomScenario, renameWorkCondition } from "../store";
 import { availableScenariosForDiagram, getScenario } from "../scenarios";
 import bcmtsRaw from "../../BCMTS.json";
 
@@ -137,5 +137,48 @@ describe("自定义演示场景", () => {
     expect(view.container.textContent).toContain("上一步");
     expect(view.container.textContent).toContain("下一步");
     expect(view.container.textContent).not.toContain("选择一个场景");
+  });
+
+  it("自定义演示可重命名、增删替换重排步骤，步骤仍引用完整工况", () => {
+    store.get().diagram.pipes[0].fluidType = "coldWater";
+    store.get().diagram.pipes[0].teachingOverride = "flow";
+    act(() => { saveWorkCondition("A"); });
+    store.get().diagram.pipes[0].fluidType = "hotWater";
+    store.get().diagram.pipes[0].teachingOverride = "stop";
+    act(() => { saveWorkCondition("B"); });
+    let id: string | null = null;
+    act(() => { id = createCustomScenarioFromConditions(["A", "B"], "zh", "旧名称"); });
+    act(() => {
+      expect(updateCustomScenario(id!, "冲煮与清洗", [
+        { conditionName: "B", title: "先清洗" },
+        { conditionName: "A", title: "再冲煮" },
+        { conditionName: "B", title: "再次清洗" },
+      ], "zh")).toBe(true);
+    });
+    const scene = getScenario(id!, store.get().diagram)!;
+    expect(scene.title).toBe("冲煮与清洗");
+    expect(scene.steps.map((step) => step.conditionName)).toEqual(["B", "A", "B"]);
+    expect(scene.steps.map((step) => step.title)).toEqual(["先清洗", "再冲煮", "再次清洗"]);
+    act(() => { enterScenario(id!, 1); });
+    expect(store.get().diagram.pipes[0]).toMatchObject({ fluidType: "coldWater", teachingOverride: "flow" });
+    act(() => { setScenarioStep(0); });
+    expect(store.get().diagram.pipes[0]).toMatchObject({ fluidType: "hotWater", teachingOverride: "stop" });
+    act(() => { renameWorkCondition("B", "清洗B"); });
+    expect(getScenario(id!, store.get().diagram)?.steps.filter((step) => step.conditionName === "清洗B")).toHaveLength(2);
+  });
+
+  it("面板可进入编辑器并增加步骤", () => {
+    act(() => { saveWorkCondition("A"); });
+    act(() => { saveWorkCondition("B"); });
+    let id: string | null = null;
+    act(() => { id = createCustomScenarioFromConditions(["A", "B"], "zh", "可编辑演示"); });
+    const view = render(<LangProvider><ScenarioPanel onClose={() => undefined} /></LangProvider>);
+    const edit = view.container.querySelector('[title="编辑步骤"]')!;
+    act(() => { fireEvent.click(edit); });
+    expect(view.container.textContent).toContain("编辑自定义演示");
+    expect(view.container.querySelectorAll(".scenario-edit-step")).toHaveLength(2);
+    act(() => { fireEvent.click(view.container.querySelector(".scenario-add-step")!); });
+    expect(view.container.querySelectorAll(".scenario-edit-step")).toHaveLength(3);
+    expect(getScenario(id!, store.get().diagram)?.title).toBe("可编辑演示");
   });
 });

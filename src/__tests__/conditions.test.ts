@@ -120,4 +120,57 @@ describe("工况快照扩展：管路介质以当前设置为准", () => {
     expect(blinkIds).toContain(store_diagram().pipes[0].id);
     deleteWorkCondition("甲");
   });
+
+  it("完整快照恢复教学显示覆盖、工程状态、元器件属性与画布显示设置", () => {
+    loadDiagram(toDiagram(bcmtsRaw));
+    const before = store_diagram();
+    const pump = before.nodes.find((node) => node.type === "pump")!;
+    const pipe = before.pipes[0];
+    pump.label = "工况 A 泵";
+    pump.displayDisabled = true;
+    pipe.fluidType = "coldWater";
+    pipe.fluidColor = "#2f7fd6";
+    pipe.teachingOverride = "flow";
+    pipe.disabled = false;
+    before.settings.showPipeLabels = true;
+    before.settings.showFluidColors = true;
+    saveWorkCondition("完整A");
+
+    const changed = store_diagram();
+    changed.nodes.find((node) => node.id === pump.id)!.label = "已修改";
+    changed.nodes.find((node) => node.id === pump.id)!.displayDisabled = false;
+    changed.pipes[0].fluidType = "hotWater";
+    changed.pipes[0].fluidColor = "#e8890c";
+    changed.pipes[0].teachingOverride = "stop";
+    changed.pipes[0].disabled = true;
+    changed.settings.showPipeLabels = false;
+    changed.settings.showFluidColors = false;
+
+    applyWorkCondition("完整A");
+    const restored = store_diagram();
+    expect(restored.nodes.find((node) => node.id === pump.id)?.label).toBe("工况 A 泵");
+    expect(restored.nodes.find((node) => node.id === pump.id)?.displayDisabled).toBe(true);
+    expect(restored.pipes[0]).toMatchObject({ fluidType: "coldWater", fluidColor: "#2f7fd6", teachingOverride: "flow", disabled: false });
+    expect(restored.settings.showPipeLabels).toBe(true);
+    expect(restored.settings.showFluidColors).toBe(true);
+    expect(restored.settings.workConditions?.find((condition) => condition.name === "完整A")?.pipeProperties?.[pipe.id]?.teachingOverride).toBe("flow");
+    deleteWorkCondition("完整A");
+  });
+
+  it("完整工况不会删除之后新增的图纸对象，也不会改端口绑定", () => {
+    loadDiagram(toDiagram(bcmtsRaw));
+    saveWorkCondition("结构安全");
+    const initialPipe = store_diagram().pipes[0];
+    const originalBinding = { from: initialPipe.fromPortId, to: initialPipe.toPortId };
+    const d = store_diagram();
+    d.nodes.push({ ...d.nodes[0], id: "later-node", label: "Later" });
+    d.pipes[0].fromPortId = undefined;
+    d.pipes[0].fromPoint = { x: 999, y: 999 };
+    applyWorkCondition("结构安全");
+    expect(store_diagram().nodes.some((node) => node.id === "later-node")).toBe(true);
+    expect(store_diagram().pipes[0].fromPortId).toBeUndefined();
+    expect(originalBinding.from).toBeTruthy();
+    expect(store_diagram().pipes[0].toPortId).toBe(originalBinding.to);
+    deleteWorkCondition("结构安全");
+  });
 });

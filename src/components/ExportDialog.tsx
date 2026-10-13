@@ -440,6 +440,36 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     onClose();
   };
 
+  const gifFrames = Math.max(8, Math.round(2000 / Math.max(20, opts.gifFrameDelay)));
+  const gifFps = Math.round(1000 / Math.max(20, opts.gifFrameDelay));
+  const gifControls = (
+    <div className="gif-controls">
+      <div className="gif-summary" aria-live="polite">
+        <span>{t("循环时长")}</span>
+        <strong>{t("2 秒")}</strong>
+        <span>{gifFrames} {t("帧")} · {gifFps} fps</span>
+      </div>
+      <div className="exp-row">
+        <label>{t("播放速度")}</label>
+        <div className="seg gif-speed-seg">
+          {([
+            [100, t("慢")],
+            [66, t("标准")],
+            [40, t("快")],
+          ] as Array<[number, string]>).map(([delay, label]) => (
+            <button key={delay} className={opts.gifFrameDelay === delay ? "on" : ""} onClick={() => patch({ gifFrameDelay: delay })}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="exp-row">
+        <label>{t("逐帧间隔")}</label>
+        <input aria-label={t("逐帧间隔")} type="range" min={30} max={200} step={5} value={opts.gifFrameDelay} onChange={(e) => patch({ gifFrameDelay: Number(e.target.value) })} />
+        <span className="exp-val">{opts.gifFrameDelay}ms</span>
+      </div>
+      <div className="exp-tip">{t("GIF 固定为 2 秒无缝循环；速度只改变帧数与导出时间，不修改图纸。")}</div>
+    </div>
+  );
+
   const fmtBtn = (f: Fmt, label: string) => (
     <button key={f} className={`exp-fmt${format === f ? " on" : ""}`} onClick={() => setFormat(f)}>{label}</button>
   );
@@ -560,6 +590,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                 </div>
               </>
             ), "canvas")}
+            {format === "gif" && group("GIF", gifControls, "gif")}
             {group(t("文字与状态"), (
               <>
                 <label className="exp-row"><span>{t("包含故障高亮")}</span><input type="checkbox" checked={!!opts.includeDiagnostics} onChange={e => patch({ includeDiagnostics: e.target.checked })} /></label>
@@ -652,16 +683,6 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                 {quizSaved && <div className="exp-note">✓ {t("已写回图纸")}</div>}
               </>
             ), "textlayer")}
-            {format === "gif" && group("GIF", (
-              <>
-                <div className="exp-row">
-                  <label>{t("帧间隔")}</label>
-                  <input type="range" min={30} max={200} step={5} value={opts.gifFrameDelay} onChange={(e) => patch({ gifFrameDelay: Number(e.target.value) })} />
-                  <span className="exp-val">{opts.gifFrameDelay}ms</span>
-                </div>
-                <div className="exp-tip">{t("帧间隔越小动画越快；总时长固定 2 秒无缝循环。")}</div>
-              </>
-            ), "gif")}
             {group(t("输出"), (
               <>
                 <div className="exp-row">

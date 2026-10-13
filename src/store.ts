@@ -11,14 +11,28 @@ import type {
   Pt,
   Selection,
   ShapeVariant,
-  ValidationCase
+  ValidationCase,
+  WorkCondition,
+  SceneScenario,
+  SceneScenarioStep,
+  SceneValveAction,
 } from "./types";
 import { createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagram, createMilkFoamDiagram, createCommercialMachineDiagram, createDemoMachineDiagram, createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "./sample";
 import { createNode } from "./symbols";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { connectionErrorMessage, validatePipeConnection } from "./connection";
 import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsToPreset, type ValveAction } from "./scenarios";
-import { snapshotStates, applyStates, diffStateIds, snapshotPipeStates, applyPipeStates, diffPipeStateIds, type PresetState } from "./presets";
+import {
+  snapshotStates,
+  applyStates,
+  diffStateIds,
+  snapshotPipeStates,
+  diffPipeStateIds,
+  snapshotWorkCondition,
+  applyWorkConditionSnapshot,
+  diffPropertyIds,
+  type PresetState,
+} from "./presets";
 import { toast } from "./toast";
 import type { FixAction } from "./advice";
 import { resetDiagnosticSession, syncDiagnosticDiagram } from "./fault-codes/session";
@@ -344,6 +358,16 @@ function expandScenarioNodes(diagram: Diagram, seeds: Set<string>): Set<string> 
 export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuild?: boolean }) {
   const scenario = getScenario(scenarioId, state.diagram);
   if (!scenario) return;
+  // v1.30 自定义演示还没有 conditionName；标题与现有工况同名时安全推断引用，
+  // 让已有 “A → B → C” 演示也能直接获得完整工况恢复能力。
+  const rawConditionName = scenario.custom ? scenario.steps[stepIndex]?.conditionName : undefined;
+  const legacyConditionName = scenario.custom && !rawConditionName
+    ? scenario.steps[stepIndex]?.title
+    : undefined;
+  const conditionName = rawConditionName ?? legacyConditionName;
+  const condition = conditionName
+    ? state.diagram.settings.workConditions?.find((item) => item.name === conditionName)
+    : undefined;
   const resolved = resolveScenarioRoles(state.diagram).nodes;
   const nodeIds = new Set(state.diagram.nodes.map((n) => n.id));
   const { activeNodes, valves } = collectScenarioState(scenario, stepIndex, resolved, nodeIds);
@@ -368,7 +392,10 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
         else if (n.type === "solenoid3") n.valvePath = "off";
       }
     }
-    applyStates(d, valveActionsToPreset(valves));
+    // 自定义演示步骤优先应用所引用的完整工况：介质、教学显示覆盖、画布显示
+    // 和泵阀状态同一时刻还原。内置场景仍沿用原来的阀动作语义。
+    if (condition) applyWorkConditionSnapshot(d, condition);
+    else applyStates(d, valveActionsToPreset(valves));
     // 已保存的微调（settings.scenarioOverrides）：「从此步生效」——应用 step <= 当前的全部覆盖，按步升序
     const savedAll = d.settings.scenarioOverrides?.[scenarioId] ?? {};
     const savedSteps = Object.keys(savedAll).map(Number).filter((n) => Number.isFinite(n) && n <= stepIndex).sort((a, b) => a - b);
@@ -432,11 +459,13 @@ export function setScenarioStep(stepIndex: number) {
   enterScenario(sc.scenarioId, stepIndex, { rebuild: true });
 }
 
-/** 从快照恢复图纸：保留演示期间保存的 scenarioOverrides（否则会被旧快照吞掉） */
+/** 从快照恢复图纸：保留演示期间新保存的教学数据，不能被进入演示时的旧快照吞掉。 */
 function restoreSnapshotDiagram(): Diagram {
-  const cur = state.diagram.settings.scenarioOverrides;
+  const current = state.diagram.settings;
   const d = structuredClone(scenarioSnapshot!);
-  if (cur) d.settings.scenarioOverrides = cur;
+  if (current.scenarioOverrides) d.settings.scenarioOverrides = current.scenarioOverrides;
+  if (current.workConditions) d.settings.workConditions = current.workConditions;
+  if (current.customScenarios) d.settings.customScenarios = current.customScenarios;
   return d;
 }
 
@@ -460,48 +489,59 @@ export function exitScenario() {
 
 export type WorkConditionState = PresetState;
 
-/** 保存当前全部泵/阀状态 + 管路介质为命名的工况（以当前设置为准） */
+/**
+ * 保存当前工况：记录所有现有元器件/管路的可编辑属性、教学覆盖和显示设置。
+ * 它不记录端口绑定或对象增删，避免旧工况覆盖之后新增的图纸结构。
+ */
 export function saveWorkCondition(name: string) {
-  const d = state.diagram;
-  const state2 = snapshotStates(d);
-  const pipes2 = snapshotPipeStates(d);
+  const snapshot = snapshotWorkCondition(state.diagram);
   updateDiagram((draft) => {
     const list = draft.settings.workConditions ?? [];
     const idx = list.findIndex((c) => c.name === name);
-    if (idx >= 0) list[idx] = { name, state: state2, pipes: pipes2 };
-    else list.push({ name, state: state2, pipes: pipes2 });
+    const condition: WorkCondition = { name, ...snapshot };
+    if (idx >= 0) list[idx] = condition;
+    else list.push(condition);
     draft.settings.workConditions = list;
+    syncCustomScenarioCondition(draft, name);
   });
 }
 
-/** 应用工况：恢复该工况记录的泵/阀状态与管路介质（进入撤销历史，可 Ctrl+Z） */
+/** 应用工况：恢复完整非拓扑状态（进入撤销历史，可 Ctrl+Z）。 */
 export function applyWorkCondition(name: string) {
   const cond = state.diagram.settings.workConditions?.find((c) => c.name === name);
   if (!cond) return;
   const prev = snapshotStates(state.diagram);
   const prevPipes = snapshotPipeStates(state.diagram);
+  const prevFull = snapshotWorkCondition(state.diagram);
   updateDiagram((d) => {
-    applyStates(d, cond.state);
-    if (cond.pipes) applyPipeStates(d, cond.pipes);
+    applyWorkConditionSnapshot(d, cond);
   });
   // 差异对比：只高亮本次切换发生变化的元件/管路，并给出变化摘要
   const changed = diffStateIds(prev, cond.state);
   const changedPipes = cond.pipes ? diffPipeStateIds(prevPipes, cond.pipes) : [];
+  const changedComponents = cond.componentProperties
+    ? diffPropertyIds(prevFull.componentProperties ?? {}, cond.componentProperties)
+    : [];
+  const changedPipeProperties = cond.pipeProperties
+    ? diffPropertyIds(prevFull.pipeProperties ?? {}, cond.pipeProperties)
+    : [];
+  const allChangedNodes = [...new Set([...changed, ...changedComponents])];
+  const allChangedPipes = [...new Set([...changedPipes, ...changedPipeProperties])];
   const lang = sysLang();
-  if (changed.length === 0 && changedPipes.length === 0) {
-    toast(L(lang, `「${name}」与当前开关状态一致，没有变化`, `"${name}" matches the current switches — no change`));
+  if (allChangedNodes.length === 0 && allChangedPipes.length === 0) {
+    toast(L(lang, `「${name}」与当前工况一致，没有变化`, `"${name}" matches the current condition — no change`));
     return;
   }
-  blinkElements([...changed, ...changedPipes]);
+  blinkElements([...allChangedNodes, ...allChangedPipes]);
   const byId = new Map(state.diagram.nodes.map((n) => [n.id, n.label || n.type]));
-  const sample = changed.slice(0, 3).map((id) => byId.get(id)).filter(Boolean).join("、");
+  const sample = allChangedNodes.slice(0, 3).map((id) => byId.get(id)).filter(Boolean).join("、");
   const parts: string[] = [];
-  if (changed.length) parts.push(L(lang, `${changed.length} 个开关`, `${changed.length} switch(es)`));
-  if (changedPipes.length) parts.push(L(lang, `${changedPipes.length} 条管路介质`, `${changedPipes.length} pipe fluid(s)`));
-  const detail = changed.length ? `（${sample}${changed.length > 3 ? "…" : ""}）` : "";
+  if (allChangedNodes.length) parts.push(L(lang, `${allChangedNodes.length} 个元器件`, `${allChangedNodes.length} component(s)`));
+  if (allChangedPipes.length) parts.push(L(lang, `${allChangedPipes.length} 条管路`, `${allChangedPipes.length} pipe(s)`));
+  const detail = allChangedNodes.length ? `（${sample}${allChangedNodes.length > 3 ? "…" : ""}）` : "";
   toast(L(
     lang,
-    `已切换到「${name}」：${parts.join("、")} 变化${detail}，橙色高亮即改动处`,
+    `已切换到「${name}」：${parts.join("、")}变化${detail}，橙色高亮即改动处`,
     `Switched to "${name}": ${parts.join(", ")} changed${detail}; orange highlights mark the changes`
   ));
 }
@@ -517,6 +557,12 @@ export function renameWorkCondition(oldName: string, newName: string): boolean {
     const c = list.find((x) => x.name === oldName);
     if (!c) return;
     c.name = nn;
+    for (const scene of d.settings.customScenarios ?? []) {
+      if (!scene.custom) continue;
+      scene.steps = scene.steps.map((step) => step.conditionName === oldName
+        ? { ...step, conditionName: nn, title: step.title === oldName ? nn : step.title, desc: step.desc.includes(oldName) ? customConditionDescription(nn, sysLang()) : step.desc }
+        : step);
+    }
     ok = true;
   });
   return ok;
@@ -526,10 +572,17 @@ export function renameWorkCondition(oldName: string, newName: string): boolean {
 export function deleteWorkCondition(name: string) {
   updateDiagram((d) => {
     d.settings.workConditions = (d.settings.workConditions ?? []).filter((c) => c.name !== name);
+    const remaining = [];
+    for (const scene of d.settings.customScenarios ?? []) {
+      if (!scene.custom) { remaining.push(scene); continue; }
+      const steps = scene.steps.filter((step) => step.conditionName !== name);
+      if (steps.length > 0) remaining.push({ ...scene, steps, allNodes: customScenarioNodeIds(steps) });
+    }
+    d.settings.customScenarios = remaining;
   });
 }
 
-export function listWorkConditions(): Array<{ name: string; state: Record<string, WorkConditionState> }> {
+export function listWorkConditions(): WorkCondition[] {
   return state.diagram.settings.workConditions ?? [];
 }
 
@@ -625,46 +678,116 @@ export function clearSavedScenarioStep(stepIndex: number) {
   enterScenario(sc.scenarioId, sc.stepIndex);
 }
 
-/** 从工况创建自定义演示场景：每个工况一步，按传入顺序编排 */
-export function createCustomScenarioFromConditions(names: string[], lang: "zh" | "en" = "zh"): string | null {
-  const conds = state.diagram.settings.workConditions ?? [];
-  const steps = [];
-  const allNodes = new Set<string>();
-  for (const name of names) {
-    const cond = conds.find((c) => c.name === name);
-    if (!cond) continue;
-    // 种子 = 该工况中「显式激活」的元件（泵开/阀开/三通 A·B）
-    const seeds = Object.entries(cond.state)
-      .filter(([, st]) => st.pumpOn === true || st.valveState === "open" || (st.valvePath && st.valvePath !== "off"))
-      .map(([nodeId]) => nodeId);
-    seeds.forEach((id) => allNodes.add(id));
-    const valves: Record<string, import("./types").SceneValveAction> = {};
-    for (const [nodeId, st] of Object.entries(cond.state)) {
-      if (st.pumpOn !== undefined) valves[nodeId] = st.pumpOn ? "pump-run" : "pump-stop";
-      else if (st.valveState !== undefined) valves[nodeId] = st.valveState;
-      else if (st.valvePath !== undefined) valves[nodeId] = st.valvePath;
-    }
-    steps.push({
-      title: name,
-      desc: lang === "zh" ? `一键应用工况「${name}」的阀位组合（自定义演示步骤）` : `Apply condition "${name}" (custom demo step)`,
-      addNodes: seeds,
-      valves,
-    });
+export interface CustomScenarioStepInput {
+  conditionName: string;
+  /** 可选的讲述标题；未传入时默认跟随工况名称。 */
+  title?: string;
+}
+
+function customConditionDescription(name: string, lang: "zh" | "en") {
+  return lang === "zh"
+    ? `应用工况「${name}」保存的完整状态（含介质与教学显示）`
+    : `Apply the full saved state of condition "${name}" (including fluids and teaching display)`;
+}
+
+function customStepFromCondition(condition: WorkCondition, lang: "zh" | "en", title?: string): SceneScenarioStep {
+  // 种子只是用于讲解高亮；真正进入步骤时通过 conditionName 应用完整快照。
+  const seeds = Object.entries(condition.state)
+    .filter(([, state]) => state.pumpOn === true || state.valveState === "open" || (state.valvePath && state.valvePath !== "off"))
+    .map(([nodeId]) => nodeId);
+  const valves: Record<string, SceneValveAction> = {};
+  for (const [nodeId, state] of Object.entries(condition.state)) {
+    if (state.pumpOn !== undefined) valves[nodeId] = state.pumpOn ? "pump-run" : "pump-stop";
+    else if (state.valveState !== undefined) valves[nodeId] = state.valveState;
+    else if (state.valvePath !== undefined) valves[nodeId] = state.valvePath;
   }
+  return {
+    title: title?.trim() || condition.name,
+    desc: customConditionDescription(condition.name, lang),
+    conditionName: condition.name,
+    addNodes: seeds,
+    valves,
+  };
+}
+
+function customScenarioNodeIds(steps: SceneScenarioStep[]): string[] {
+  return [...new Set(steps.flatMap((step) => step.addNodes ?? []))];
+}
+
+/** 在工况覆盖保存后同步自定义步骤的高亮种子和阀摘要；完整快照始终按名称实时读取。 */
+function syncCustomScenarioCondition(diagram: Diagram, name: string) {
+  const condition = diagram.settings.workConditions?.find((item) => item.name === name);
+  if (!condition) return;
+  const lang = sysLang();
+  for (const scene of diagram.settings.customScenarios ?? []) {
+    if (!scene.custom) continue;
+    let changed = false;
+    scene.steps = scene.steps.map((step) => {
+      if (step.conditionName !== name) return step;
+      changed = true;
+      const refreshed = customStepFromCondition(condition, lang, step.title);
+      return { ...step, ...refreshed, title: step.title || refreshed.title };
+    });
+    if (changed) scene.allNodes = customScenarioNodeIds(scene.steps);
+  }
+}
+
+/** 从工况创建自定义演示场景：每步是一个“工况引用”，后续可增删替换重排。 */
+export function createCustomScenarioFromConditions(names: string[], lang: "zh" | "en" = "zh", title?: string): string | null {
+  const conditions = state.diagram.settings.workConditions ?? [];
+  const steps = names
+    .map((name) => conditions.find((condition) => condition.name === name))
+    .filter((condition): condition is WorkCondition => Boolean(condition))
+    .map((condition) => customStepFromCondition(condition, lang));
   if (steps.length === 0) return null;
-  const scene: import("./types").SceneScenario = {
+  const scene: SceneScenario = {
     id: uid("scn"),
-    title: names.join(" → ").slice(0, 60) || (lang === "zh" ? "自定义演示" : "Custom demo"),
+    title: title?.trim() || names.join(" → ").slice(0, 60) || (lang === "zh" ? "自定义演示" : "Custom demo"),
     icon: "⭐",
-    allNodes: [...allNodes],
+    allNodes: customScenarioNodeIds(steps),
     steps,
     custom: true,
     createdAt: new Date().toISOString(),
   };
-  updateDiagram((d) => {
-    d.settings.customScenarios = [...(d.settings.customScenarios ?? []), scene];
+  updateDiagram((diagram) => {
+    diagram.settings.customScenarios = [...(diagram.settings.customScenarios ?? []), scene];
   });
   return scene.id;
+}
+
+/** 保存自定义演示的名称和步骤编排；步骤可引用同一工况多次。 */
+export function updateCustomScenario(
+  id: string,
+  title: string,
+  draftSteps: CustomScenarioStepInput[],
+  lang: "zh" | "en" = "zh",
+): boolean {
+  const cleanTitle = title.trim();
+  if (!cleanTitle || draftSteps.length === 0) return false;
+  let changed = false;
+  updateDiagram((diagram) => {
+    const conditions = diagram.settings.workConditions ?? [];
+    const steps = draftSteps
+      .map((draft) => {
+        const condition = conditions.find((item) => item.name === draft.conditionName);
+        return condition ? customStepFromCondition(condition, lang, draft.title) : null;
+      })
+      .filter((step): step is SceneScenarioStep => Boolean(step));
+    if (steps.length === 0) return;
+    const scenes = diagram.settings.customScenarios ?? [];
+    const index = scenes.findIndex((scene) => scene.id === id && scene.custom);
+    if (index < 0) return;
+    scenes[index] = { ...scenes[index], title: cleanTitle, steps, allNodes: customScenarioNodeIds(steps) };
+    diagram.settings.customScenarios = scenes;
+    // 步骤序号可能已变，旧的“保存到本步”覆盖不能继续误套用。
+    if (diagram.settings.scenarioOverrides?.[id]) {
+      const overrides = { ...diagram.settings.scenarioOverrides };
+      delete overrides[id];
+      diagram.settings.scenarioOverrides = overrides;
+    }
+    changed = true;
+  });
+  return changed;
 }
 
 /** 删除自定义演示场景 */

@@ -5,8 +5,8 @@ import { useT } from "../i18n";
 import { toast } from "../toast";
 
 /**
- * 工况面板：把当前阀门/泵开关存成「方案」，之后一键切换对比。
- * 面向教学：① 摆好开关 ② 输入名字点「记住」 ③ 点方案里的「恢复」变回。
+ * 工况面板：把当前完整教学状态存成方案，之后一键切换对比。
+ * 面向教学：① 调整当前状态 ② 输入名字点“记住” ③ 点方案里的“恢复”变回。
  * 保存后想干嘛，面板里直接写清楚。
  */
 export function ConditionPanel({ onClose }: { onClose: () => void }) {
@@ -20,28 +20,28 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
     if (!name.trim()) return;
     saveWorkCondition(name.trim());
     setName("");
-    toast(t("已记住「{name}」这套开关 —— 点方案旁的「▶ 恢复」即可变回").replace("{name}", name.trim()));
+    toast(t("已保存「{name}」完整工况 —— 点方案旁的“恢复”即可变回").replace("{name}", name.trim()));
   }
 
   function apply(n: string) {
     applyWorkCondition(n);
-    toast(t("已恢复到「{name}」的开关状态 —— 打开「回路诊断」看出口流/停").replace("{name}", n));
+    toast(t("已恢复「{name}」的完整工况 —— 打开“回路诊断”查看工程流/停").replace("{name}", n));
   }
 
   return (
     <div className="cond-panel" data-ui="1">
       <div className="cond-panel-head">
-        <h3>💾 {t("工况 · 开关方案")}</h3>
+        <h3>💾 {t("工况 · 完整状态")}</h3>
         <button className="cond-panel-close" onClick={onClose}>✕</button>
       </div>
 
       <div className="cond-help">
-        {t("把图上所有")}<b>{t("阀门 / 泵的「开/关」状态记下来，起个名")}</b>。
-        {t("以后想回到这套状态，点「恢复」就全变回来。不是文件，就存在这张图里。")}
+        {t("把当前图纸的")}<b>{t("泵阀、介质、工程状态、教学显示覆盖和画布显示设置记下来，起个名")}</b>。
+        {t("以后想回到这套状态，点“恢复”就全部还原。工况不会改变新增/删除对象或端口连接。")}
       </div>
 
       <div className="cond-steps">
-        <b>{t("① 在图上摆好开关")}</b> → <b>{t("② 下面起名点「记住」")}</b> → <b>{t("③ 点方案里的「恢复」")}</b>
+        <b>{t("① 调好当前状态")}</b> → <b>{t("② 下面起名点“记住”")}</b> → <b>{t("③ 点方案里的“恢复”")}</b>
       </div>
 
       <div className="cond-save-row">
@@ -54,9 +54,9 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
         <button className="cond-save-btn" onClick={save}>💾 {t("记住")}</button>
       </div>
 
-      <div className="cond-list-title">{t("已记住的开关方案")}（{list.length}）</div>
+      <div className="cond-list-title">{t("已保存工况")}（{list.length}）</div>
       {list.length === 0 ? (
-        <div className="cond-empty">{t("还没有方案 —— 先在图上摆好开关，再在上面起名点「记住」。")}</div>
+        <div className="cond-empty">{t("还没有工况 —— 先调好图纸状态，再在上面起名点“记住”。")}</div>
       ) : (
         <div className="cond-list">
           {list.map((c) => (
@@ -85,7 +85,7 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
       )}
 
       <div className="cond-note">
-        <b>{t("保存之后怎么做：")}</b>{t("方案会出现在上面的列表里。之后把图上开关拨乱了，就点这个方案的「▶ 恢复」一键变回；再打开「回路诊断」能直接看各出口流/停。")}
+        <b>{t("保存之后怎么做：")}</b>{t("工况会出现在上面的列表里，也可在“演示”里被编排成步骤。之后改乱了状态，点“恢复”就一键变回；再打开“回路诊断”能直接查看各出口流/停。")}
       </div>
     </div>
   );

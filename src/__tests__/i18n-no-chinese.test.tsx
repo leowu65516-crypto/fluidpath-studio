@@ -18,6 +18,8 @@ import { ContextMenu } from "../components/ContextMenu";
 import { ExportDialog } from "../components/ExportDialog";
 import { ShortcutsPanel } from "../components/ShortcutsPanel";
 import { ShortcutSettings } from "../components/ShortcutSettings";
+import { ScenarioPanel } from "../components/ScenarioPanel";
+import { ConditionPanel } from "../components/ConditionPanel";
 import { loadDiagram, selectNode, store } from "../store";
 import { createNode } from "../symbols";
 import { knowledgeOf } from "../knowledge";
@@ -141,6 +143,19 @@ describe("英文模式主要面板无中文残留", () => {
     shortcuts.unmount();
     const settings = renderEn(<ShortcutSettings onClose={() => undefined} />);
     expectNoChinese(settings.container, "ShortcutSettings");
+  });
+
+  it("Library quick content + ConditionPanel + ScenarioPanel 英文无中文", () => {
+    const d = enMiniDiagram();
+    loadDiagram(d);
+    const library = renderEn(<Library />);
+    expectNoChinese(library.container, "Library quick content");
+    library.unmount();
+    const condition = renderEn(<ConditionPanel onClose={() => undefined} />);
+    expectNoChinese(condition.container, "ConditionPanel");
+    condition.unmount();
+    const scenario = renderEn(<ScenarioPanel onClose={() => undefined} />);
+    expectNoChinese(scenario.container, "ScenarioPanel");
   });
 
   it("知识库英文条目无中文", () => {

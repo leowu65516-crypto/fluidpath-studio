@@ -212,4 +212,22 @@ describe("ExportDialog 组件", () => {
     expect(container.textContent).toContain("自定义文字");
     cleanup();
   });
+
+  it("GIF 面板提供速度预设、帧数摘要与精细间隔", async () => {
+    const { render, cleanup } = await import("@testing-library/react");
+    const { LangProvider } = await import("../i18n");
+    const { ExportDialog } = await import("../components/ExportDialog");
+    const { loadDiagram } = await import("../store");
+    const { act } = await import("@testing-library/react");
+    try { localStorage.setItem("fluidpath.lang", "zh"); } catch { /* ignore */ }
+    const d = bcmts();
+    act(() => { loadDiagram(d); });
+    const svg = makeSvgEl(d);
+    const { container } = render(<LangProvider><ExportDialog svgRef={{ current: svg }} initialFormat="gif" onClose={() => undefined} /></LangProvider>);
+    expect(container.textContent).toContain("播放速度");
+    expect(container.textContent).toContain("逐帧间隔");
+    expect(container.textContent).toContain("循环时长");
+    expect(container.querySelectorAll(".gif-speed-seg button")).toHaveLength(3);
+    cleanup();
+  });
 });

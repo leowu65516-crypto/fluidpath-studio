@@ -143,11 +143,103 @@ app.whenReady().then(async () => {
   const screenshot = await win.webContents.capturePage();
   fs.writeFileSync("/tmp/fluidpath-mode-en-512.png", screenshot.toPNG());
 
+  // v1.31 real desktop flow: save conditions, compose a custom demo, edit its steps,
+  // then open the GIF panel. This exercises the same renderer bundle as the DMG.
+  win.setBounds({ width: 1200, height: 800 });
+  const scenarioEditorUi = await win.webContents.executeJavaScript(`
+    (() => {
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const setValue = (input, value) => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        setter?.call(input, value);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      const buttonWith = (text) => [...document.querySelectorAll('button')].find((button) => button.textContent.includes(text));
+      document.querySelector('.tb-row').scrollLeft = 0;
+      const language = document.querySelector('[data-testid="lang-toggle"]');
+      if (language?.textContent?.trim() === '中') language.click();
+      return sleep(80).then(() => {
+        const conditionButton = [...document.querySelectorAll('.toolbar button')].find((button) => button.title.includes('工况：') || button.textContent.trim() === '工况');
+        if (!conditionButton) return { found: false, reason: 'condition button' };
+        conditionButton.click();
+        return sleep(80);
+      }).then((precondition) => {
+        if (precondition?.found === false) return precondition;
+        const save = (name) => {
+          const input = document.querySelector('.cond-save-row input');
+          if (!input) return false;
+          setValue(input, name);
+          document.querySelector('.cond-save-btn')?.click();
+          return true;
+        };
+        const a = save('Smoke A');
+        const b = save('Smoke B');
+        document.querySelector('.cond-panel-close')?.click();
+        return sleep(100).then(() => {
+          const demoButton = [...document.querySelectorAll('.toolbar button')].find((button) => button.title.includes('演示/讲述模式') || button.textContent.trim() === '演示');
+          if (!a || !b || !demoButton) return { found: false, reason: 'condition save or demo button' };
+          demoButton.click();
+          return sleep(100).then(() => {
+            buttonWith('从工况新建演示')?.click();
+            return sleep(60);
+          }).then(() => {
+            document.querySelectorAll('.scenario-condition-option input').forEach((input) => input.click());
+            buttonWith('命名并创建')?.click();
+            return sleep(60);
+          }).then(() => {
+            const promptInput = document.querySelector('.prompt-dialog input');
+            if (!promptInput) return { found: false, reason: 'name dialog' };
+            setValue(promptInput, 'Smoke demo');
+            document.querySelector('.prompt-actions .btn')?.click();
+            return sleep(140).then(() => {
+              const editButton = document.querySelector('.scenario-edit-current button');
+              if (!editButton) return { found: false, reason: 'demo player' };
+              editButton.click();
+              return sleep(100).then(() => ({
+                found: true,
+                editor: !!document.querySelector('.scenario-editor'),
+                steps: document.querySelectorAll('.scenario-edit-step').length,
+                hasConditionSelects: document.querySelectorAll('.scenario-edit-step select').length,
+                hasAddStep: !!document.querySelector('.scenario-add-step'),
+              }));
+            });
+          });
+        });
+      });
+    })()
+  `);
+  const scenarioScreenshot = await win.webContents.capturePage();
+  fs.writeFileSync("/tmp/fluidpath-scenario-editor.png", scenarioScreenshot.toPNG());
+
+  const gifPanelUi = await win.webContents.executeJavaScript(`
+    (() => {
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      document.querySelector('.scenario-editor .scenario-icon-btn')?.click();
+      document.querySelector('.scenario-panel .scenario-icon-btn')?.click();
+      const exportButton = [...document.querySelectorAll('.toolbar button')].find((button) => button.title.startsWith('打开导出预览') || button.textContent.includes('导出 PNG'));
+      if (!exportButton) return Promise.resolve({ found: false, reason: 'export button' });
+      exportButton.click();
+      return sleep(100).then(() => {
+        [...document.querySelectorAll('.exp-fmt')].find((button) => button.textContent.trim() === 'GIF')?.click();
+        return sleep(80).then(() => ({
+          found: !!document.querySelector('.export-dialog'),
+          gifControls: !!document.querySelector('.gif-controls'),
+          speedButtons: document.querySelectorAll('.gif-speed-seg button').length,
+          delaySlider: !!document.querySelector('[aria-label="逐帧间隔"]'),
+        }));
+      });
+    })()
+  `);
+  const gifScreenshot = await win.webContents.capturePage();
+  fs.writeFileSync("/tmp/fluidpath-gif-panel.png", gifScreenshot.toPNG());
+
   console.log("SMOKE_RESULT " + JSON.stringify(result));
   console.log("SMOKE_HELP_MEMORY " + JSON.stringify({ firstRunHelp, helpSeen, repeatRunHelp }));
   console.log("SMOKE_FAULT_MODE " + JSON.stringify(faultMode));
   console.log("SMOKE_DIAPHRAGM_SELECTOR " + JSON.stringify(selectorUi));
   console.log("SMOKE_ENGLISH_MODES " + JSON.stringify(compactMode));
+  console.log("SMOKE_SCENARIO_EDITOR " + JSON.stringify(scenarioEditorUi));
+  console.log("SMOKE_GIF_PANEL " + JSON.stringify(gifPanelUi));
   console.log("SMOKE_CONSOLE_ERRORS " + JSON.stringify(consoleErrors));
 
   const ok = result.rootChildren > 0 && result.hasApp && result.hasCanvas
@@ -155,7 +247,9 @@ app.whenReady().then(async () => {
     && faultMode.foundModeButton && faultMode.active && faultMode.panel && faultMode.aiTopbarButtons === 0
     && selectorUi.found && selectorUi.sharedPort && selectorUi.routeA && selectorUi.routeB && selectorUi.noPositionalRoute && selectorUi.directionsLocked
     && compactMode.found && compactMode.groupVisible && compactMode.unclipped
-    && compactMode.labels.join("|") === "✏️ Edit|🎬 Demo|⚠ Fault";
+    && compactMode.labels.join("|") === "✏️ Edit|🎬 Demo|⚠ Fault"
+    && scenarioEditorUi.found && scenarioEditorUi.editor && scenarioEditorUi.steps === 2 && scenarioEditorUi.hasConditionSelects && scenarioEditorUi.hasAddStep
+    && gifPanelUi.found && gifPanelUi.gifControls && gifPanelUi.speedButtons === 3 && gifPanelUi.delaySlider;
   if (!ok) process.exitCode = 1;
   app.exit(ok ? 0 : 1);
 });

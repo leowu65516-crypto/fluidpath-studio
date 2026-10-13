@@ -254,13 +254,8 @@ export interface DiagramSettings {
   backgroundType?: "dot" | "grid" | "solid";
   /** 记录保存时的应用版本（预留：版本历史/兼容迁移用） */
   appVersion?: string;
-  /** 工况快照：命名的阀位/泵态组合 + 管路介质（以保存时的当前设置为准），一键恢复做「按工况验证」（随图纸保存/分享） */
-  workConditions?: Array<{
-    name: string;
-    state: Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>;
-    /** v1.30.7：管路介质快照（fluidType + fluidColor），切回工况时一并还原 */
-    pipes?: Record<string, { fluidType?: FluidType; fluidColor?: string }>;
-  }>;
+  /** 工况快照：命名的工程/教学显示状态；以保存时的当前设置为准，随图纸保存/分享。 */
+  workConditions?: WorkCondition[];
   /** 图纸验收工况：预设泵阀状态 + 必须流动/停止的管路，用于回归验证。 */
   validationCases?: ValidationCase[];
   /** 从哪张原图创建的编辑副本；仅用于标识，原图内容不会被覆盖。 */
@@ -275,6 +270,11 @@ export type SceneValveAction = "pump-run" | "pump-stop" | "open" | "closed" | "A
 export interface SceneScenarioStep {
   title: string;
   desc: string;
+  /**
+   * 自定义演示步骤引用的工况名称。存在时，演示进入此步会应用完整工况快照，
+   * 不只应用阀位；内置场景不使用此字段。
+   */
+  conditionName?: string;
   addNodes?: string[];
   valves?: Record<string, SceneValveAction>;
   autoAdvanceMs?: number;
@@ -296,6 +296,33 @@ export interface SceneScenario {
   /** 自定义场景标记（可删除） */
   custom?: boolean;
   createdAt?: string;
+}
+
+/**
+ * 工况恢复的是“状态与展示”，不是图纸拓扑：不会新增/删除对象，也不会改端口连接。
+ * 这样图纸之后继续编辑结构时，旧工况仍可安全切换。
+ */
+export type WorkConditionNodeProperties = Omit<DiagramNode, "id" | "type" | "ports">;
+export type WorkConditionPipeProperties = Omit<Pipe, "id" | "fromPortId" | "toPortId" | "fromPoint" | "toPoint">;
+export type WorkConditionDisplaySettings = Pick<DiagramSettings,
+  "showGrid" | "background" | "globalAnimationPlaying" | "crossoverHops" | "layers" |
+  "currentLayerId" | "snapToGrid" | "showAlignmentGuides" | "flowScale" |
+  "showFluidLabels" | "showNodeLabels" | "showPipeLabels" | "showPipeDiameters" |
+  "showFluidColors" | "nodeLabelFontSize" | "backgroundType"
+>;
+
+export interface WorkCondition {
+  name: string;
+  /** 兼容旧图纸及验收/高亮逻辑的泵阀状态摘要。 */
+  state: Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>;
+  /** v1.30.7 旧快照兼容字段：仅管路介质。 */
+  pipes?: Record<string, { fluidType?: FluidType; fluidColor?: string }>;
+  /** v1.31：所有已存在元器件的可编辑属性，含工程禁用和教学显示属性。 */
+  componentProperties?: Record<string, WorkConditionNodeProperties>;
+  /** v1.31：所有已存在管路的可编辑属性，含介质、动画和教学显示覆盖。 */
+  pipeProperties?: Record<string, WorkConditionPipeProperties>;
+  /** v1.31：画布和图层等展示设置；不含验收、模板、演示定义等元数据。 */
+  displaySettings?: Partial<WorkConditionDisplaySettings>;
 }
 
 export interface ValidationCase {

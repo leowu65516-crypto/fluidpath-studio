@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.30.9";
+export const APP_VERSION = "1.31.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.0",
+    date: "2026-10-14",
+    highlights: [
+      "工况升级为完整非拓扑快照：恢复所有已存在元器件与管路的可编辑属性、介质、工程/教学显示状态及画布显示设置；新增对象和端口连接不会被旧工况回滚",
+      "自定义演示支持命名与步骤编排：已有工况可增删、替换、重排或重复使用；每步引用完整工况，旧版按工况生成的演示可按同名工况自动兼容",
+      "元件库新增文字标签/引线标注的内容与字号快捷插入、图片插入；检查器支持文字标签和标注字号精调；GIF 导出加入速度预设、帧数/FPS摘要和精细间隔控制",
+    ],
+  },
   {
     version: "1.30.9",
     date: "2026-10-13",

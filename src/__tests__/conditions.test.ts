@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { saveWorkCondition, applyWorkCondition, deleteWorkCondition, renameWorkCondition, listWorkConditions, loadDiagram, store } from "../store";
+import { activateWorkConditionForExport, saveWorkCondition, applyWorkCondition, deleteWorkCondition, renameWorkCondition, listWorkConditions, loadDiagram, store } from "../store";
 import { parseDiagramJSON } from "../export";
 import { diffStateIds } from "../presets";
 import bcmtsRaw from "../../BCMTS.json";
@@ -172,5 +172,39 @@ describe("工况快照扩展：管路介质以当前设置为准", () => {
     expect(originalBinding.from).toBeTruthy();
     expect(store_diagram().pipes[0].toPortId).toBe(originalBinding.to);
     deleteWorkCondition("结构安全");
+  });
+
+  it("旧版工况没有教学快照时，切换会清除上一工况的教学显示覆盖", () => {
+    loadDiagram(toDiagram(bcmtsRaw));
+    const diagram = store_diagram();
+    const pipe = diagram.pipes[0];
+    pipe.teachingOverride = "flow";
+    pipe.forceFlow = true;
+    // 模拟 Smart X 等历史 JSON 中只保存 state/pipes 的工况。
+    diagram.settings.workConditions = [{
+      name: "历史工况",
+      state: {},
+      pipes: { [pipe.id]: { fluidType: pipe.fluidType, fluidColor: pipe.fluidColor } },
+    }];
+
+    applyWorkCondition("历史工况");
+    const restored = store_diagram().pipes.find((item) => item.id === pipe.id)!;
+    expect(restored.teachingOverride).toBeUndefined();
+    expect(restored.forceFlow).toBeUndefined();
+    expect(restored.forceStop).toBeUndefined();
+  });
+
+  it("GIF 导出工况预览只临时应用状态，恢复后不污染编辑图纸", () => {
+    loadDiagram(toDiagram(bcmtsRaw));
+    const pump = store_diagram().nodes.find((node) => node.type === "pump")!;
+    pump.pumpOn = true;
+    saveWorkCondition("GIF 工况");
+    store_diagram().nodes.find((node) => node.id === pump.id)!.pumpOn = false;
+
+    const restore = activateWorkConditionForExport("GIF 工况");
+    expect(store_diagram().nodes.find((node) => node.id === pump.id)?.pumpOn).toBe(true);
+    restore?.();
+    expect(store_diagram().nodes.find((node) => node.id === pump.id)?.pumpOn).toBe(false);
+    deleteWorkCondition("GIF 工况");
   });
 });

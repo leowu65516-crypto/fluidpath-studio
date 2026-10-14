@@ -343,6 +343,32 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   )}
                 </Row>
               )}
+              {node.type !== "label" && node.type !== "shape" && node.type !== "annotation" && (
+                <>
+                  <Row label={`${t("元器件文字大小")} ${node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13}px`}>
+                    <input
+                      type="range" min={8} max={32}
+                      value={node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13}
+                      onChange={(e) => patchNode(node.id, { fontSize: Number(e.target.value) }, false)}
+                      onMouseUp={() => patchNode(node.id, {}, true)}
+                    />
+                  </Row>
+                  <Row label={t("标签背景")}>
+                    <div className="insp-inline-controls">
+                      <input type="checkbox" checked={!!node.labelBackground} onChange={(e) => patchNode(node.id, { labelBackground: e.target.checked ? "#ffffff" : undefined })} />
+                      <span className="insp-static">{node.labelBackground ? t("已启用") : t("无背景")}</span>
+                    </div>
+                  </Row>
+                  {node.labelBackground && <>
+                    <Row label={t("标签背景色")}>
+                      <input type="color" value={node.labelBackground.slice(0, 7)} onChange={(e) => patchNode(node.id, { labelBackground: e.target.value })} />
+                    </Row>
+                    <Row label={`${t("背景透明度")} ${Math.round((node.labelBackgroundOpacity ?? 0.82) * 100)}%`}>
+                      <input type="range" min={0} max={100} value={Math.round((node.labelBackgroundOpacity ?? 0.82) * 100)} onChange={(e) => patchNode(node.id, { labelBackgroundOpacity: Number(e.target.value) / 100 }, false)} onMouseUp={() => patchNode(node.id, {}, true)} />
+                    </Row>
+                  </>}
+                </>
+              )}
               <Row label={t("类型")}>
                 <span className="insp-static">{nodeDisplayLabel(defOf(node.type, node.variant), lang)} ({node.type})</span>
               </Row>
@@ -372,6 +398,18 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                       onChange={(e) => patchNode(node.id, { pointerTarget: { x: node.pointerTarget?.x ?? 0, y: Number(e.target.value) || 0 } })}
                       style={{ width: 80 }}
                     />
+                  </Row>
+                  <Row label={t("引线颜色")}>
+                    <input type="color" value={(node.annotationLineColor ?? "#6b7787").slice(0, 7)} onChange={(e) => patchNode(node.id, { annotationLineColor: e.target.value })} />
+                  </Row>
+                  <Row label={`${t("引线透明度")} ${Math.round((node.annotationLineOpacity ?? 1) * 100)}%`}>
+                    <input type="range" min={0} max={100} value={Math.round((node.annotationLineOpacity ?? 1) * 100)} onChange={(e) => patchNode(node.id, { annotationLineOpacity: Number(e.target.value) / 100 }, false)} onMouseUp={() => patchNode(node.id, {}, true)} />
+                  </Row>
+                  <Row label={`${t("标注框透明度")} ${Math.round((node.annotationFillOpacity ?? 1) * 100)}%`}>
+                    <input type="range" min={0} max={100} value={Math.round((node.annotationFillOpacity ?? 1) * 100)} onChange={(e) => patchNode(node.id, { annotationFillOpacity: Number(e.target.value) / 100 }, false)} onMouseUp={() => patchNode(node.id, {}, true)} />
+                  </Row>
+                  <Row label={`${t("标注边框透明度")} ${Math.round((node.annotationStrokeOpacity ?? 1) * 100)}%`}>
+                    <input type="range" min={0} max={100} value={Math.round((node.annotationStrokeOpacity ?? 1) * 100)} onChange={(e) => patchNode(node.id, { annotationStrokeOpacity: Number(e.target.value) / 100 }, false)} onMouseUp={() => patchNode(node.id, {}, true)} />
                   </Row>
                 </>
               )}

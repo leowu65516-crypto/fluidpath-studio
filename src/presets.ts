@@ -112,8 +112,9 @@ export function diffPipeStateIds(prev: PresetPipeMap, next: PresetPipeMap): stri
 
 const NODE_PROPERTY_KEYS = [
   "label", "x", "y", "width", "height", "rotation", "fill", "stroke", "variant", "fontSize",
-  "labelOffset", "dispensing", "groupId", "exportKind", "disabled", "displayDisabled", "valveState",
+  "labelOffset", "labelBackground", "labelBackgroundOpacity", "dispensing", "groupId", "exportKind", "disabled", "displayDisabled", "valveState",
   "valvePath", "valveCommonPortId", "showStateOnDiagram", "pumpOn", "fault", "pointerTarget", "imageData", "layerId",
+  "annotationLineColor", "annotationLineOpacity", "annotationFillOpacity", "annotationStrokeOpacity",
 ] as const;
 
 const PIPE_PROPERTY_KEYS = [
@@ -191,6 +192,16 @@ export function snapshotWorkCondition(diagram: Diagram): Omit<WorkCondition, "na
 export function applyWorkConditionSnapshot(diagram: Diagram, condition: WorkCondition): void {
   applyStates(diagram, condition.state);
   if (condition.pipes) applyPipeStates(diagram, condition.pipes);
+
+  // 旧版工况没有保存教学显示覆盖。切换到这类工况时，必须回到工程显示，
+  // 否则上一工况的“显示为流动/停止”会残留并误导用户。
+  if (!condition.pipeProperties) {
+    for (const pipe of diagram.pipes) {
+      delete pipe.teachingOverride;
+      delete pipe.forceFlow;
+      delete pipe.forceStop;
+    }
+  }
 
   if (condition.componentProperties) {
     const nodes = new Map(diagram.nodes.map((node) => [node.id, node]));

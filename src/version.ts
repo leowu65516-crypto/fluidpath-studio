@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.31.0";
+export const APP_VERSION = "1.31.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.1",
+    date: "2026-10-14",
+    highlights: [
+      "快速内容导出支持分别调整标题、副标题、脚注和水印字号；导出 GIF 可直接选择已保存工况并在导出后恢复当前画面",
+      "元器件文字标签支持字号、背景色与透明度；引线标注支持引线颜色、线框及填充透明度，并避免标注文字重复显示",
+      "工况快照继续覆盖教学显示状态；补充相关回归测试，确保工况切换与导出不会污染当前编辑状态",
+    ],
+  },
   {
     version: "1.31.0",
     date: "2026-10-14",

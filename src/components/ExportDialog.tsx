@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { buildExportSVGWithOptions, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, prepareExportDiagram, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance } from "../export";
-import { updateDiagram, useAppState } from "../store";
+import { activateWorkConditionForExport, store, updateDiagram, useAppState } from "../store";
 import { useT } from "../i18n";
 import { toast } from "../toast";
 
@@ -17,6 +17,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const [format, setFormat] = useState<Fmt>(initialFormat);
   const [opts, setOpts] = useState<ExportOptions>({ ...EXPORT_DEFAULTS, format: initialFormat, lang, filename: diagram.name || "fluidpath" });
   const [progress, setProgress] = useState<number | null>(null);
+  const [gifConditionName, setGifConditionName] = useState("");
   const [quizSaved, setQuizSaved] = useState(false);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const reqIdRef = useRef(0);
@@ -46,6 +47,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   offsetsRef.current = opts.text?.offsets ?? {};
 
   const hasSelection = ui.selection.nodes.length + ui.selection.pipes.length > 0;
+  const workConditions = diagram.settings.workConditions ?? [];
   /** 画布客户端坐标 → 世界坐标（经 svg 元素尺寸与 data-world 变换反推） */
   const clientToWorld = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const svg = svgRef.current;
@@ -412,11 +414,23 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     try { localStorage.setItem("fluidpath.lastExport", format); } catch { /* ignore */ }
     if (format === "gif") {
       setProgress(0);
+      let restorePreview: (() => void) | null = null;
       try {
-        await exportGifWithOptions(svgRef.current, diagram, { ...finalOpts, selection: ui.selection }, (r) => setProgress(r));
+        let gifDiagram = diagram;
+        if (gifConditionName) {
+          restorePreview = activateWorkConditionForExport(gifConditionName);
+          if (!restorePreview) throw new Error(t("所选工况不存在"));
+          // 等待 React 将临时工况绘制进 SVG；下一步会马上复制 SVG 并恢复编辑器。
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+          gifDiagram = store.get().diagram;
+          finalOpts.filename = `${finalOpts.filename}-${gifConditionName}`;
+        }
+        await exportGifWithOptions(svgRef.current, gifDiagram, { ...finalOpts, selection: ui.selection }, (r) => setProgress(r), () => restorePreview?.());
         toast(t("GIF 已生成"));
       } catch (err) {
         toast(`${t("GIF 保存失败")}：${(err as Error).message}`, "error");
+      } finally {
+        restorePreview?.();
       }
       setProgress(null);
     } else if (format === "svg") {
@@ -450,6 +464,14 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
         <span>{gifFrames} {t("帧")} · {gifFps} fps</span>
       </div>
       <div className="exp-row">
+        <label>{t("导出工况")}</label>
+        <select aria-label={t("导出工况")} value={gifConditionName} onChange={(event) => setGifConditionName(event.target.value)}>
+          <option value="">{t("当前画面")}</option>
+          {workConditions.map((condition) => <option key={condition.name} value={condition.name}>{condition.name}</option>)}
+        </select>
+      </div>
+      {gifConditionName && <div className="exp-tip">{t("导出时临时应用该工况；GIF 开始生成后立即恢复当前编辑画面。")}</div>}
+      <div className="exp-row">
         <label>{t("播放速度")}</label>
         <div className="seg gif-speed-seg">
           {([
@@ -482,9 +504,16 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   );
 
   const textInput = (label: string, key: "title" | "subtitle" | "footnote" | "watermark", placeholder: string) => (
-    <div className="exp-row">
-      <label>{label}</label>
-      <input value={(opts[key] as string) ?? ""} placeholder={placeholder} onChange={(e) => patch({ [key]: e.target.value } as Partial<ExportOptions>)} />
+    <div className="exp-text-layer-row">
+      <div className="exp-row">
+        <label>{label}</label>
+        <input value={(opts[key] as string) ?? ""} placeholder={placeholder} onChange={(e) => patch({ [key]: e.target.value } as Partial<ExportOptions>)} />
+      </div>
+      <div className="exp-row exp-text-layer-size">
+        <label>{t("字号")}</label>
+        <input type="range" min={8} max={72} value={opts.textLayerSizes?.[key] ?? ({ title: 26, subtitle: 15, footnote: 13, watermark: 13 }[key])} onChange={(e) => patch({ textLayerSizes: { ...(opts.textLayerSizes ?? {}), [key]: Number(e.target.value) } })} />
+        <span className="exp-val">{opts.textLayerSizes?.[key] ?? ({ title: 26, subtitle: 15, footnote: 13, watermark: 13 }[key])}px</span>
+      </div>
     </div>
   );
 

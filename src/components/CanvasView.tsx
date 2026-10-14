@@ -1196,21 +1196,31 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
           )}
         </g>
         {/* 节点标签 — 永远在旋转组外，保持水平；可拖动微调位置 */}
-        {diagram.settings.showNodeLabels !== false && node.type !== "label" && node.type !== "shape" && (() => {
+        {diagram.settings.showNodeLabels !== false && node.type !== "label" && node.type !== "shape" && node.type !== "annotation" && (() => {
           const lx = node.x + node.width / 2 + (node.labelOffset?.x ?? 0);
           const ly = node.y + node.height + 18 + (node.labelOffset?.y ?? 0);
+          const fontSize = node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13;
+          const labelWidth = Math.max(34, (nodeCanvasLabel(node, lang).length * fontSize * 0.62) + 14);
+          const labelBackground = node.labelBackground;
           return (
-            <text
-              x={lx} y={ly}
-              textAnchor="middle" className="fp-node-label" fontSize={node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13} fill="var(--node-label)"
-              fontFamily="system-ui, -apple-system, sans-serif"
-              data-ui="1"
-              data-node-id={node.id}
-              data-node-kind={node.type}
-              style={{ cursor: "move" }}
-              onMouseDown={(e) => onNodeLabelMouseDown(e, node)}
-              onDoubleClick={(e) => { e.stopPropagation(); beginLabelEdit("node", node.id, lx, ly, node.label); }}
-            >{nodeCanvasLabel(node, lang)}</text>
+            <g className="fp-node-label-wrap">
+              {labelBackground && <rect
+                x={lx - labelWidth / 2} y={ly - fontSize * 0.95} width={labelWidth} height={fontSize * 1.35}
+                rx={4} fill={labelBackground} fillOpacity={Math.max(0, Math.min(1, node.labelBackgroundOpacity ?? 0.82))}
+                pointerEvents="none" data-ui="1"
+              />}
+              <text
+                x={lx} y={ly}
+                textAnchor="middle" className="fp-node-label" fontSize={fontSize} fill="var(--node-label)"
+                fontFamily="system-ui, -apple-system, sans-serif"
+                data-ui="1"
+                data-node-id={node.id}
+                data-node-kind={node.type}
+                style={{ cursor: "move" }}
+                onMouseDown={(e) => onNodeLabelMouseDown(e, node)}
+                onDoubleClick={(e) => { e.stopPropagation(); beginLabelEdit("node", node.id, lx, ly, node.label); }}
+              >{nodeCanvasLabel(node, lang)}</text>
+            </g>
           );
         })()}
       </g>
@@ -1376,10 +1386,10 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             const annotated = selectedAnnotationId === n.id;
             return (
               <g key={`ann-${n.id}`}>
-                <line x1={bottomCx} y1={bottomCy} x2={t.x} y2={t.y} stroke={annotated ? "#2f7fd6" : "#6b7787"} strokeWidth={annotated ? 2 : 1.4} strokeDasharray={annotated ? undefined : "4 3"} />
+                <line x1={bottomCx} y1={bottomCy} x2={t.x} y2={t.y} stroke={n.annotationLineColor ?? (annotated ? "#2f7fd6" : "#6b7787")} strokeOpacity={Math.max(0, Math.min(1, n.annotationLineOpacity ?? 1))} strokeWidth={annotated ? 2 : 1.4} strokeDasharray={annotated ? undefined : "4 3"} />
                 {/* 线端圆点 */}
-                <circle cx={t.x} cy={t.y} r={5} fill={annotated ? "#2f7fd6" : "#ffffff"} stroke="#2f7fd6" strokeWidth={1.8} />
-                <circle cx={t.x} cy={t.y} r={2} fill={annotated ? "#fff" : "#2f7fd6"} stroke="none" />
+                <circle cx={t.x} cy={t.y} r={5} fill={annotated ? (n.annotationLineColor ?? "#2f7fd6") : "#ffffff"} fillOpacity={Math.max(0, Math.min(1, n.annotationLineOpacity ?? 1))} stroke={n.annotationLineColor ?? "#2f7fd6"} strokeOpacity={Math.max(0, Math.min(1, n.annotationLineOpacity ?? 1))} strokeWidth={1.8} />
+                <circle cx={t.x} cy={t.y} r={2} fill={annotated ? "#fff" : (n.annotationLineColor ?? "#2f7fd6")} stroke="none" />
                 {/* 拖拽热区 */}
                 <circle
                   cx={t.x} cy={t.y} r={12} fill="transparent"

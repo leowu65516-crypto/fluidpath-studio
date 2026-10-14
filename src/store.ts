@@ -88,6 +88,13 @@ function setState(next: AppState) {
   if (next.ui.dirty) _scheduleAutosave(next.diagram);
 }
 
+/** 仅用于导出前一帧的渲染快照：不写历史、不改 dirty，也不触发自动保存。 */
+function setTransientState(next: AppState) {
+  if (next.diagram !== state.diagram) syncDiagnosticDiagram(state.diagram, next.diagram);
+  state = next;
+  emit();
+}
+
 /** 定位闪烁：脉冲高亮指定元件（诊断/演示定位用），2.4s 后自动清除 */
 let blinkTimer: ReturnType<typeof setTimeout> | null = null;
 // ===== 自动保存 / 崩溃恢复（领域模块 store-autosave.ts，此处 API 全兼容 re-export） =====
@@ -544,6 +551,29 @@ export function applyWorkCondition(name: string) {
     `已切换到「${name}」：${parts.join("、")}变化${detail}，橙色高亮即改动处`,
     `Switched to "${name}": ${parts.join(", ")} changed${detail}; orange highlights mark the changes`
   ));
+}
+
+/**
+ * 将一个已保存工况临时送入画布渲染，供 GIF 等需要从 SVG 取帧的导出使用。
+ * 返回的恢复函数必须在 SVG 已复制后调用；整个过程不改变用户工程、历史或自动保存。
+ */
+export function activateWorkConditionForExport(name: string): (() => void) | null {
+  const condition = state.diagram.settings.workConditions?.find((item) => item.name === name);
+  if (!condition) return null;
+  const original = state;
+  const preview = structuredClone(state.diagram);
+  applyWorkConditionSnapshot(preview, condition);
+  setTransientState({
+    ...state,
+    diagram: preview,
+    ui: { ...state.ui, selection: { nodes: [], pipes: [] }, scenario: null, blink: null, chainPath: null },
+  });
+  let restored = false;
+  return () => {
+    if (restored) return;
+    restored = true;
+    setTransientState(original);
+  };
 }
 
 /** 重命名工况（自定义命名；重名或无效时拒绝并返回 false） */

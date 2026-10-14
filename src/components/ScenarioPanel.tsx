@@ -31,6 +31,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   const [editingScenarioId, setEditingScenarioId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftSteps, setDraftSteps] = useState<CustomScenarioStepInput[]>([]);
+  const [collapsed, setCollapsed] = useState(false);
   const condNames = useMemo(() => (diagram.settings.workConditions ?? []).map((c) => c.name), [diagram.settings.workConditions]);
 
   const scenario = ui.scenario ? getScenario(ui.scenario.scenarioId, diagram) : undefined;
@@ -76,15 +77,18 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   if (editingScenarioId) {
     const canSave = draftTitle.trim().length > 0 && draftSteps.length > 0 && draftSteps.every((step) => step.conditionName);
     return (
-      <div className="scenario-panel scenario-editor" data-ui="1">
+      <div className={`scenario-panel scenario-editor${collapsed ? " is-collapsed" : ""}`} data-ui="1">
         <div className="scenario-panel-head">
           <div>
             <h3>⭐ {t("编辑自定义演示")}</h3>
             <p>{t("每一步引用一个已保存工况；进入步骤时会恢复该工况的全部教学状态。")}</p>
           </div>
-          <button className="scenario-icon-btn" title={t("返回演示列表")} onClick={closeEditor}>✕</button>
+          <div className="scenario-panel-actions">
+            <button className="scenario-icon-btn" title={collapsed ? t("展开") : t("折叠")} aria-label={collapsed ? t("展开") : t("折叠")} onClick={() => setCollapsed((value) => !value)}>{collapsed ? "▸" : "▾"}</button>
+            <button className="scenario-icon-btn" title={t("返回演示列表")} onClick={closeEditor}>✕</button>
+          </div>
         </div>
-        <div className="scenario-editor-body">
+        {!collapsed && <><div className="scenario-editor-body">
           <label className="scenario-field">
             <span>{t("演示名称")}</span>
             <input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} placeholder={t("例如：日常冲煮流程")} />
@@ -128,22 +132,25 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
             toast(t("自定义演示已保存"));
             closeEditor();
           }}>💾 {t("保存演示")}</button>
-        </div>
+        </div></>}
       </div>
     );
   }
 
   if (picking || !scenario) {
     return (
-      <div className="scenario-panel" data-ui="1">
+      <div className={`scenario-panel${collapsed ? " is-collapsed" : ""}`} data-ui="1">
         <div className="scenario-panel-head">
           <div>
             <h3>🎬 {t("演示/讲述模式")}</h3>
             <p>{t("选择演示，或用已保存的工况编排自己的步骤。")}</p>
           </div>
-          <button className="scenario-icon-btn" onClick={onClose} title={t("关闭")}>✕</button>
+          <div className="scenario-panel-actions">
+            <button className="scenario-icon-btn" title={collapsed ? t("展开") : t("折叠")} aria-label={collapsed ? t("展开") : t("折叠")} onClick={() => setCollapsed((value) => !value)}>{collapsed ? "▸" : "▾"}</button>
+            <button className="scenario-icon-btn" onClick={onClose} title={t("关闭")}>✕</button>
+          </div>
         </div>
-        <div className="scenario-picker-body">
+        {!collapsed && <div className="scenario-picker-body">
           {availableScenarios.length === 0 && <div className="scenario-empty">{t("当前图纸没有可用的演示场景")}</div>}
           {availableScenarios.map((s) => (
             <button
@@ -235,14 +242,14 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
               onClose={() => setNewDemoDialog(false)}
             />
           )}
-        </div>
+        </div>}
       </div>
     );
   }
 
   // 讲述界面
   return (
-    <div className="scenario-panel scenario-player" data-ui="1">
+    <div className={`scenario-panel scenario-player${collapsed ? " is-collapsed" : ""}`} data-ui="1">
       <div className="scenario-panel-head scenario-player-head">
         <div>
           <h3>
@@ -253,10 +260,13 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
           </h3>
           <p>{step?.conditionName ? t("当前步骤正在应用完整工况快照") : t("按步骤讲述液路工作过程")}</p>
         </div>
-        <button className="scenario-icon-btn" onClick={() => { exitScenario(); onClose(); }} title={t("退出演示")}>✕</button>
+        <div className="scenario-panel-actions">
+          <button className="scenario-icon-btn" title={collapsed ? t("展开") : t("折叠")} aria-label={collapsed ? t("展开") : t("折叠")} onClick={() => setCollapsed((value) => !value)}>{collapsed ? "▸" : "▾"}</button>
+          <button className="scenario-icon-btn" onClick={() => { exitScenario(); onClose(); }} title={t("退出演示")}>✕</button>
+        </div>
       </div>
 
-      <div style={{ padding: "14px 16px" }}>
+      {!collapsed && <div style={{ padding: "14px 16px" }}>
         <div style={{ fontSize: 14, fontWeight: 650, color: "var(--accent)", marginBottom: 8 }}>{step?.title}</div>
         <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7, minHeight: 60 }}>{step?.desc}</div>
         {step?.narrator && (
@@ -293,8 +303,9 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
             )}
           </div>
         )}
-      </div>
+      </div>}
 
+      {!collapsed && <>
       {Object.keys(ui.scenario?.overrides ?? {}).length > 0 && (
         <div style={{ margin: "0 16px 8px", padding: "7px 10px", borderRadius: 8, background: "var(--accent-soft)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
           <span style={{ color: "var(--accent)", fontWeight: 600 }}>🎛 {t("已手动微调 {n} 处").replace("{n}", String(Object.keys(ui.scenario?.overrides ?? {}).length))}</span>
@@ -392,6 +403,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
           >✓ {t("完成")}</button>
         )}
       </div>
+      </>}
     </div>
   );
 }

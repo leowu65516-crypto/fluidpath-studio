@@ -86,6 +86,18 @@ describe("prepareExportDiagram", () => {
       }
     }
   });
+
+  it("快速内容支持分别设置标题、说明和水印字号", () => {
+    const d = bcmts();
+    const { extra } = prepareExportDiagram(d, baseOpts({
+      title: "标题", subtitle: "副标题", footnote: "脚注", watermark: "水印",
+      textLayerSizes: { title: 40, subtitle: 22, footnote: 18, watermark: 16 },
+    }));
+    expect(extra.find((n) => n.label === "标题")?.fontSize).toBe(40);
+    expect(extra.find((n) => n.label === "副标题")?.fontSize).toBe(22);
+    expect(extra.find((n) => n.label === "脚注")?.fontSize).toBe(18);
+    expect(extra.find((n) => n.label === "水印")?.fontSize).toBe(16);
+  });
 });
 
 /** 构造最小画布 SVG（jsdom） */
@@ -227,6 +239,8 @@ describe("ExportDialog 组件", () => {
     expect(container.textContent).toContain("播放速度");
     expect(container.textContent).toContain("逐帧间隔");
     expect(container.textContent).toContain("循环时长");
+    expect(container.textContent).toContain("导出工况");
+    expect(container.querySelector("select[aria-label='导出工况']")).toBeTruthy();
     expect(container.querySelectorAll(".gif-speed-seg button")).toHaveLength(3);
     cleanup();
   });

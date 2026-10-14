@@ -87,6 +87,10 @@ export interface DiagramNode {
   fontSize?: number;
   /** 元器件标签手动偏移（画布上拖动文字微调位置，避免与元件/其它文字重叠） */
   labelOffset?: { x: number; y: number };
+  /** 元器件标签背景；未设置时保持无底板。 */
+  labelBackground?: string;
+  /** 元器件标签背景透明度（0..1）。 */
+  labelBackgroundOpacity?: number;
   /** 咖啡出口：是否显示出液（咖啡滴落）动画 */
   dispensing?: boolean;
   /** 组 ID：同组节点选中时联动、一起移动 */
@@ -111,6 +115,12 @@ export interface DiagramNode {
   fault?: NodeFault;
   /** 标注节点：引线指向的目标世界坐标 */
   pointerTarget?: Pt;
+  /** 标注引线颜色与透明度。 */
+  annotationLineColor?: string;
+  annotationLineOpacity?: number;
+  /** 标注框填充与边框透明度。 */
+  annotationFillOpacity?: number;
+  annotationStrokeOpacity?: number;
   /** 图片节点：base64 数据 URL */
   imageData?: string;
   /** 图层 ID（未分配时为空） */

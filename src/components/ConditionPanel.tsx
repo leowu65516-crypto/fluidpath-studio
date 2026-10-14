@@ -14,6 +14,7 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
   const { t } = useT();
   const [name, setName] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const list = listWorkConditions();
 
   function save() {
@@ -32,9 +33,13 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
     <div className="cond-panel" data-ui="1">
       <div className="cond-panel-head">
         <h3>💾 {t("工况 · 完整状态")}</h3>
-        <button className="cond-panel-close" onClick={onClose}>✕</button>
+        <div className="cond-panel-actions">
+          <button className="cond-panel-toggle" onClick={() => setCollapsed((value) => !value)} title={collapsed ? t("展开") : t("折叠")} aria-label={collapsed ? t("展开") : t("折叠")}>{collapsed ? "▸" : "▾"}</button>
+          <button className="cond-panel-close" onClick={onClose} title={t("关闭")}>✕</button>
+        </div>
       </div>
 
+      {!collapsed && <>
       <div className="cond-help">
         {t("把当前图纸的")}<b>{t("泵阀、介质、工程状态、教学显示覆盖和画布显示设置记下来，起个名")}</b>。
         {t("以后想回到这套状态，点“恢复”就全部还原。工况不会改变新增/删除对象或端口连接。")}
@@ -87,6 +92,7 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
       <div className="cond-note">
         <b>{t("保存之后怎么做：")}</b>{t("工况会出现在上面的列表里，也可在“演示”里被编排成步骤。之后改乱了状态，点“恢复”就一键变回；再打开“回路诊断”能直接查看各出口流/停。")}
       </div>
+      </>}
     </div>
   );
 }

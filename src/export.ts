@@ -164,6 +164,8 @@ export interface ExportOptions {
   subtitle?: string;
   footnote?: string;
   watermark?: string;
+  /** 快速内容字号（px）。 */
+  textLayerSizes?: Partial<Record<"title" | "subtitle" | "footnote" | "watermark", number>>;
   dateStamp: boolean;
   /** 自定义文字是否同时写入画布（默认否） */
   saveTextToDiagram: boolean;
@@ -189,6 +191,7 @@ export const EXPORT_DEFAULTS: Omit<ExportOptions, "format" | "lang"> = {
   saveTextToDiagram: false,
   darkMode: false,
   gifFrameDelay: 66,
+  textLayerSizes: {},
 };
 
 /** 导出主题色板（与 styles.css 的 :root / body[data-theme="dark"] 保持一致） */
@@ -230,7 +233,7 @@ function resolveSvgTheme(clone: SVGSVGElement, theme: "light" | "dark") {
 /** 导出克隆前：保留节点/管路标签、介质/标注文字与状态徽标——它们带 data-ui，先解除标记再剥离 UI 辅助元素 */
 function preserveExportText(clone: SVGSVGElement) {
   clone
-    .querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label, .fp-state-badge, text[data-pipe-id]")
+    .querySelectorAll(".fp-node-label-wrap, .fp-node-label-wrap *, .fp-node-label, .fp-pipe-annotation, .fp-fluid-label, .fp-state-badge, text[data-pipe-id]")
     .forEach((el) => el.removeAttribute("data-ui"));
 }
 
@@ -403,14 +406,14 @@ export function prepareExportDiagram(diagram: Diagram, opts: ExportOptions): { d
     return n;
   };
   if (opts.title?.trim()) {
-    extra.push(mkLabel("ex_title", opts.title.trim(), top - 64, 26, opts.darkMode ? "#dde5ee" : "#1f2c3d"));
+    extra.push(mkLabel("ex_title", opts.title.trim(), top - 64, opts.textLayerSizes?.title ?? 26, opts.darkMode ? "#dde5ee" : "#1f2c3d"));
     top -= 68;
   }
   if (opts.subtitle?.trim()) {
-    extra.push(mkLabel("ex_subtitle", opts.subtitle.trim(), top - 34, 15, opts.darkMode ? "#8b99a9" : "#6b7787"));
+    extra.push(mkLabel("ex_subtitle", opts.subtitle.trim(), top - 34, opts.textLayerSizes?.subtitle ?? 15, opts.darkMode ? "#8b99a9" : "#6b7787"));
   }
   const bottom = base.y + base.h + 18;
-  if (opts.footnote?.trim()) extra.push(mkLabel("ex_footnote", opts.footnote.trim(), bottom, 13, opts.darkMode ? "#8b99a9" : "#6b7787"));
+  if (opts.footnote?.trim()) extra.push(mkLabel("ex_footnote", opts.footnote.trim(), bottom, opts.textLayerSizes?.footnote ?? 13, opts.darkMode ? "#8b99a9" : "#6b7787"));
   if (opts.dateStamp) {
     const stamp = new Date().toLocaleString(opts.lang === "zh" ? "zh-CN" : "en-US");
     const n = mkLabel("ex_date", stamp, bottom, 12, opts.darkMode ? "#8b99a9" : "#9aa7b5");
@@ -418,7 +421,7 @@ export function prepareExportDiagram(diagram: Diagram, opts: ExportOptions): { d
     extra.push(n);
   }
   if (opts.watermark?.trim()) {
-    const n = mkLabel("ex_watermark", opts.watermark.trim(), bottom, 13, opts.darkMode ? "#6b7787" : "#9aa7b5");
+    const n = mkLabel("ex_watermark", opts.watermark.trim(), bottom, opts.textLayerSizes?.watermark ?? 13, opts.darkMode ? "#6b7787" : "#9aa7b5");
     n.x = base.x;
     extra.push(n);
   }
@@ -761,7 +764,8 @@ export async function exportGifWithOptions(
   svgEl: SVGSVGElement,
   diagram: Diagram,
   opts: ExportOptions,
-  onProgress?: (ratio: number) => void
+  onProgress?: (ratio: number) => void,
+  onPrepared?: () => void,
 ): Promise<void> {
   const { diagram: exDiagram, extra } = prepareExportDiagram(diagram, opts);
   const bbox = bboxWith(extra, exDiagram);
@@ -798,6 +802,8 @@ export async function exportGifWithOptions(
     resolveSvgTheme(c, opts.darkMode ? "dark" : "light");
     return { clone: c };
   })();
+  // 调用方可在此时恢复临时画布状态；后续 GIF 帧只读取独立的 SVG 副本。
+  onPrepared?.();
 
   const DURATION = 2; // 秒
   const delay = Math.max(20, Math.round(opts.gifFrameDelay || 66));

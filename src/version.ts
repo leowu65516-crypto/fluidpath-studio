@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.31.1";
+export const APP_VERSION = "1.31.2";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.2",
+    date: "2026-10-15",
+    highlights: [
+      "恢复工况后可直接点击“更新此工况”，用当前完整非拓扑状态覆盖保存；教学显示覆盖、介质、元器件属性和画布显示设置均会一并更新",
+      "进入引用工况的自定义演示步骤时，工况面板会识别当前步骤并提供更新入口；更新后该工况关联的演示步骤会同步使用最新快照",
+    ],
+  },
   {
     version: "1.31.1",
     date: "2026-10-14",

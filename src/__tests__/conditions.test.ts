@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { activateWorkConditionForExport, saveWorkCondition, applyWorkCondition, deleteWorkCondition, renameWorkCondition, listWorkConditions, loadDiagram, store } from "../store";
+import { activateWorkConditionForExport, saveWorkCondition, applyWorkCondition, updateWorkCondition, deleteWorkCondition, renameWorkCondition, listWorkConditions, loadDiagram, store } from "../store";
 import { parseDiagramJSON } from "../export";
 import { diffStateIds } from "../presets";
 import bcmtsRaw from "../../BCMTS.json";
@@ -155,6 +155,28 @@ describe("工况快照扩展：管路介质以当前设置为准", () => {
     expect(restored.settings.showFluidColors).toBe(true);
     expect(restored.settings.workConditions?.find((condition) => condition.name === "完整A")?.pipeProperties?.[pipe.id]?.teachingOverride).toBe("flow");
     deleteWorkCondition("完整A");
+  });
+
+  it("恢复工况后可明确更新完整快照，后续恢复会采用新的教学覆盖与介质", () => {
+    loadDiagram(toDiagram(bcmtsRaw));
+    const pipe = store_diagram().pipes[0];
+    pipe.teachingOverride = "flow";
+    pipe.fluidType = "coldWater";
+    saveWorkCondition("反冲洗");
+
+    applyWorkCondition("反冲洗");
+    const active = store_diagram().pipes[0];
+    active.teachingOverride = "stop";
+    active.fluidType = "hotWater";
+    expect(updateWorkCondition("反冲洗")).toBe(true);
+    expect(updateWorkCondition("不存在的工况")).toBe(false);
+
+    const afterUpdate = store_diagram().pipes[0];
+    afterUpdate.teachingOverride = undefined;
+    afterUpdate.fluidType = "air";
+    applyWorkCondition("反冲洗");
+    expect(store_diagram().pipes[0]).toMatchObject({ teachingOverride: "stop", fluidType: "hotWater" });
+    deleteWorkCondition("反冲洗");
   });
 
   it("完整工况不会删除之后新增的图纸对象，也不会改端口绑定", () => {

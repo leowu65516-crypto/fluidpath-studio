@@ -1832,11 +1832,19 @@ body[data-theme="dark"] .welcome-overlay {
   background: var(--accent); color: #fff; font-size: 14px; font-weight: 700; white-space: nowrap;
 }
 .cond-save-btn:hover { filter: brightness(1.05); }
+.cond-active { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent-soft); }
+.cond-active > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cond-active span { color: var(--text-dim); font-size: 11px; }
+.cond-active strong { color: var(--text); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cond-update-btn { flex: 0 0 auto; min-height: 30px; padding: 6px 9px; border: 1px solid var(--accent); border-radius: 6px; background: var(--panel); color: var(--accent); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.cond-update-btn:hover { background: var(--accent); color: #fff; }
 .cond-list-title { font-size: 12px; color: var(--text-dim); font-weight: 650; }
 .cond-empty { font-size: 12.5px; color: var(--text-dim); padding: 8px 10px; background: var(--surface); border-radius: 8px; }
 .cond-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
 .cond-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); }
+.cond-row.is-active { border-color: var(--accent); background: var(--accent-soft); }
 .cond-name { flex: 1; font-size: 13px; color: var(--text); }
+.cond-row-update { color: var(--accent); }
 .cond-note { font-size: 11.5px; color: var(--text-dim); }
 
 /* ==== 图纸工况验收 ==== */

@@ -513,6 +513,27 @@ export function saveWorkCondition(name: string) {
   });
 }
 
+/**
+ * 覆盖一个已经打开的工况：以当前画布的完整非拓扑状态更新同名快照。
+ * 这不是“另存为”，也不会新建同名工况；自定义演示步骤会继续引用该工况名称。
+ */
+export function updateWorkCondition(name: string): boolean {
+  const normalized = name.trim();
+  if (!normalized) return false;
+  const snapshot = snapshotWorkCondition(state.diagram);
+  let updated = false;
+  updateDiagram((draft) => {
+    const list = draft.settings.workConditions ?? [];
+    const index = list.findIndex((condition) => condition.name === normalized);
+    if (index < 0) return;
+    list[index] = { name: list[index].name, ...snapshot };
+    draft.settings.workConditions = list;
+    syncCustomScenarioCondition(draft, normalized);
+    updated = true;
+  });
+  return updated;
+}
+
 /** 应用工况：恢复完整非拓扑状态（进入撤销历史，可 Ctrl+Z）。 */
 export function applyWorkCondition(name: string) {
   const cond = state.diagram.settings.workConditions?.find((c) => c.name === name);

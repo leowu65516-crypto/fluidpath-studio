@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.31.2";
+export const APP_VERSION = "1.31.3";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.3",
+    date: "2026-10-16",
+    highlights: [
+      "GIF 导出新增“演示步骤”来源：按选定演示的多工况步骤顺序输出完整动画，每步可独立设置停留时间并可调整步骤间交叉切换时长",
+      "演示 GIF 在导出副本中逐步恢复保存的完整状态与教学显示覆盖，不显示演示高亮或画布淡化，也不会修改当前编辑画面",
+      "导出面板保留文字、背景、图例等微调能力；所有调整仅作用于导出文件",
+    ],
+  },
   {
     version: "1.31.2",
     date: "2026-10-15",

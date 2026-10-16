@@ -597,6 +597,58 @@ export function activateWorkConditionForExport(name: string): (() => void) | nul
   };
 }
 
+/**
+ * 临时渲染演示的一个步骤，供 GIF 序列导出使用。
+ * 这是纯导出预览：不进入演示会话，因此不会出现步骤高亮、闪烁或非激活对象淡化。
+ */
+export function activateScenarioStepForExport(scenarioId: string, stepIndex: number): (() => void) | null {
+  const scenario = getScenario(scenarioId, state.diagram);
+  const step = scenario?.steps[stepIndex];
+  if (!scenario || !step) return null;
+  const original = state;
+  const preview = structuredClone(state.diagram);
+  const rawConditionName = scenario.custom ? step.conditionName : undefined;
+  const legacyConditionName = scenario.custom && !rawConditionName ? step.title : undefined;
+  const conditionName = rawConditionName ?? legacyConditionName;
+  const condition = conditionName
+    ? preview.settings.workConditions?.find((item) => item.name === conditionName)
+    : undefined;
+  const resolved = resolveScenarioRoles(preview).nodes;
+  const nodeIds = new Set(preview.nodes.map((node) => node.id));
+  const { valves } = collectScenarioState(scenario, stepIndex, resolved, nodeIds);
+
+  // 内置演示从中性基线累积步骤阀位；自定义演示的每一步直接使用完整工况快照。
+  if (condition) {
+    applyWorkConditionSnapshot(preview, condition);
+  } else {
+    for (const node of preview.nodes) {
+      if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") node.pumpOn = false;
+      else if (node.type === "solenoid2" || node.type === "ballValve" || node.type === "diaphragmValve2") node.valveState = "closed";
+      else if (node.type === "solenoid3") node.valvePath = "off";
+    }
+    applyStates(preview, valveActionsToPreset(valves));
+  }
+
+  // 已保存的步骤微调属于演示数据，导出应与实际播放一致。
+  const savedAll = preview.settings.scenarioOverrides?.[scenarioId] ?? {};
+  for (const index of Object.keys(savedAll).map(Number).filter(Number.isFinite).filter((index) => index <= stepIndex).sort((a, b) => a - b)) {
+    applyStates(preview, savedAll[index]);
+  }
+
+  setTransientState({
+    ...state,
+    diagram: preview,
+    // 故意清除 scenario：画布只渲染工程/教学状态，不渲染步骤高亮、闪烁或其余对象淡化。
+    ui: { ...state.ui, selection: { nodes: [], pipes: [] }, scenario: null, blink: null, chainPath: null },
+  });
+  let restored = false;
+  return () => {
+    if (restored) return;
+    restored = true;
+    setTransientState(original);
+  };
+}
+
 /** 重命名工况（自定义命名；重名或无效时拒绝并返回 false） */
 export function renameWorkCondition(oldName: string, newName: string): boolean {
   const nn = newName.trim();

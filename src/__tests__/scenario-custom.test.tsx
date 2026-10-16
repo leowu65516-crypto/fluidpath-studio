@@ -10,7 +10,7 @@ import { render, act, fireEvent } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
 import { ScenarioPanel } from "../components/ScenarioPanel";
-import { loadDiagram, store, enterScenario, setScenarioStep, saveScenarioOverridesToStep, createCustomScenarioFromConditions, saveWorkCondition, overrideScenarioNode, updateCustomScenario, renameWorkCondition } from "../store";
+import { activateScenarioStepForExport, loadDiagram, store, enterScenario, setScenarioStep, saveScenarioOverridesToStep, createCustomScenarioFromConditions, saveWorkCondition, overrideScenarioNode, updateCustomScenario, renameWorkCondition } from "../store";
 import { availableScenariosForDiagram, getScenario } from "../scenarios";
 import bcmtsRaw from "../../BCMTS.json";
 
@@ -30,6 +30,24 @@ beforeEach(() => {
 });
 
 describe("自定义演示场景", () => {
+  it("GIF 步骤快照不带演示高亮，恢复后不污染当前图纸", () => {
+    act(() => { saveWorkCondition("A"); });
+    act(() => {
+      store.get().diagram.nodes.find((node) => node.id === COLD_VALVE)!.valveState = "open";
+      saveWorkCondition("B");
+    });
+    let id: string | null = null;
+    act(() => { id = createCustomScenarioFromConditions(["A", "B"], "zh"); });
+    const before = JSON.stringify(store.get().diagram);
+    let restore: (() => void) | null = null;
+    act(() => { restore = activateScenarioStepForExport(id!, 1); });
+    expect(restore).toBeTypeOf("function");
+    expect(store.get().diagram.nodes.find((node) => node.id === COLD_VALVE)!.valveState).toBe("open");
+    expect(store.get().ui.scenario).toBeNull();
+    act(() => { restore?.(); });
+    expect(JSON.stringify(store.get().diagram)).toBe(before);
+  });
+
   it("从两个工况创建：两步场景，nodeId 阀位正确", () => {
     act(() => { saveWorkCondition("工况A"); }); // 当前阀位快照（BCMTS 存档态）
     act(() => {

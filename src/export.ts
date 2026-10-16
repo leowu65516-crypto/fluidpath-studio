@@ -173,6 +173,8 @@ export interface ExportOptions {
   darkMode: boolean;
   /** GIF：帧间隔 ms（默认约 66 = 15fps） */
   gifFrameDelay: number;
+  /** GIF 演示步骤间的交叉切换时长 ms；0 表示直接切换。 */
+  gifStepTransitionMs: number;
   lang: "zh" | "en";
 }
 
@@ -191,6 +193,7 @@ export const EXPORT_DEFAULTS: Omit<ExportOptions, "format" | "lang"> = {
   saveTextToDiagram: false,
   darkMode: false,
   gifFrameDelay: 66,
+  gifStepTransitionMs: 320,
   textLayerSizes: {},
 };
 
@@ -866,6 +869,147 @@ export async function exportGifWithOptions(
   gif.finish();
   const bytes = gif.bytes();
   download(`${opts.filename || diagram.name || "fluidpath"}.gif`, new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/gif" }));
+}
+
+/** 一个演示 GIF 的静态步骤快照。svg 必须在对应工况已渲染后复制，避免导出时改动编辑器画布。 */
+export interface GifSequenceFrame {
+  svg: SVGSVGElement;
+  diagram: Diagram;
+  durationMs: number;
+}
+
+/**
+ * 导出多步骤演示 GIF。
+ * 每个步骤都使用自身的完整图纸快照；切换只发生在导出副本中，绝不写回工作区状态。
+ */
+export async function exportGifSequenceWithOptions(
+  frames: GifSequenceFrame[],
+  opts: ExportOptions,
+  onProgress?: (ratio: number) => void,
+): Promise<void> {
+  if (frames.length === 0) throw new Error("No demo steps to export");
+  // 序列必须使用一个统一视窗，否则各步骤的标签、注释增减会造成画面跳动。
+  const sources = frames.map((frame) => {
+    const prepared = prepareExportDiagram(frame.diagram, { ...opts, selectionOnly: false, selection: undefined });
+    return { ...frame, ...prepared, bbox: bboxWith(prepared.extra, prepared.diagram) };
+  });
+  const left = Math.min(...sources.map((source) => source.bbox.x));
+  const top = Math.min(...sources.map((source) => source.bbox.y));
+  const right = Math.max(...sources.map((source) => source.bbox.x + source.bbox.w));
+  const bottom = Math.max(...sources.map((source) => source.bbox.y + source.bbox.h));
+  const pad = Math.max(0, opts.padding || 0);
+  const view = { x: left - pad, y: top - pad, w: Math.round(right - left + pad * 2), h: Math.round(bottom - top + pad * 2) };
+  const outScale = Math.min(2, Math.max(0.4, opts.scale));
+  const outW = Math.round(view.w * outScale);
+  const outH = Math.round(view.h * outScale);
+  const transparent = opts.background === "transparent";
+  const delay = Math.max(20, Math.round(opts.gifFrameDelay || 66));
+
+  type PreparedScene = {
+    clone: SVGSVGElement;
+    diagram: Diagram;
+    flows: Array<{ el: Element; cyclePx: number; dir: number }>;
+    drips: Array<{ el: Element; phase: number }>;
+    cycles: number;
+    durationMs: number;
+  };
+  const scenes: PreparedScene[] = sources.map((source) => {
+    const clone = source.svg.cloneNode(true) as SVGSVGElement;
+    prepareDiagnosticExport(clone, opts);
+    clone.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
+    clone.querySelector("[data-world='1']")?.removeAttribute("transform");
+    clone.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
+    clone.setAttribute("width", String(view.w));
+    clone.setAttribute("height", String(view.h));
+    clone.removeAttribute("style");
+    clone.removeAttribute("class");
+    appendExportNodes(clone, source.extra);
+    if (!transparent) {
+      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bg.setAttribute("x", String(view.x));
+      bg.setAttribute("y", String(view.y));
+      bg.setAttribute("width", String(view.w));
+      bg.setAttribute("height", String(view.h));
+      bg.setAttribute("fill", backgroundColorOf(source.diagram, opts));
+      clone.insertBefore(bg, clone.firstChild);
+    }
+    applySvgOverrides(clone, opts);
+    resolveSvgTheme(clone, opts.darkMode ? "dark" : "light");
+    const seconds = Math.max(delay, source.durationMs) / 1000;
+    const flows = source.diagram.pipes.flatMap((pipe) => {
+      const el = clone.querySelector(`[data-flow="${pipe.id}"]`);
+      if (!el || !pipe.animated) return [];
+      const dashLen = Math.max(6, pipe.visualDiameter * 1.5);
+      const gapMul = pipe.particleDensity === "high" ? 1.1 : pipe.particleDensity === "medium" ? 2.1 : 3.6;
+      const period = dashLen + Math.round(dashLen * gapMul);
+      const cycles = Math.max(1, Math.round(((26 + pipe.flowSpeed * 58) * seconds) / period));
+      return [{ el, cyclePx: cycles * period, dir: pipe.direction === "forward" ? 1 : -1 }];
+    });
+    return {
+      clone, diagram: source.diagram, flows,
+      drips: Array.from(clone.querySelectorAll('[data-drip="1"]')).map((el) => ({ el, phase: Number(el.getAttribute("data-drip-phase") || 0) })),
+      cycles: Math.max(1, Math.round(seconds / 1.05)),
+      durationMs: Math.max(delay, source.durationMs),
+    };
+  });
+
+  const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
+  ctx.canvas.width = outW;
+  ctx.canvas.height = outH;
+  const render = async (scene: PreparedScene, progress: number) => {
+    for (const flow of scene.flows) flow.el.setAttribute("stroke-dashoffset", (-flow.dir * flow.cyclePx * progress).toFixed(2));
+    for (const drip of scene.drips) {
+      const p = (progress * scene.cycles + drip.phase) % 1;
+      const opacity = p < 0.12 ? (p / 0.12) * 0.9 : p > 0.8 ? ((1 - p) / 0.2) * 0.9 : 0.9;
+      drip.el.setAttribute("transform", `translate(0 ${(46 * p).toFixed(1)})`);
+      drip.el.setAttribute("opacity", opacity.toFixed(2));
+    }
+    return rasterize(new XMLSerializer().serializeToString(scene.clone), view.w, view.h);
+  };
+  const holds = scenes.map((scene) => Math.max(1, Math.round(scene.durationMs / delay)));
+  const transitionFrames = Math.max(0, Math.round((opts.gifStepTransitionMs || 0) / delay));
+  const totalFrames = holds.reduce((total, count) => total + count, 0) + Math.max(0, scenes.length - 1) * transitionFrames;
+  let written = 0;
+  const gif = GIFEncoder();
+  let palette: number[][] | null = null;
+  const write = (images: Array<{ image: CanvasImageSource; alpha: number }>) => {
+    if (transparent) ctx.clearRect(0, 0, outW, outH);
+    else {
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = backgroundColorOf(scenes[0].diagram, opts);
+      ctx.fillRect(0, 0, outW, outH);
+    }
+    for (const { image, alpha } of images) {
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(image, 0, 0, outW, outH);
+    }
+    ctx.globalAlpha = 1;
+    const { data } = ctx.getImageData(0, 0, outW, outH);
+    if (!palette) palette = quantize(data, 256);
+    gif.writeFrame(applyPalette(data, palette), outW, outH, { palette: palette ?? undefined, delay, repeat: 0 });
+    written += 1;
+    onProgress?.(written / totalFrames);
+  };
+
+  for (let i = 0; i < scenes.length; i++) {
+    const scene = scenes[i];
+    for (let frame = 0; frame < holds[i]; frame++) {
+      write([{ image: await render(scene, frame / holds[i]), alpha: 1 }]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    if (i < scenes.length - 1 && transitionFrames > 0) {
+      const from = await render(scene, 1);
+      const to = await render(scenes[i + 1], 0);
+      for (let frame = 1; frame <= transitionFrames; frame++) {
+        const mix = frame / (transitionFrames + 1);
+        write([{ image: from, alpha: 1 - mix }, { image: to, alpha: mix }]);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
+  }
+  gif.finish();
+  const bytes = gif.bytes();
+  download(`${opts.filename || frames[0].diagram.name || "fluidpath"}.gif`, new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/gif" }));
 }
 
 export function exportJSON(diagram: Diagram) {

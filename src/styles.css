@@ -2204,6 +2204,18 @@ body[data-theme="dark"] .welcome-overlay {
 .gif-summary span:last-child { grid-column: 1 / -1; font-variant-numeric: tabular-nums; }
 .gif-speed-seg { flex: 1; min-width: 0; }
 .gif-speed-seg button { flex: 1; min-width: 0; }
+.gif-source-row { align-items: center; }
+.gif-source-seg { flex: 1; min-width: 0; }
+.gif-source-seg button { flex: 1 1 0; min-width: 0; white-space: nowrap; }
+.gif-step-timing { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+.gif-step-timing-head { display: flex; justify-content: space-between; gap: 8px; color: var(--text-dim); font-size: 11px; }
+.gif-step-timing-head strong { color: var(--text); font-size: 12px; }
+.gif-step-timing-head span { min-width: 0; text-align: right; }
+.gif-step-row { display: grid; grid-template-columns: minmax(0, 1fr) 68px 20px; align-items: center; gap: 5px; font-size: 12px; }
+.gif-step-row label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.gif-step-row input { width: 68px; min-width: 0; padding: 4px 5px; font-variant-numeric: tabular-nums; }
+.gif-step-row span { color: var(--text-dim); font-size: 11px; }
+.gif-transition-row { margin-top: 2px; }
 
 @media (max-width: 680px) {
   .export-dialog { width: 100vw; height: 100vh; border-radius: 0; }

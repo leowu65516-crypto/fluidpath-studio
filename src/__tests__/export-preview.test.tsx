@@ -225,12 +225,12 @@ describe("ExportDialog 组件", () => {
     cleanup();
   });
 
-  it("GIF 面板提供速度预设、帧数摘要与精细间隔", async () => {
+  it("GIF 面板提供单工况和多步骤演示导出设置", async () => {
     const { render, cleanup } = await import("@testing-library/react");
     const { LangProvider } = await import("../i18n");
     const { ExportDialog } = await import("../components/ExportDialog");
     const { loadDiagram } = await import("../store");
-    const { act } = await import("@testing-library/react");
+    const { act, fireEvent } = await import("@testing-library/react");
     try { localStorage.setItem("fluidpath.lang", "zh"); } catch { /* ignore */ }
     const d = bcmts();
     act(() => { loadDiagram(d); });
@@ -242,6 +242,10 @@ describe("ExportDialog 组件", () => {
     expect(container.textContent).toContain("导出工况");
     expect(container.querySelector("select[aria-label='导出工况']")).toBeTruthy();
     expect(container.querySelectorAll(".gif-speed-seg button")).toHaveLength(3);
+    expect(container.textContent).toContain("GIF 来源");
+    fireEvent.click(Array.from(container.querySelectorAll(".gif-source-seg button")).find((button) => button.textContent === "演示步骤")!);
+    expect(container.textContent).toContain("选择演示");
+    expect(container.textContent).toContain("请选择演示案例");
     cleanup();
   });
 });

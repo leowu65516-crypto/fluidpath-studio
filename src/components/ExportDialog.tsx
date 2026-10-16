@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { buildExportSVGWithOptions, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, prepareExportDiagram, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance } from "../export";
-import { activateWorkConditionForExport, store, updateDiagram, useAppState } from "../store";
+import { buildExportSVGWithOptions, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, exportGifSequenceWithOptions, prepareExportDiagram, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance, type GifSequenceFrame } from "../export";
+import { activateScenarioStepForExport, activateWorkConditionForExport, store, updateDiagram, useAppState } from "../store";
+import { availableScenariosForDiagram } from "../scenarios";
 import { useT } from "../i18n";
 import { toast } from "../toast";
 
@@ -17,7 +18,10 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const [format, setFormat] = useState<Fmt>(initialFormat);
   const [opts, setOpts] = useState<ExportOptions>({ ...EXPORT_DEFAULTS, format: initialFormat, lang, filename: diagram.name || "fluidpath" });
   const [progress, setProgress] = useState<number | null>(null);
+  const [gifSource, setGifSource] = useState<"condition" | "scenario">("condition");
   const [gifConditionName, setGifConditionName] = useState("");
+  const [gifScenarioId, setGifScenarioId] = useState("");
+  const [gifStepDurations, setGifStepDurations] = useState<Record<number, number>>({});
   const [quizSaved, setQuizSaved] = useState(false);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const reqIdRef = useRef(0);
@@ -48,6 +52,9 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
 
   const hasSelection = ui.selection.nodes.length + ui.selection.pipes.length > 0;
   const workConditions = diagram.settings.workConditions ?? [];
+  const demoScenarios = availableScenariosForDiagram(diagram).filter((scenario) => scenario.steps.length > 0);
+  const selectedGifScenario = demoScenarios.find((scenario) => scenario.id === gifScenarioId) ?? null;
+  const stepDuration = (index: number) => gifStepDurations[index] ?? 1800;
   /** 画布客户端坐标 → 世界坐标（经 svg 元素尺寸与 data-world 变换反推） */
   const clientToWorld = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const svg = svgRef.current;
@@ -416,17 +423,35 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
       setProgress(0);
       let restorePreview: (() => void) | null = null;
       try {
-        let gifDiagram = diagram;
-        if (gifConditionName) {
-          restorePreview = activateWorkConditionForExport(gifConditionName);
-          if (!restorePreview) throw new Error(t("所选工况不存在"));
-          // 等待 React 将临时工况绘制进 SVG；下一步会马上复制 SVG 并恢复编辑器。
-          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-          gifDiagram = store.get().diagram;
-          finalOpts.filename = `${finalOpts.filename}-${gifConditionName}`;
+        if (gifSource === "scenario") {
+          if (!selectedGifScenario) throw new Error(t("请选择演示案例"));
+          const frames: GifSequenceFrame[] = [];
+          for (let index = 0; index < selectedGifScenario.steps.length; index++) {
+            restorePreview = activateScenarioStepForExport(selectedGifScenario.id, index);
+            if (!restorePreview) throw new Error(t("演示步骤无法应用"));
+            // React 将临时步骤画进 SVG 后立即复制；后续 GIF 编码不再依赖编辑器状态。
+            await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+            if (!svgRef.current) throw new Error(t("导出画布不可用"));
+            frames.push({ svg: svgRef.current.cloneNode(true) as SVGSVGElement, diagram: structuredClone(store.get().diagram), durationMs: stepDuration(index) });
+            restorePreview();
+            restorePreview = null;
+          }
+          finalOpts.filename = `${finalOpts.filename}-${selectedGifScenario.title}`;
+          await exportGifSequenceWithOptions(frames, { ...finalOpts, selectionOnly: false, selection: undefined }, (ratio) => setProgress(ratio));
+          toast(t("GIF 已生成"));
+        } else {
+          let gifDiagram = diagram;
+          if (gifConditionName) {
+            restorePreview = activateWorkConditionForExport(gifConditionName);
+            if (!restorePreview) throw new Error(t("所选工况不存在"));
+            // 等待 React 将临时工况绘制进 SVG；下一步会马上复制 SVG 并恢复编辑器。
+            await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+            gifDiagram = store.get().diagram;
+            finalOpts.filename = `${finalOpts.filename}-${gifConditionName}`;
+          }
+          await exportGifWithOptions(svgRef.current, gifDiagram, { ...finalOpts, selection: ui.selection }, (r) => setProgress(r), () => restorePreview?.());
+          toast(t("GIF 已生成"));
         }
-        await exportGifWithOptions(svgRef.current, gifDiagram, { ...finalOpts, selection: ui.selection }, (r) => setProgress(r), () => restorePreview?.());
-        toast(t("GIF 已生成"));
       } catch (err) {
         toast(`${t("GIF 保存失败")}：${(err as Error).message}`, "error");
       } finally {
@@ -456,13 +481,46 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
 
   const gifFrames = Math.max(8, Math.round(2000 / Math.max(20, opts.gifFrameDelay)));
   const gifFps = Math.round(1000 / Math.max(20, opts.gifFrameDelay));
+  const sequenceDuration = selectedGifScenario
+    ? selectedGifScenario.steps.reduce((total, _step, index) => total + stepDuration(index), 0) + Math.max(0, selectedGifScenario.steps.length - 1) * opts.gifStepTransitionMs
+    : 0;
   const gifControls = (
     <div className="gif-controls">
       <div className="gif-summary" aria-live="polite">
-        <span>{t("循环时长")}</span>
-        <strong>{t("2 秒")}</strong>
-        <span>{gifFrames} {t("帧")} · {gifFps} fps</span>
+        <span>{gifSource === "scenario" ? t("预计总时长") : t("循环时长")}</span>
+        <strong>{gifSource === "scenario" ? `${(sequenceDuration / 1000).toFixed(1)} ${t("秒")}` : t("2 秒")}</strong>
+        <span>{gifSource === "scenario" ? t("按演示步骤顺序导出") : `${gifFrames} ${t("帧")} · ${gifFps} fps`}</span>
       </div>
+      <div className="exp-row gif-source-row">
+        <label>{t("GIF 来源")}</label>
+        <div className="seg gif-source-seg" role="group" aria-label={t("GIF 来源")}>
+          <button className={gifSource === "condition" ? "on" : ""} onClick={() => setGifSource("condition")}>{t("单一工况")}</button>
+          <button className={gifSource === "scenario" ? "on" : ""} onClick={() => setGifSource("scenario")}>{t("演示步骤")}</button>
+        </div>
+      </div>
+      {gifSource === "scenario" ? <>
+        <div className="exp-row">
+          <label>{t("选择演示")}</label>
+          <select aria-label={t("选择演示")} value={gifScenarioId} onChange={(event) => setGifScenarioId(event.target.value)}>
+            <option value="">{t("请选择演示案例")}</option>
+            {demoScenarios.map((scenario) => <option key={scenario.id} value={scenario.id}>{scenario.title}</option>)}
+          </select>
+        </div>
+        {selectedGifScenario ? <div className="gif-step-timing">
+          <div className="gif-step-timing-head"><strong>{t("每步停留")}</strong><span>{t("不显示步骤高亮或画布淡化")}</span></div>
+          {selectedGifScenario.steps.map((step, index) => <div className="gif-step-row" key={`${selectedGifScenario.id}-${index}`}>
+            <label title={step.title}>{index + 1}. {step.title}</label>
+            <input aria-label={`${step.title} ${t("每步停留")}`} type="number" min={200} max={20000} step={100} value={stepDuration(index)} onChange={(event) => setGifStepDurations((all) => ({ ...all, [index]: Math.max(200, Number(event.target.value) || 200) }))} />
+            <span>ms</span>
+          </div>)}
+          <div className="exp-row gif-transition-row">
+            <label>{t("步骤切换")}</label>
+            <input aria-label={t("步骤切换")} type="range" min={0} max={2000} step={100} value={opts.gifStepTransitionMs} onChange={(event) => patch({ gifStepTransitionMs: Number(event.target.value) })} />
+            <span className="exp-val">{opts.gifStepTransitionMs}ms</span>
+          </div>
+        </div> : <div className="exp-tip">{t("请选择演示案例")}</div>}
+        <div className="exp-tip">{t("每一步都会恢复其保存的完整图纸与教学显示覆盖；导出不会修改当前画面。")}</div>
+      </> : <>
       <div className="exp-row">
         <label>{t("导出工况")}</label>
         <select aria-label={t("导出工况")} value={gifConditionName} onChange={(event) => setGifConditionName(event.target.value)}>
@@ -471,6 +529,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
         </select>
       </div>
       {gifConditionName && <div className="exp-tip">{t("导出时临时应用该工况；GIF 开始生成后立即恢复当前编辑画面。")}</div>}
+      </>}
       <div className="exp-row">
         <label>{t("播放速度")}</label>
         <div className="seg gif-speed-seg">
@@ -488,7 +547,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
         <input aria-label={t("逐帧间隔")} type="range" min={30} max={200} step={5} value={opts.gifFrameDelay} onChange={(e) => patch({ gifFrameDelay: Number(e.target.value) })} />
         <span className="exp-val">{opts.gifFrameDelay}ms</span>
       </div>
-      <div className="exp-tip">{t("GIF 固定为 2 秒无缝循环；速度只改变帧数与导出时间，不修改图纸。")}</div>
+      <div className="exp-tip">{gifSource === "scenario" ? t("导出微调仅作用于 GIF 副本，不影响主图纸。") : t("GIF 固定为 2 秒无缝循环；速度只改变帧数与导出时间，不修改图纸。")}</div>
     </div>
   );
 

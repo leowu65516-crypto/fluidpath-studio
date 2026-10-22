@@ -395,7 +395,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
       // 三通隔膜切换阀没有 off 档，保留其两条共享公共端口的合法切换状态。
       for (const n of d.nodes) {
         if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = false;
-        else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2") n.valveState = "closed";
+        else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") n.valveState = "closed";
         else if (n.type === "solenoid3") n.valvePath = "off";
       }
     }
@@ -418,7 +418,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
       const n = state.diagram.nodes.find((x) => x.id === id);
       if (!n) return undefined;
       if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") return "pump-stop";
-      if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2") return "closed";
+      if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") return "closed";
       if (n.type === "solenoid3") return "off";
       if (n.type === "diaphragmValve3") return "A";
       return undefined;
@@ -623,7 +623,7 @@ export function activateScenarioStepForExport(scenarioId: string, stepIndex: num
   } else {
     for (const node of preview.nodes) {
       if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") node.pumpOn = false;
-      else if (node.type === "solenoid2" || node.type === "ballValve" || node.type === "diaphragmValve2") node.valveState = "closed";
+      else if (node.type === "solenoid2" || node.type === "ballValve" || node.type === "diaphragmValve2" || node.type === "pulseAirValve") node.valveState = "closed";
       else if (node.type === "solenoid3") node.valvePath = "off";
     }
     applyStates(preview, valveActionsToPreset(valves));
@@ -1265,7 +1265,7 @@ const FLUID_COLOR: Record<string, string> = Object.fromEntries(
 const PASS_THROUGH_TYPES = new Set([
   "shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "cross", "elbow",
   "valve", "checkValve", "filter", "pump", "flowMeter", "pressureGauge",
-  "ntcProbe", "pressureSensor", "sensor", "safetyValve", "solenoid2", "solenoid3", "diaphragmValve2", "diaphragmValve3",
+  "ntcProbe", "pressureSensor", "sensor", "safetyValve", "solenoid2", "pulseAirValve", "solenoid3", "diaphragmValve2", "diaphragmValve3",
 ]);
 
 function findNodeByPort(diagram: Diagram, portId: string): DiagramNode | null {

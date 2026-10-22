@@ -1,7 +1,7 @@
 # FluidPath Studio & CAYE 全自动咖啡机 · 完全参考手册
 
 > 本文档是理解 **FluidPath Studio 应用** 与 **CAYE 咖啡机图纸（`/Users/leo/Desktop/BCMTS.json`）** 的第一参考：应用架构、技术栈、流体仿真引擎原理、咖啡机整机原理（做咖啡 / 热牛奶 / 蒸汽 / 热水 / 清洗 / 排废），以及操作与维护纪律。
-> 最后更新：2026-09-29。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
+> 最后更新：2026-10-22（v1.31.4）。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
 
 ---
 
@@ -35,7 +35,7 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 65 个测试文件 / 434 通过 + 4 跳过（共 438），见 §6 |
+| `src/__tests__/` | 67 个测试文件 / 463 通过 + 4 跳过（共 467），见 §6 |
 | `/Users/leo/Desktop/Fluidpath studio/` | 机型图纸与协议文档目录（含统超定制系列图纸、图纸规范 v0.2 及增补），见 §4.7 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
@@ -143,7 +143,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 |---|---|---|---|
 | `suck` | 停泵 in 口管 | 逆流向（向上游追溯） | 关泵 → 供液链停；可逆向穿单向元件 |
 | `push` | 停泵 out 口管 | 顺流向（向下游） | 不穿任何泵；不逆穿单向件（须经 in 口进入） |
-| `both` | disabled 节点 | 双向 | 置灰聚焦 |
+| `both` | disabled 节点 | 双向；在分支接头（三通/四通）处停止 | 工程禁用只断它所在的那条支路，不把同一接头上的其他支路一起判停 |
 
 - 种子规则：`solenoid2` 关闭只停**直接出侧管**（保基线，不扩散）；`solenoid3` off/非激活支路 → `isolatedDisabled`（只停本身不扩散）；管路 fault 不进 BFS 种子（递归层直接判该管）。
 - **suck 边界三规则**（防多泵交叉污染）：
@@ -175,7 +175,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 | 元件 | 放流条件 |
 |---|---|
 | 水泵 / 奶泵 | `pumpOn === true`（`pumpEffectiveOn`，含 fault 卡死判定） |
-| 两通电磁阀 | `valveState === "open"`（`valve2EffectiveOpen`） |
+| 两通电磁阀 / 脉冲空气阀 | `valveState === "open"`（`valveEffectiveOpen`）；脉冲空气阀只控制空气支路 |
 | 三通电磁阀 | `valvePath === "A"/"B"` 且该支路为激活出侧；in 侧供液管任一激活支路即可 |
 | 单向阀 | 仅顺向（有效流向由 edgeOf 保证） |
 | 直通/三通/容器/罐 | 放行（不拦截） |
@@ -187,6 +187,14 @@ pipeEffectiveDisabled(pipe) 依次短路：
 - **对照实验**：泵开/关、阀 A/B 切换对比 BFS 集合差异；备份文件 vs 当前文件 diff。
 - **临时插桩**：在 BFS queue.push 处加 console.log（node + carrier），追传播路径，用完即删。
 - **注意**：`solenoid3` 的状态字段是 `valvePath`（不是 `valveState`），赋错字段静默无效。
+
+### 3.7 停流因果链归因（1.31.4）
+
+- 归因分层：**本管自身 → 上游供液 → 下游去处**。先判断上游是否仍有来液；只要汇流点还有一条来路在供液，就不能把停流归咎于关闭的旁支阀（如快速冲洗阀）。
+- 上游全断时才逐步追溯；多条来路都断时汇总所有不同的阻断点（`上游有 N 处阻断：①…；②…`），不再只报第一条支路。
+- 下游直接断点（关闭的阀、停转的泵、工程禁用元件）优先于“上游无供液”话术；储液罐按液源处理，不报「上游无供液」。
+- 两通阀关闭只说明“它所在的这条支路停流”，并联主路仍可由自己的泵/阀供液；判断出口停流根因要看因果链，不能只看某个阀关着。
+- 辅助 API：`pipeSupplyBlocked`（纯供液、忽略需求域/停流缓存、只看上游端）、`pipeDemandBlocked`、`pipeInStopCache`。
 
 ---
 
@@ -335,6 +343,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 - **定制核心（相对标准机型）**：①进水管改经低温盘管（进水口→盘管→单向阀→滤网）；②咖啡路插「汇流三通（缸+清洗/旁通水汇集）→ 盘管选择三通（A 直通 / B 进盘管）→ 低温盘管（咖啡通道）→ 咖啡排废阀 → 合流 Y → 咖啡出口」；③牛奶出口加两通阀（按机型）；④热水链按机型差异重排（hotWater 口径）。
 - **引擎支撑（v1.29.3）**：换热器双通道隔离 + 三通汇流语义——规则与回归见 §3.3/§3.4 与测试 `heat-exchanger-channel` / `solenoid3-merge`；图纸协议对应条款见桌面《FluidPath-图纸规范与AI绘图协议-v0.2.md》§16（v0.2.2 增补）。
 - **阀位语义提醒（易误操作点）**：单出路汇流阀（如咖啡汇流三通）三档中 **A=工作位、B=死位（无输出）、关=全关**；盘管选择阀 **A=直通（绕开盘管）、B=下路（进盘管）**；咖啡排废阀必须 A（出口方向）全链才通。画布节点下方 [A|关|B] 徽标可直接点选。排障先查这三处，再看上游供液（注水/泵）。
+- **脉冲空气阀（2026-10-22）**：位于「空气入口 → 脉冲空气阀 → 单向阀 → 奶泵前汇流三通」旁支，只控制进气量。工程禁用或阀关闭只停这条空气支路，**不会切断奶罐 → 奶泵 → 牛奶出口的液体主路**；诊断若把奶路停流归因于它，按引擎缺陷处理。
 
 ---
 
@@ -345,7 +354,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npm run check                    # tsc + 全量测试（当前 383 通过 + 4 跳过，57 文件）
+npm run check                    # tsc + 全量测试（当前 463 通过 + 4 跳过，67 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -414,7 +423,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：65 文件（63 通过 + 2 本机专属跳过）/ 438 用例（434 通过 + 4 跳过），tsc 无错误。**
+**当前全量：67 文件（65 通过 + 2 本机专属跳过）/ 467 用例（463 通过 + 4 跳过），tsc 无错误。**
 
 ---
 
@@ -446,6 +455,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.31.4 | 2026-10-22 | 工程禁用旁支停流止于三通/四通：脉冲空气阀禁用或关闭只停空气支路，奶泵仍可从奶罐吸奶；「为什么停流」改为分层归因（本管→上游供液→下游去处），汇流点不再误报关闭的清洗旁支，多阻断汇总并补下游阀/泵/禁用件/储液罐液源说明；脉冲空气阀支持开/关（属性、画布徽标、工况快照、故障模拟）；67 文件/463 通过+4 跳过。 |
 | 1.30.7 | 2026-10-13 | 工况自定义命名（✏️/双击重命名）；工况快照以当前设置为准（含管路介质类型+颜色，切回时还原）；演示步骤闪烁改为「与上一步相比的变化项」；验收功能与模式入口暂不展示（代码保留）。 |
 | 1.30.6 | 2026-10-13 | 修复演示模式：自定义演示（从工况创建）选择后不进入步骤讲述界面（1/2/3 步骤导航缺失）——ScenarioPanel 的 getScenario 补传图纸上下文；新增回归测试。 |
 | 1.30.5 | 2026-10-13 | 全局「显示」组（元器件/管路名称、管径 DN 可单独开关、介质标签、介质颜色、元器件文字大小、重置全部文字位置）；元器件文字可在画布拖拽微调 + 单点/全局重置；移除量感粒子密度、压力域着色与管路相对流量手填；专项测试 6 例。 |

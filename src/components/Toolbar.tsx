@@ -217,7 +217,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         }
         // 检测演示模式可用性
         const hasValves = d.nodes?.some((n: any) =>
-          n.type === "solenoid2" || n.type === "solenoid3" || n.type === "pump" || n.type === "milkPump" || n.type === "airPump"
+          n.type === "solenoid2" || n.type === "pulseAirValve" || n.type === "solenoid3" || n.type === "pump" || n.type === "milkPump" || n.type === "airPump"
         );
         if (hasValves) {
           tips.push(`${t("🎬 含阀泵提示")} → ${t("工具栏演示模式可逐步讲解液路原理")}`);

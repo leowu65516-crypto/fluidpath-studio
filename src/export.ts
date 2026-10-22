@@ -277,7 +277,7 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
     const nodeId = el.getAttribute("data-node-id");
     if (nodeId) {
       const kind = el.getAttribute("data-node-kind");
-      return { cat: kind === "solenoid2" || kind === "solenoid3" ? "valves" : "components", key: `node:${nodeId}` };
+      return { cat: kind === "solenoid2" || kind === "solenoid3" || kind === "pulseAirValve" ? "valves" : "components", key: `node:${nodeId}` };
     }
     return { cat: null, key: null };
   };

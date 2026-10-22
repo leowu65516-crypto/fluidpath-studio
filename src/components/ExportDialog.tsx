@@ -77,7 +77,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
         const pipeId = el.getAttribute("data-pipe-id");
         const nodeId = el.getAttribute("data-node-id");
         const kind = el.getAttribute("data-node-kind");
-        const cat: ExportTextCategory = pipeId ? "pipes" : kind === "solenoid2" || kind === "solenoid3" ? "valves" : "components";
+        const cat: ExportTextCategory = pipeId ? "pipes" : kind === "solenoid2" || kind === "solenoid3" || kind === "pulseAirValve" ? "valves" : "components";
         const suffix = pipeId
           ? el.classList.contains("fp-fluid-label") ? ":fluid" : el.classList.contains("fp-pipe-annotation") ? ":anno" : ":label"
           : "";

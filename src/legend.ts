@@ -73,7 +73,7 @@ export function buildLegendNodes(diagram: Diagram, x: number, y: number, opts: L
   // 阀/泵状态
   if (opts.status) {
     const rows: Array<{ text: string; color: string }> = [];
-    if (hasType("solenoid2")) {
+    if (hasType("solenoid2") || hasType("pulseAirValve")) {
       rows.push({ text: L("两通阀：开（导通）", "2-way valve: open"), color: "#3fae6a" });
       rows.push({ text: L("两通阀：关（切断）", "2-way valve: closed"), color: "#d9534f" });
     }

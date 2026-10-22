@@ -16,12 +16,23 @@
 import type { Diagram, FluidType, Pipe } from "./types";
 import type { Lang } from "./i18n";
 import { checkDiagramFluid, fluidLabel } from "./fluidRules";
-import { pipeEngineeringDisabled, pipeTeachingOverride, setCachedPipes, pumpEffectiveOn, valveEffectiveOpen, valve3EffectivePath, findPort } from "./geometry";
+import {
+  pipeEngineeringDisabled,
+  pipeTeachingOverride,
+  setCachedPipes,
+  pumpEffectiveOn,
+  valveEffectiveOpen,
+  valve3EffectivePath,
+  findPort,
+  pipeSupplyBlocked,
+  pipeDemandBlocked,
+  pipeInStopCache,
+} from "./geometry";
 import { diaphragmRouteLabel, diaphragmValveRoute } from "./diaphragmValve";
 
 /** 双语取值 */
 const L = (lang: Lang, zh: string, en: string): string => (lang === "zh" ? zh : en);
-const isTwoWayFlowValve = (type: string): boolean => type === "solenoid2" || type === "ballValve" || type === "diaphragmValve2";
+const isTwoWayFlowValve = (type: string): boolean => type === "solenoid2" || type === "ballValve" || type === "diaphragmValve2" || type === "pulseAirValve";
 
 /** 可执行的修复动作 */
 export type FixAction =
@@ -102,77 +113,366 @@ function effectiveEnds(diagram: Diagram, pipe: Pipe): Ends {
  * 供液正常则判定为「下游无开放去处（死路）」。
  * @returns 根因描述 + 从根因到该管的元素 id 链
  */
+/**
+ * 停流因果链：追溯一根停流管路的根本原因。
+ *
+ * 归因规则（教学语义）：
+ *  - 先看本管、上游元件、上游各来路；汇流点必须「所有来路都断」才算上游断供，
+ *    只要还有一条来路有液，就不能把停流归咎于关闭的旁支阀（如快速冲洗阀）。
+ *  - 上游全断时汇总所有不同的根因，而不是只报第一条支路。
+ *  - 储液罐按液源处理：罐内有液，可直接被泵吸出，不报「上游无供液」。
+ * @returns 根因描述 + 从根因到该管的元素 id 链
+ */
 export function traceStopCause(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"): { reason: string; ids: string[] } {
   setCachedPipes(diagram.pipes, diagram.nodes);
-  const visited = new Set<string>();
-  const walk = (p: Pipe): { reason: string; ids: string[] } | null => {
+  const targetLabel = pipe.label || L(lang, "未命名管路", "unnamed pipe");
+
+  type CauseKind = "self" | "cut" | "source" | "downstream" | "unknown";
+  interface Cause {
+    reason: string;
+    ids: string[];
+    kind: CauseKind;
+    /** 聚合归因时的叶子原因（避免「上游 N 条来路」套娃） */
+    details?: string[];
+  }
+
+  const nodeLabel = (n: Diagram["nodes"][number]) => n.label || n.type;
+  const pipeLabel = (p: Pipe) => p.label || L(lang, "未命名管路", "unnamed pipe");
+
+  // 归因分层：本管自身 → 上游供液 → 下游去处。
+  // 先排除「上游有液、只是下游全关」的情况，否则会把关闭的旁支阀误当成根因。
+  const selfBlocked = pipe.disabled || pipe.fault === "pipeBlocked" ||
+    pipeTeachingOverride(pipe) === "stop";
+  if (pipeTeachingOverride(pipe) === "stop") {
+    return {
+      reason: L(
+        lang,
+        `「${targetLabel}」被设置为教学强制停流；这是画面显示覆盖，工程状态可能仍在流动`,
+        `"${targetLabel}" has a teaching forced-stop override; this affects the animation, not necessarily the engineering state`
+      ),
+      ids: [pipe.id],
+    };
+  }
+  if (!selfBlocked && !pipeInStopCache(pipe) && pipeDemandBlocked(pipe) && !pipeSupplyBlocked(pipe, diagram.nodes)) {
+    return {
+      reason: L(
+        lang,
+        `「${targetLabel}」上游有液，但下游没有开放去处（下游阀门全关或管路走到死路）`,
+        `"${targetLabel}" has liquid upstream, but no open destination downstream (all downstream valves closed or a dead end)`
+      ),
+      ids: [pipe.id],
+    };
+  }
+
+  /** 某端口上「有效流入」的管路（用于说明这个阀切断的是哪一段） */
+  const feedPipeAt = (n: Diagram["nodes"][number], portId: string): Pipe | undefined =>
+    diagram.pipes.find((op) => {
+      const oe = effectiveEnds(diagram, op);
+      return oe.v?.node.id === n.id && oe.v.port.id === portId;
+    });
+
+  const valveKindLabel = (n: Diagram["nodes"][number], t: (zh: string, en: string) => string): string => {
+    if (n.type === "ballValve") return t("球阀", "ball valve");
+    if (n.type === "diaphragmValve2") return t("两通隔膜阀", "2-way diaphragm valve");
+    if (n.type === "pulseAirValve") return t("脉冲空气阀", "pulse air valve");
+    return t("两通电磁阀", "2-way solenoid");
+  };
+
+  const walk = (p: Pipe, visited: Set<string>): Cause | null => {
     if (visited.has(p.id)) return null;
     visited.add(p.id);
-    const label = p.label || L(lang, "未命名", "unnamed");
-    if (p.disabled) return { reason: L(lang, `管路「${label}」被禁用`, `Pipe "${label}" is disabled`), ids: [p.id] };
-    if (p.fault === "pipeBlocked") return { reason: L(lang, `管路「${label}」堵塞（故障模拟）`, `Pipe "${label}" is blocked (fault simulation)`), ids: [p.id] };
-    const { u } = effectiveEnds(diagram, p);
-    if (u) {
-      const n = u.node;
-      if (n.disabled) return { reason: L(lang, `「${n.label || n.type}」被禁用，无法向下游供液`, `"${n.label || n.type}" is dimmed and cannot feed downstream`), ids: [n.id, p.id] };
-      if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") {
-        if (!pumpEffectiveOn(n)) {
-          const why = n.fault === "pumpStuck" ? L(lang, "卡死（故障模拟）", "seized (fault simulation)") : L(lang, "未运行", "not running");
-          return { reason: L(lang, `「${n.label}」${why}，无法向下游供液`, `"${n.label}" is ${why} and cannot feed downstream`), ids: [n.id, p.id] };
+    if (visited.size > 200) return null; // 防环/防深度爆炸
+
+    const label = pipeLabel(p);
+    if (p.disabled) {
+      return { reason: L(lang, `管路「${label}」被工程禁用，这一段本身不通`, `Pipe "${label}" is engineering-disabled; this segment is cut`), ids: [p.id], kind: "self" };
+    }
+    if (p.fault === "pipeBlocked") {
+      return { reason: L(lang, `管路「${label}」堵塞（故障模拟），介质过不去`, `Pipe "${label}" is blocked (fault simulation); fluid cannot pass`), ids: [p.id], kind: "self" };
+    }
+
+    const { u, v } = effectiveEnds(diagram, p);
+    if (!u) {
+      return { reason: L(lang, `「${label}」没有上游连接，无法形成流动`, `"${label}" has no upstream connection, so it cannot flow`), ids: [p.id], kind: "unknown" };
+    }
+
+    const n = u.node;
+    if (n.disabled) {
+      return {
+        reason: L(
+          lang,
+          `「${nodeLabel(n)}」被工程禁用，相当于从液路中移除；与它相连的「${label}」随之停流`,
+          `"${nodeLabel(n)}" is engineering-disabled (removed from the circuit); the connected "${label}" stops`
+        ),
+        ids: [n.id, p.id],
+        kind: "cut",
+      };
+    }
+
+    if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") {
+      if (!pumpEffectiveOn(n)) {
+        const why = n.fault === "pumpStuck" ? L(lang, "卡死（故障模拟）", "seized (fault simulation)") : L(lang, "未运行", "not running");
+        const inPort = n.ports.find((pp) => pp.direction === "in");
+        const feed = inPort ? feedPipeAt(n, inPort.id) : undefined;
+        const from = feed ? `「${pipeLabel(feed)}」` : L(lang, "入口", "its inlet");
+        return {
+          reason: L(
+            lang,
+            `「${nodeLabel(n)}」${why}，无法把${from}的介质送到「${label}」`,
+            `"${nodeLabel(n)}" is ${why} and cannot move fluid from ${from} to "${label}"`
+          ),
+          ids: [n.id, p.id],
+          kind: "cut",
+        };
+      }
+    }
+
+    if (isTwoWayFlowValve(n.type)) {
+      if (!valveEffectiveOpen(n)) {
+        const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "closed");
+        const inPort = n.ports.find((pp) => pp.direction === "in");
+        const feed = inPort ? feedPipeAt(n, inPort.id) : undefined;
+        const from = feed ? `「${pipeLabel(feed)}」` : L(lang, "上游", "upstream");
+        return {
+          reason: L(
+            lang,
+            `「${nodeLabel(n)}」（${valveKindLabel(n, (zh, en) => L(lang, zh, en))}）${why}，切断了${from} → 「${label}」这一路，介质过不去`,
+            `"${nodeLabel(n)}" (${valveKindLabel(n, (zh, en) => L(lang, zh, en))}) is ${why}, cutting ${from} → "${label}"; fluid cannot pass`
+          ),
+          ids: [n.id, p.id],
+          kind: "cut",
+        };
+      }
+    }
+
+    if (n.type === "solenoid3") {
+      const path = valve3EffectivePath(n);
+      if (path === "off") {
+        const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "全关", "fully closed");
+        return {
+          reason: L(lang, `「${nodeLabel(n)}」${why}：入口与 A/B 两路出口都不通，介质无法进入「${label}」`, `"${nodeLabel(n)}" is ${why}: inlet and both A/B outlets are cut, so fluid cannot reach "${label}"`),
+          ids: [n.id, p.id],
+          kind: "cut",
+        };
+      }
+      const outPorts = n.ports.filter((pp) => pp.direction === "out");
+      const outA = outPorts.find((pp) => pp.position === "right") ?? outPorts[0];
+      const outB = outPorts.find((pp) => pp.position === "bottom") ?? outPorts[1];
+      const activeId = path === "A" ? outA?.id : outB?.id;
+      if (u.port.direction === "out" && u.port.id !== activeId) {
+        return {
+          reason: L(
+            lang,
+            `「${nodeLabel(n)}」当前导通 ${path} 路，而「${label}」接在未导通的另一路上；介质被导向了 ${path} 路`,
+            `"${nodeLabel(n)}" currently routes path ${path}, while "${label}" is on the other, inactive branch; fluid is diverted to ${path}`
+          ),
+          ids: [n.id, p.id],
+          kind: "cut",
+        };
+      }
+    }
+
+    if (n.type === "diaphragmValve3") {
+      const path = valve3EffectivePath(n);
+      if (path === "off") {
+        const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "closed");
+        return {
+          reason: L(lang, `「${nodeLabel(n)}」${why}，三个端口互不连通，「${label}」没有介质`, `"${nodeLabel(n)}" is ${why}; its three ports are isolated, so "${label}" gets no fluid`),
+          ids: [n.id, p.id],
+          kind: "cut",
+        };
+      }
+      const route = diaphragmValveRoute(n, path);
+      if (!route.activePortIds.has(u.port.id)) {
+        const current = diaphragmRouteLabel(n, path);
+        return {
+          reason: L(
+            lang,
+            `「${nodeLabel(n)}」当前只连通 ${current}；「${label}」所在端口不在通路上，介质走另一条支路`,
+            `"${nodeLabel(n)}" currently connects only ${current}; the port feeding "${label}" is outside the active route`
+          ),
+          ids: [n.id, p.id],
+          kind: "cut",
+        };
+      }
+    }
+
+    // 下游直接断点：介质走到这里没有去处（关闭的阀 / 停转的泵 / 禁用元件）。
+    // 先于“上游供液”判断，避免把「奶罐→禁用阀」这类上游管误报成奶罐没液。
+    if (v) {
+      const vn = v.node;
+      const vlabel = nodeLabel(vn);
+      if (vn.disabled) {
+        return {
+          reason: L(lang, `下游「${vlabel}」被工程禁用，介质没有去处；上游「${label}」因此停流`, `Downstream "${vlabel}" is engineering-disabled, so there is no destination; "${label}" stops`),
+          ids: [vn.id, p.id],
+          kind: "cut",
+        };
+      }
+      if (vn.type === "pump" || vn.type === "milkPump" || vn.type === "airPump") {
+        if (!pumpEffectiveOn(vn)) {
+          const why = vn.fault === "pumpStuck" ? L(lang, "卡死（故障模拟）", "seized (fault simulation)") : L(lang, "未运行", "not running");
+          return {
+            reason: L(lang, `下游「${vlabel}」${why}，泵不吸液，「${label}」里的介质不会被带走`, `Downstream "${vlabel}" is ${why}; the pump does not draw, so fluid in "${label}" is not moved`),
+            ids: [vn.id, p.id],
+            kind: "cut",
+          };
         }
       }
-      if (isTwoWayFlowValve(n.type)) {
-        if (!valveEffectiveOpen(n)) {
-          const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "closed");
-          return { reason: L(lang, `「${n.label}」${why}`, `"${n.label}" is ${why}`), ids: [n.id, p.id] };
-        }
+      if (isTwoWayFlowValve(vn.type) && !valveEffectiveOpen(vn)) {
+        const why = vn.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "closed");
+        return {
+          reason: L(lang, `下游「${vlabel}」（${valveKindLabel(vn, (zh, en) => L(lang, zh, en))}）${why}，介质到此被截断，「${label}」没有去处`, `Downstream "${vlabel}" (${valveKindLabel(vn, (zh, en) => L(lang, zh, en))}) is ${why}; fluid is cut off and "${label}" has no destination`),
+          ids: [vn.id, p.id],
+          kind: "cut",
+        };
       }
-      if (n.type === "solenoid3") {
-        const path = valve3EffectivePath(n);
+      if (vn.type === "solenoid3") {
+        const path = valve3EffectivePath(vn);
         if (path === "off") {
-          const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "off");
-          return { reason: L(lang, `「${n.label}」${why}`, `"${n.label}" is ${why}`), ids: [n.id, p.id] };
+          return {
+            reason: L(lang, `下游「${vlabel}」全关，入口与 A/B 两路出口互不连通，「${label}」没有去处`, `Downstream "${vlabel}" is fully closed; its inlet and A/B outlets are isolated, so "${label}" has no destination`),
+            ids: [vn.id, p.id],
+            kind: "cut",
+          };
         }
-        const outPorts = n.ports.filter((pp) => pp.direction === "out");
+        const outPorts = vn.ports.filter((pp) => pp.direction === "out");
         const outA = outPorts.find((pp) => pp.position === "right") ?? outPorts[0];
         const outB = outPorts.find((pp) => pp.position === "bottom") ?? outPorts[1];
         const activeId = path === "A" ? outA?.id : outB?.id;
-        if (u.port.direction === "out" && u.port.id !== activeId) {
-          return { reason: L(lang, `「${n.label}」当前导通 ${path} 路，未导通该支路`, `"${n.label}" currently routes path ${path}; this branch is not active`), ids: [n.id, p.id] };
+        if (v.port.direction === "out" && v.port.id !== activeId) {
+          return {
+            reason: L(lang, `下游「${vlabel}」当前导通 ${path} 路，本段接在未导通的另一路上，「${label}」的介质过不去`, `Downstream "${vlabel}" routes path ${path}; this segment is on the inactive branch, so "${label}" cannot pass`),
+            ids: [vn.id, p.id],
+            kind: "cut",
+          };
         }
       }
-      if (n.type === "diaphragmValve3") {
-        const path = valve3EffectivePath(n);
-        if (path === "off") {
-          const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "off");
-          return { reason: L(lang, `「${n.label}」${why}`, `"${n.label}" is ${why}`), ids: [n.id, p.id] };
-        }
-        const route = diaphragmValveRoute(n, path);
-        if (!route.activePortIds.has(u.port.id)) {
-          const current = diaphragmRouteLabel(n, path);
-          return { reason: L(lang, `「${n.label}」当前只连通 ${current}，该端口不在有效通路中`, `"${n.label}" currently connects only ${current}; this port is outside the active route`), ids: [n.id, p.id] };
+      if (vn.type === "diaphragmValve3") {
+        const path = valve3EffectivePath(vn);
+        const route = diaphragmValveRoute(vn, path);
+        if (path === "off" || !route.activePortIds.has(v.port.id)) {
+          const current = path === "off" ? L(lang, "全关", "fully closed") : diaphragmRouteLabel(vn, path);
+          return {
+            reason: L(lang, `下游「${vlabel}」当前只连通 ${current}，本段端口不在通路上，「${label}」的介质没有去处`, `Downstream "${vlabel}" connects only ${current}; this port is outside the active route, so "${label}" has no destination`),
+            ids: [vn.id, p.id],
+            kind: "cut",
+          };
         }
       }
-      // 上游供液管停流 → 继续向上递归（AND 汇流：任一入侧流动即有供，故只在全部入侧停流时进来）
-      const isJunction = JUNCTION_TYPES.has(n.type);
-      const inPortIds = new Set(n.ports.filter((pp) => pp.direction === "in").map((pp) => pp.id));
-      let anyFlowingUpstream = false;
-      for (const op of diagram.pipes) {
-        if (op.id === p.id) continue;
-        const oe = effectiveEnds(diagram, op);
-        const feedsHere = isJunction
-          ? oe.v && oe.v.node.id === n.id
-          : oe.v && inPortIds.has(oe.v.port.id);
-        if (!feedsHere) continue;
-        if (!pipeEngineeringDisabled(op, diagram.nodes)) { anyFlowingUpstream = true; break; }
-        const sub = walk(op);
-        if (sub) return { reason: sub.reason, ids: [...sub.ids, p.id] };
-      }
-      if (anyFlowingUpstream) return { reason: L(lang, `「${label}」上游有供液但下游无开放去处（支路全关或死路）`, `"${label}" has supply upstream but no open destination downstream (all branches closed or dead end)`), ids: [p.id] };
     }
-    return { reason: L(lang, `「${label}」上游无供液来源（未接入有效供水链）`, `"${label}" has no upstream supply (not connected to a live feed chain)`), ids: [p.id] };
+
+    // 储液罐是液源：罐内介质不依赖上游来液，停流原因在下游而不是“没有供液”。
+    if (n.type === "tank") {
+      return {
+        reason: L(
+          lang,
+          `「${nodeLabel(n)}」是储液罐（液源），罐内介质可以直接被泵吸出；这一段停流不是奶罐/水箱供液问题，应检查下游阀门是否关闭、下游有没有开放去处`,
+          `"${nodeLabel(n)}" is a tank (liquid source); its contents can be drawn directly by the pump. The stop is not a supply problem — check downstream valves and open destinations`
+        ),
+        ids: [n.id, p.id],
+        kind: "source",
+      };
+    }
+
+    // 上游各来路：汇流语义——任一路仍有供液，就不能把停流归因于其他关闭的旁支。
+    const isJunction = JUNCTION_TYPES.has(n.type);
+    const inPortIds = new Set(n.ports.filter((pp) => pp.direction === "in").map((pp) => pp.id));
+    const feeds: Pipe[] = [];
+    for (const op of diagram.pipes) {
+      if (op.id === p.id) continue;
+      const oe = effectiveEnds(diagram, op);
+      const feedsHere = isJunction
+        ? oe.v && oe.v.node.id === n.id
+        : oe.v && inPortIds.has(oe.v.port.id);
+      if (feedsHere) feeds.push(op);
+    }
+
+    if (feeds.length === 0) {
+      return {
+        reason: L(
+          lang,
+          `「${label}」上游没有接入任何供液管，介质没有来源`,
+          `"${label}" has no incoming supply pipe; there is no source of fluid`
+        ),
+        ids: [p.id],
+        kind: "unknown",
+      };
+    }
+
+    // 第一遍：只要还有一条来路在供液，就不是上游断供（原因在下游/去处）。
+    if (feeds.some((op) => !pipeSupplyBlocked(op, diagram.nodes))) {
+      return {
+        reason: L(
+          lang,
+          `「${label}」上游仍有供液；停流是因为下游没有开放去处（下游阀门全关或管路走到死路）`,
+          `"${label}" still has upstream supply; it stops because downstream has no open destination (all downstream valves closed or a dead end)`
+        ),
+        ids: [p.id],
+        kind: "downstream",
+      };
+    }
+
+    // 第二遍：所有来路都断了，逐条追溯并汇总不同的阻断点。
+    const causes: Cause[] = [];
+    for (const op of feeds) {
+      const sub = walk(op, new Set(visited));
+      if (sub) causes.push(sub);
+    }
+    if (causes.length === 0) {
+      return {
+        reason: L(
+          lang,
+          `「${label}」上游的几条来路都没有可用的供液，也未找到明确的阻断元件`,
+          `None of the upstream branches can supply "${label}", and no clear blocking element was found`
+        ),
+        ids: [p.id],
+        kind: "unknown",
+      };
+    }
+
+    const seenRoots = new Set<string>();
+    const roots = causes.filter((c) => {
+      const key = c.ids[0] ?? c.reason;
+      if (seenRoots.has(key)) return false;
+      seenRoots.add(key);
+      return true;
+    });
+
+    if (roots.length === 1) {
+      return { ...roots[0], ids: [...roots[0].ids, p.id] };
+    }
+
+    // 多个根因：优先列出真正的“切断点”；液源正常只是说明该支路不是断点。
+    const cutRoots = roots.filter((c) => c.kind === "cut");
+    const chosen = cutRoots.length > 0 ? cutRoots : roots;
+    if (chosen.length === 1) {
+      return { ...chosen[0], ids: [...chosen[0].ids, p.id] };
+    }
+    const details = chosen.flatMap((c) => c.details ?? [c.reason]);
+    const numbered = details.map((d, i) => `${["①", "②", "③", "④", "⑤"][i] ?? `(${i + 1})`}${d}`).join(L(lang, "；", "; "));
+    return {
+      reason: L(
+        lang,
+        `上游有 ${details.length} 处阻断：${numbered}`,
+        `${details.length} blocking points upstream: ${numbered}`
+      ),
+      ids: [...chosen[0].ids, p.id],
+      kind: cutRoots.length > 0 ? "cut" : chosen[0].kind,
+      details,
+    };
   };
-  return walk(pipe) ?? { reason: L(lang, "未找到明确原因", "No clear cause found"), ids: [pipe.id] };
+
+  const cause = walk(pipe, new Set<string>());
+  if (!cause) {
+    return { reason: L(lang, "未找到明确原因", "No clear cause found"), ids: [pipe.id] };
+  }
+  const ids = cause.ids[cause.ids.length - 1] === pipe.id ? cause.ids : [...cause.ids, pipe.id];
+  let reason = cause.reason;
+  if (cause.kind === "cut" && !reason.includes(targetLabel)) {
+    reason += L(lang, `，导致「${targetLabel}」没有介质流动`, `, so "${targetLabel}" carries no fluid`);
+  }
+  return { reason, ids };
 }
 
 // ===== 建议收集 =====
@@ -413,8 +713,12 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope, lang: Lang 
           severity: "info",
           category: "state",
           kind: "valve-closed",
-          title: n.type === "ballValve" ? L(lang, "球阀关闭", "Ball valve closed") : L(lang, "电磁阀关闭", "Solenoid closed"),
-          message: L(lang, `「${n.label || n.type}」当前关闭，下游管路会停流。`, `"${n.label || n.type}" is closed; downstream pipes will stop flowing.`),
+          title: n.type === "ballValve" ? L(lang, "球阀关闭", "Ball valve closed") : n.type === "pulseAirValve" ? L(lang, "脉冲空气阀关闭", "Pulse air valve closed") : L(lang, "电磁阀关闭", "Solenoid closed"),
+          message: L(
+            lang,
+            `「${n.label || n.type}」当前关闭，它所在的这条支路会停流；与它并联的主路仍可由自己的泵/阀供液，不会因为这一个阀关闭而断流。`,
+            `"${n.label || n.type}" is closed; its own branch stops. Parallel branches are still fed by their own pumps/valves and are not cut by this valve alone.`
+          ),
           fixLabel: L(lang, "打开阀门", "Open valve"),
           fix: { type: "openValve", nodeId: n.id },
           elementIds: [n.id],
@@ -526,8 +830,8 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope, lang: Lang 
       en: "The pump is the power source: when it stops, adjacent pipes carry no flow. In teaching demos pumps are often stopped on purpose.",
     },
     "valve-closed": {
-      zh: "电磁阀关闭会切断该支路，下游管路随之停流。教学演示中关闭阀门多为有意为之。",
-      en: "A closed solenoid cuts the branch and downstream pipes stop. In teaching demos valves are often closed on purpose.",
+      zh: "两通阀只控制自己所在的那条支路：关闭它，该支路停流；其他并联支路仍可由各自的泵/阀供液。只有当它位于当前主出液路径上时，才会导致出口停流——判断根因要看「为什么停流」里的因果链，而不是只看某个阀关着。",
+      en: "A two-way valve controls only its own branch: closing it stops that branch, while parallel branches keep their own supply. It stalls an outlet only when it sits on the active delivery path — use the stop-cause chain rather than a closed-valve list to identify the root cause.",
     },
     fault: {
       zh: "故障标记是教学演练用的：注入故障后观察停流如何向下游传播，再配合因果链定位根因。确认是故意注入的可忽略。",

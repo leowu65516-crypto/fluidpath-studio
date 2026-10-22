@@ -23,7 +23,7 @@ const SINK_BOUNDARY = new Set([
 
 /** 方向性元件：只走其进/出侧端口 */
 const DIRECTIONAL = new Set([
-  "pump", "milkPump", "airPump", "solenoid2", "ballValve", "solenoid3", "diaphragmValve2", "checkValve",
+  "pump", "milkPump", "airPump", "solenoid2", "pulseAirValve", "ballValve", "solenoid3", "diaphragmValve2", "checkValve",
 ]);
 
 export interface FunctionalChain {
@@ -48,7 +48,7 @@ function effectiveEnds(diagram: Diagram, pipe: Pipe): Ends {
 function flowable(n: DiagramNode): boolean {
   if (n.disabled) return false;
   if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") return pumpEffectiveOn(n);
-  if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2") return valveEffectiveOpen(n);
+  if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") return valveEffectiveOpen(n);
   if (n.type === "solenoid3" || n.type === "diaphragmValve3") return valve3EffectivePath(n) !== "off";
   return true;
 }

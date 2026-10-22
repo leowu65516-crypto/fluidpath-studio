@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.31.3";
+export const APP_VERSION = "1.31.4";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.4",
+    date: "2026-10-22",
+    highlights: [
+      "修复工程禁用旁支的停流传播：三通/四通汇流点不再把一条禁用支路的停流扩散到其他支路；脉冲空气阀禁用或关闭只停空气支路，奶泵仍可正常从奶罐吸奶",
+      "「为什么停流」改为分层归因（本管→上游供液→下游去处）：汇流点先判断是否仍有来液，不再把关闭的清洗旁支阀误报成主路根因；多条来路都断时汇总所有阻断点，并补上下游关闭阀/停转泵/禁用元件/储液罐液源说明",
+      "脉冲空气阀支持开/关状态：属性面板、画布开关徽标、工况快照、场景基线与故障模拟（阀卡开/卡关）统一接入；关闭时空气支路停流，不影响并联液体主路",
+    ],
+  },
   {
     version: "1.31.3",
     date: "2026-10-16",

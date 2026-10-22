@@ -167,11 +167,11 @@ export function createNode(type: NodeType, x: number, y: number, label?: string,
     ...(type === "hotWaterOutlet" ? { variant: "single", dispensing: true } : {}),
     ...(type === "groupHead" ? { dispensing: true } : {}),
     ...(type === "annotation" ? { pointerTarget: { x: x + def.width / 2 + 30, y: y + def.height + 60 } } : {}),
-    ...(type === "solenoid2" || type === "ballValve" || type === "diaphragmValve2" ? { valveState: "open" as const } : {}),
+    ...(type === "solenoid2" || type === "ballValve" || type === "diaphragmValve2" || type === "pulseAirValve" ? { valveState: "open" as const } : {}),
     ...(type === "solenoid3" || type === "diaphragmValve3" ? { valvePath: "A" as const } : {}),
     ...(type === "diaphragmValve3" ? { valveCommonPortId: ports.find((port) => port.position === "right")?.id } : {}),
     // 阀/泵默认在画布上显示开关（可在属性中关闭）
-    ...(["solenoid2", "solenoid3", "diaphragmValve2", "diaphragmValve3", "ballValve", "pump", "milkPump", "airPump"].includes(type) ? { showStateOnDiagram: true } : {})
+    ...(["solenoid2", "pulseAirValve", "solenoid3", "diaphragmValve2", "diaphragmValve3", "ballValve", "pump", "milkPump", "airPump"].includes(type) ? { showStateOnDiagram: true } : {})
   };
 }
 
@@ -519,6 +519,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
     }
     case "pulseAirValve": {
       const cy = h * 0.76;
+      const open = node.valveState !== "closed";
       return (
         <g>
           {/* 阀体（与两通阀一致） */}
@@ -528,6 +529,9 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <Coil x={w / 2 - 15} y={2} w={30} h={h * 0.3 - 2} stroke={stroke} />
           {/* 脉冲标识：闪电 + 气流点 */}
           <path d={`M ${w / 2 + 3} ${h * 0.14} L ${w / 2 - 5} ${h * 0.2} L ${w / 2 + 0} ${h * 0.2} L ${w / 2 - 6} ${h * 0.28} L ${w / 2 + 6} ${h * 0.28}`} fill="none" stroke="#2f7fd6" strokeWidth={1.5} strokeLinejoin="round" />
+          {/* 开/关状态指示 */}
+          <circle cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />
+          <text className="fp-state-badge" x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600} style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={2.5}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>
         </g>
       );
     }

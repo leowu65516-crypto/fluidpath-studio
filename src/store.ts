@@ -1566,6 +1566,30 @@ export function applyFix(fix: FixAction) {
     case "openValve":
       patchNode(fix.nodeId, { valveState: "open" }, false);
       break;
+    case "renumberPipes":
+      updateDiagram((d) => {
+        // 保留自定义名称，只重排「管路 N / Pipe N」自动编号；先占用自定义名称避免撞号
+        const used = new Set<string>();
+        for (const p of d.pipes) {
+          const label = (p.label || "").trim();
+          if (label && !/^(管路|Pipe)\s*\d+$/i.test(label)) used.add(label.toLowerCase());
+        }
+        let n = 1;
+        for (const p of d.pipes) {
+          const label = (p.label || "").trim();
+          const match = label.match(/^(管路|Pipe)\s*\d+$/i);
+          if (!match) continue;
+          let next = `${match[1]} ${n}`;
+          while (used.has(next.toLowerCase())) {
+            n += 1;
+            next = `${match[1]} ${n}`;
+          }
+          p.label = next;
+          used.add(next.toLowerCase());
+          n += 1;
+        }
+      }, false);
+      break;
   }
 }
 

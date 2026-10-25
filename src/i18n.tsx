@@ -769,6 +769,8 @@ const EN: Record<string, string> = {
   "校验并预览": "Validate and preview",
   "指令未应用": "Instructions not applied",
   "变更预览": "Change preview",
+  "应用全部变更": "Apply all changes",
+  "已应用，可撤销": "Applied — undo available",
   "管段": "Pipe segments",
   "切回编辑模式后应用指令。": "Switch back to Edit mode to apply instructions.",
   "出液时显示咖啡色水滴从出液嘴向下滴落；受全局播放开关控制": "When dispensing, brown coffee drops fall from the spout; controlled by the global play switch",

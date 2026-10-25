@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.31.4";
+export const APP_VERSION = "1.31.5";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.5",
+    date: "2026-10-25",
+    highlights: [
+      "激活 AI 绘图面板：工具栏新增「AI 绘图」入口，右栏可下载图纸上下文、粘贴外部 AI 返回的 fluidpath.ai-operations JSON、校验预览并一次应用；此前 AiDrawingPanel 是无人引用的孤儿组件",
+      "新增 docs/ai-protocol.md：把 0.2-draft 协议的包络、组件/介质目录、5 类操作、错误语义、完整示例和外部模型提示词模板整理成外部 AI 可直接消费的规范",
+      "右栏面板收敛为显式分支（模式面板 → AI 绘图 → 回路诊断 → 属性检查器），替代 App.tsx 的嵌套三元；AI 面板与故障/验收模式联动，切出编辑模式自动收起",
+      "新增管路编号 Linter：检测「管路 N / Pipe N」自动编号重复并一键重排，保留自定义名称；新增 AI 面板激活回归 3 例 + 编号重排 1 例；全量 68 文件 / 467 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.31.4",
     date: "2026-10-22",

@@ -14,6 +14,7 @@ import { WelcomePanel } from "./components/WelcomePanel";
 import { AdvicePanel } from "./components/AdvicePanel";
 import { ValidationPanel } from "./components/ValidationPanel";
 import { FaultCodePanel } from "./components/FaultCodePanel";
+import { AiDrawingPanel } from "./components/AiDrawingPanel";
 import { selectFaultCodes, setSimulationRunning } from "./fault-codes/session";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
@@ -46,6 +47,7 @@ export default function App() {
   const [showScenario, setShowScenario] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
+  const [showAi, setShowAi] = useState(false);
   const [gateOk, setGateOk] = useState(() => !shouldGate() || gateAuthed());
   // 状态栏诊断徽章点击 → 打开回路诊断面板
   useEffect(() => {
@@ -111,6 +113,8 @@ export default function App() {
   // ===== 工作模式联动（edit / present / verify / fault）=====
   const mode = appState.ui.mode ?? "edit";
   const modeRef = useRef(mode);
+  // 故障/验收面板占用右栏；切出编辑模式时收起 AI 绘图，避免与模式面板抢占
+  useEffect(() => { if (mode !== "edit") setShowAi(false); }, [mode]);
   const [modeNotice, setModeNotice] = useState<"edit" | "present" | "verify" | "fault" | null>(null);
   const modeNoticeTimer = useRef<number | undefined>();
   useEffect(() => {
@@ -288,6 +292,19 @@ export default function App() {
   if (!gateOk) {
     return <PasswordGate onPass={() => { setGateAuthed(); setGateOk(true); }} />;
   }
+  // 右栏只有一个活动面板：模式面板优先，其次 AI 绘图，再是回路诊断，最后属性检查器。
+  // 用显式变量替代嵌套三元，新增面板时只需要插入一层判断。
+  const rightPanel = mode === "fault" ? (
+    <FaultCodePanel onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }} />
+  ) : mode === "verify" ? (
+    <ValidationPanel onClose={() => setWorkMode("edit")} />
+  ) : showAi ? (
+    <AiDrawingPanel onClose={() => setShowAi(false)} />
+  ) : showAdvice ? (
+    <AdvicePanel onClose={() => setShowAdvice(false)} />
+  ) : (
+    <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />
+  );
   const shownMode = modeNotice ?? mode;
   const modeInfo = shownMode === "present"
     ? { icon: "🎬", title: t("演示模式"), summary: t("可拨阀、微调和切换教学步骤"), lock: t("拓扑编辑已锁定") }
@@ -305,7 +322,7 @@ export default function App() {
             <span className="mode-banner-lock">{modeInfo.lock}</span>
           </div>
         )}
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenAi={() => { if (mode !== "edit") { setWorkMode("edit"); window.setTimeout(() => { setShowAdvice(false); setShowAi(true); }, 0); } else { setShowAdvice(false); setShowAi((v) => !v); } }} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <div className="canvas-anchor">
@@ -321,7 +338,7 @@ export default function App() {
             </div>
           )}
           </div>
-          {mode === "fault" ? <FaultCodePanel onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }} /> : mode === "verify" ? <ValidationPanel onClose={() => setWorkMode("edit")} /> : showAdvice ? <AdvicePanel onClose={() => setShowAdvice(false)} /> : <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />}
+          {rightPanel}
         </div>
         <StatusBar />
       </div>

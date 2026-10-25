@@ -42,7 +42,8 @@ export type FixAction =
   | { type: "detachPipe"; pipeId: string; end: "from" | "to" }
   | { type: "reversePipe"; pipeId: string }
   | { type: "startPump"; nodeId: string }
-  | { type: "openValve"; nodeId: string };
+  | { type: "openValve"; nodeId: string }
+  | { type: "renumberPipes" };
 
 export type AdviceCategory = "structure" | "state";
 
@@ -526,6 +527,36 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope, lang: Lang 
     }
   }
 
+  // 1b) 线路编号重复：自动编号应唯一；自定义名称重复时只提示不自动改
+  const labelGroups = new Map<string, typeof diagram.pipes>();
+  for (const p of diagram.pipes) {
+    if (scoped && pipeIds && !pipeIds.has(p.id)) continue;
+    const key = (p.label || "").trim().toLowerCase();
+    if (!key) continue;
+    const group = labelGroups.get(key) ?? [];
+    group.push(p);
+    labelGroups.set(key, group);
+  }
+  for (const [key, group] of labelGroups) {
+    if (group.length < 2) continue;
+    const allAuto = group.every((p) => /^(管路|Pipe)\s*\d+$/i.test((p.label || "").trim()));
+    out.push({
+      id: `duplicate_pipe_label_${key}`,
+      severity: "warning",
+      category: "structure",
+      kind: "duplicate-pipe-label",
+      title: L(lang, "管路编号重复", "Duplicate pipe label"),
+      message: L(
+        lang,
+        `「${group[0].label}」出现 ${group.length} 次；线路编号应唯一，否则导出、BOM 和现场排查时无法区分具体管段。`,
+        `"${group[0].label}" appears ${group.length} times; line numbers should be unique for export, BOM, and field troubleshooting.`
+      ),
+      fixLabel: allAuto ? L(lang, "重新编号自动管路", "Renumber automatic pipes") : L(lang, "定位重复管路", "Locate duplicates"),
+      fix: allAuto ? { type: "renumberPipes" } : undefined,
+      elementIds: group.map((p) => p.id),
+    });
+  }
+
   // 2) 孤立元件（有端口却没接任何管路）
   const connectedPorts = new Set<string>();
   for (const p of diagram.pipes) {
@@ -820,6 +851,10 @@ export function collectAdvice(diagram: Diagram, scope?: AdviceScope, lang: Lang 
     "pump-no-outlet": {
       zh: "泵出口没有管路时，介质无处可去；运行泵也只会是空转（教学上表现为无下游流动）。",
       en: "With no outlet pipe the pumped fluid has nowhere to go; a running pump idles (no downstream flow).",
+    },
+    "duplicate-pipe-label": {
+      zh: "线路编号是图纸的交付语言：重复编号会让 BOM、故障码和现场排查同时指向多个对象。自动重排只改「管路 N / Pipe N」这类自动编号，自定义名称（如「奶路」「蒸汽旁通」）会保留。",
+      en: "Line numbers are the delivery language of a drawing: duplicates make BOM, fault codes, and field checks point at multiple objects. Automatic renumbering only changes generated labels such as \"Pipe N\"; custom names are preserved.",
     },
     "loose-pipe": {
       zh: "两端都没接端口的管路不参与任何液路，通常是删除残留。",

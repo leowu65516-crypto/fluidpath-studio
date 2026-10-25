@@ -48,4 +48,24 @@ describe("智能诊断建议引擎", () => {
     const advices = collectAdvice(d);
     expect(advices.some((a) => a.title === "孤立元件" && a.fix?.type === "deleteNode")).toBe(true);
   });
+
+  it("检测重复管路编号并一键重排，保留自定义名称", () => {
+    const d = createSemiAutoMachineDiagram();
+    expect(d.pipes.length).toBeGreaterThanOrEqual(3);
+    d.pipes[0].label = "管路 1";
+    d.pipes[1].label = "管路 1";
+    const custom = d.pipes[2];
+    custom.label = "自定义奶路";
+
+    const advice = collectAdvice(d).find((a) => a.kind === "duplicate-pipe-label" && a.fix?.type === "renumberPipes");
+    expect(advice).toBeTruthy();
+    expect(advice?.fix?.type).toBe("renumberPipes");
+
+    loadDiagram(d);
+    applyFix(advice!.fix!);
+    const labels = store.get().diagram.pipes.map((p) => p.label);
+    const autoLabels = labels.filter((l) => /^(管路|Pipe)\s*\d+$/i.test(l));
+    expect(new Set(autoLabels).size).toBe(autoLabels.length);
+    if (custom) expect(labels).toContain("自定义奶路");
+  });
 });

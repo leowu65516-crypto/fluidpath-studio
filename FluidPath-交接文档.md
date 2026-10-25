@@ -1,7 +1,7 @@
 # FluidPath Studio & CAYE 全自动咖啡机 · 完全参考手册
 
 > 本文档是理解 **FluidPath Studio 应用** 与 **CAYE 咖啡机图纸（`/Users/leo/Desktop/BCMTS.json`）** 的第一参考：应用架构、技术栈、流体仿真引擎原理、咖啡机整机原理（做咖啡 / 热牛奶 / 蒸汽 / 热水 / 清洗 / 排废），以及操作与维护纪律。
-> 最后更新：2026-10-22（v1.31.4）。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
+> 最后更新：2026-10-25（v1.31.5）。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
 
 ---
 
@@ -34,8 +34,9 @@
 | `src/presets.ts` | **预设状态原语**（PresetState + 快照/应用/差异），演示步骤与工况快照共用 |
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
+| `docs/ai-protocol.md` | `fluidpath.ai-operations 0.2-draft` 外部 AI 协议规范：包络、组件/介质目录、5 类操作、错误语义、完整示例与提示词模板 |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 67 个测试文件 / 463 通过 + 4 跳过（共 467），见 §6 |
+| `src/__tests__/` | 68 个测试文件 / 467 通过 + 4 跳过（共 471），见 §6 |
 | `/Users/leo/Desktop/Fluidpath studio/` | 机型图纸与协议文档目录（含统超定制系列图纸、图纸规范 v0.2 及增补），见 §4.7 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
@@ -354,7 +355,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npm run check                    # tsc + 全量测试（当前 463 通过 + 4 跳过，67 文件）
+npm run check                    # tsc + 全量测试（当前 467 通过 + 4 跳过，68 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -423,7 +424,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：67 文件（65 通过 + 2 本机专属跳过）/ 467 用例（463 通过 + 4 跳过），tsc 无错误。**
+**当前全量：68 文件（66 通过 + 2 本机专属跳过）/ 471 用例（467 通过 + 4 跳过），tsc 无错误。**
 
 ---
 
@@ -455,6 +456,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.31.5 | 2026-10-25 | 激活 AI 绘图面板：工具栏「AI 绘图」入口 + 右栏挂载（此前 AiDrawingPanel 无人引用）；新增 docs/ai-protocol.md（0.2-draft 包络/目录/5 类操作/错误语义/示例/提示词模板）；App 右栏改为显式分支并联动模式；新增管路编号 Linter（自动编号重复检测 + 一键重排，保留自定义名称）；AI 面板激活回归 3 例 + 编号重排 1 例，68 文件/467 通过+4 跳过。 |
 | 1.31.4 | 2026-10-22 | 工程禁用旁支停流止于三通/四通：脉冲空气阀禁用或关闭只停空气支路，奶泵仍可从奶罐吸奶；「为什么停流」改为分层归因（本管→上游供液→下游去处），汇流点不再误报关闭的清洗旁支，多阻断汇总并补下游阀/泵/禁用件/储液罐液源说明；脉冲空气阀支持开/关（属性、画布徽标、工况快照、故障模拟）；67 文件/463 通过+4 跳过。 |
 | 1.30.7 | 2026-10-13 | 工况自定义命名（✏️/双击重命名）；工况快照以当前设置为准（含管路介质类型+颜色，切回时还原）；演示步骤闪烁改为「与上一步相比的变化项」；验收功能与模式入口暂不展示（代码保留）。 |
 | 1.30.6 | 2026-10-13 | 修复演示模式：自定义演示（从工况创建）选择后不进入步骤讲述界面（1/2/3 步骤导航缺失）——ScenarioPanel 的 getScenario 补传图纸上下文；新增回归测试。 |

@@ -31,6 +31,7 @@ export function SmartDrawingPanel({
   const diag = useMemo(() => diagnosisSummary(diagram), [diagram]);
   const eng = useMemo(() => engineeringSummary(diagram), [diagram]);
   const warnings = diag.errors + diag.warnings;
+  const engCount = eng.errors + eng.warnings + eng.infos;
 
   const hasCoffee = diagram.nodes.some((n) => n.type === "coffeeOutlet" || n.type === "brewChamber");
   const hasMilk = diagram.nodes.some((n) => n.type === "milkOutlet" || n.type === "milkPump");
@@ -88,7 +89,7 @@ export function SmartDrawingPanel({
           <span>✓ {diagram.nodes.length} {t("个元件")}</span>
           <span>✓ {diagram.pipes.length} {t("段管路")}</span>
           {warnings > 0 ? <span className="smart-warn">⚠ {warnings} {t("处可改进")}</span> : <span className="smart-ok">✓ {t("结构正常")}</span>}
-          {eng.errors + eng.warnings > 0 ? <span className="smart-warn">⚠ {t("工程建议")} {eng.errors + eng.warnings}</span> : <span className="smart-ok">✓ {t("工程检查通过")}</span>}
+          {engCount > 0 ? <span className="smart-warn">⚠ {t("工程建议")} {engCount}</span> : <span className="smart-ok">✓ {t("工程检查通过")}</span>}
         </div>
 
         {eng.issues.length > 0 && (
@@ -103,7 +104,7 @@ export function SmartDrawingPanel({
                   className={`smart-eng-item ${issue.severity}`}
                   onClick={() => { trackSmart("engineering_issue_click", { code: issue.id.split("-").slice(0, 2).join("-") }); blinkElements([...issue.nodeIds, ...issue.pipeIds]); }}
                 >
-                  <span>{issue.severity === "error" ? "⛔" : "⚠"}</span>
+                  <span>{issue.severity === "error" ? "⛔" : issue.severity === "warning" ? "⚠" : "💡"}</span>
                   <span><b>{label.title}</b>：{label.message}</span>
                 </button>
               );

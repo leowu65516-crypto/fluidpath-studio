@@ -1,6 +1,6 @@
 import type { Diagram, DiagramNode, Pipe } from "../types";
 
-export type EngineeringSeverity = "error" | "warning";
+export type EngineeringSeverity = "error" | "warning" | "info";
 
 export interface EngineeringIssue {
   id: string;
@@ -118,6 +118,36 @@ function hasMilkCleanPath(diagram: Diagram, milk: DiagramNode): boolean {
   return false;
 }
 
+/** 某个节点周围（无向）深度内能到达的出口数量；用于判断排废是否汇入总阀。 */
+function reachableOutlets(diagram: Diagram, start: DiagramNode, maxDepth = 6): number {
+  const { portToNode, nodePipes } = buildGraph(diagram);
+  const seen = new Set<string>([start.id]);
+  const queue: Array<{ node: DiagramNode; depth: number }> = [{ node: start, depth: 0 }];
+  const outlets = new Set<string>();
+  while (queue.length) {
+    const { node, depth } = queue.shift()!;
+    if (node.type === "outlet") outlets.add(node.id);
+    if (depth >= maxDepth) continue;
+    for (const pipe of nodePipes.get(node.id) ?? []) {
+      const otherPortId = pipe.fromPortId && portToNode.get(pipe.fromPortId)?.id === node.id ? pipe.toPortId : pipe.fromPortId;
+      const other = otherPortId ? portToNode.get(otherPortId) : undefined;
+      if (!other || seen.has(other.id)) continue;
+      seen.add(other.id);
+      queue.push({ node: other, depth: depth + 1 });
+    }
+  }
+  return outlets.size;
+}
+
+/** 排废总阀：下游 2 步内有出口，且同一片排废网里至少汇入 3 个出口。 */
+function hasMainDrainValve(diagram: Diagram): boolean {
+  const valves = diagram.nodes.filter((n) => ["solenoid2", "ballValve", "diaphragmValve2"].includes(n.type));
+  return valves.some((v) => {
+    const downstream = downstreamNodes(diagram, v, 2);
+    return downstream.some((n) => n.type === "outlet") && reachableOutlets(diagram, v, 5) >= 3;
+  });
+}
+
 /**
  * 咖啡机液路工程检查（启发式，不做 CFD）：
  * 安全件、泵出口单向阀、奶路清洗、默认状态、可运行工况。
@@ -231,6 +261,41 @@ export function engineeringIssues(diagram: Diagram): EngineeringIssue[] {
     }
   }
 
+  // 向真机推进：双锅炉共用供水应有流量计；多路排废应有总阀；蒸汽锅炉补水应有阀。
+  if (steamBoilers.length > 0 && hotBoilers.length > 0 && !nodes.some((n) => n.type === "flowMeter")) {
+    out.push(issue(
+      "flow-meter-missing", "info",
+      "供水缺流量计",
+      "Supply has no flow meter",
+      "双锅炉共用供水建议在泵后加流量计，便于计量、诊断和验收。",
+      "Add a flow meter after the pump in a shared dual-boiler supply for metering and diagnostics.",
+    ));
+  }
+  const outlets = nodes.filter((n) => n.type === "outlet");
+  if (outlets.length >= 3 && !hasMainDrainValve(diagram)) {
+    out.push(issue(
+      "drain-main-missing", "warning",
+      "排废无总闸",
+      "No main drain valve",
+      "多路排废建议先汇入排废总阀再出口，避免清洗/排废时多路同时外泄。",
+      "Route multiple drain branches through a main drain valve before the outlet.",
+      outlets,
+    ));
+  }
+  for (const boiler of steamBoilers) {
+    const fillValve = nearbyNode(diagram, boiler, ["solenoid2", "ballValve", "diaphragmValve2"], 4);
+    if (!fillValve) {
+      out.push(issue(
+        `fill-valve-${boiler.id}`, "warning",
+        "蒸汽锅炉补水缺阀",
+        "Steam boiler fill has no valve",
+        "蒸汽锅炉补水应经补水电磁阀，待机时关闭，避免持续补水。",
+        "Steam boiler fill should pass through a fill solenoid that is closed at idle.",
+        [boiler],
+      ));
+    }
+  }
+
   // 默认状态：生成图应是待机态（泵停、两通阀关、三通阀 off）
   const runningPump = pumps.find((p) => p.pumpOn !== false);
   if (runningPump) {
@@ -287,6 +352,7 @@ export function engineeringSummary(diagram: Diagram) {
     issues,
     errors: issues.filter((i) => i.severity === "error").length,
     warnings: issues.filter((i) => i.severity === "warning").length,
+    infos: issues.filter((i) => i.severity === "info").length,
   };
 }
 

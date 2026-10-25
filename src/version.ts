@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.33.1";
+export const APP_VERSION = "1.34.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.34.0",
+    date: "2026-10-25",
+    highlights: [
+      "智能绘图 P0 失真修复：泄压管默认教学停显；奶路出口加三通排废阀，蒸汽/奶路锅炉补补水电磁阀；热牛奶工况改为奶泵+选奶+加热阀；基础水路卡移除静态「4 元件」并与动态计数统一，安全件管路补教学标签",
+      "智能绘图 P1 真机骨架：新增双锅炉 BCMTS-lite 模板（总进水阀→泵→流量计→分配三通→双锅炉→奶路→排废总网）；full 合并为共用供水网并补流量计、奶出口三通、排废总阀；工程规则补流量计/排废总闸/蒸汽补水阀；安全阀/OPV 改为常闭工程语义，教学覆盖可单独显示泄放",
+      "智能绘图 P2：压力表死端显示「传压不流过」并改用静态虚线，区别于普通停流；继续完善面板显示 info 级建议；工况切换补本机计数",
+      "全量 73 文件 / 492 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.33.1",
     date: "2026-10-25",

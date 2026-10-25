@@ -936,7 +936,26 @@ const EN: Record<string, string> = {
   "带蒸汽杆（单锅炉切换）": "With steam wand (single-boiler switch)",
   "蒸汽分支三通": "Steam branch tee",
   "蒸汽阀": "Steam valve",
-  "锅炉出水": "Boiler out"
+  "锅炉出水": "Boiler out",
+  "双锅炉真机骨架": "Dual-boiler machine skeleton",
+  "BCMTS-lite：总进水阀 → 泵 → 流量计 → 分配三通 → 咖啡/蒸汽双锅炉 + 奶路 + 排废总阀": "BCMTS-lite: main valve → pump → flow meter → supply tee → coffee/steam boilers + milk line + main drain valve",
+  "真机骨架": "Machine skeleton",
+  "共用供水": "Shared supply",
+  "排废总网": "Drain header",
+  "进水总阀": "Main water valve",
+  "总阀前进水": "Inlet before main valve",
+  "总阀后进水": "Feed after main valve",
+  "供水流量计": "Supply flow meter",
+  "双锅炉分配三通": "Dual-boiler supply tee",
+  "泵出口计量": "Pump out to meter",
+  "计量后供水": "Metered supply",
+  "咖啡锅炉补水": "Coffee boiler feed",
+  "蒸汽锅炉补水": "Steam boiler feed",
+  "排废汇流": "Drain header",
+  "排废总阀": "Main drain valve",
+  "总排废口": "Main drain outlet",
+  "排废总阀前": "Before main drain valve",
+  "总排废": "Main drain"
 
 };
 

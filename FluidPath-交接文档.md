@@ -1,7 +1,7 @@
 # FluidPath Studio & CAYE 全自动咖啡机 · 完全参考手册
 
 > 本文档是理解 **FluidPath Studio 应用** 与 **CAYE 咖啡机图纸（`/Users/leo/Desktop/BCMTS.json`）** 的第一参考：应用架构、技术栈、流体仿真引擎原理、咖啡机整机原理（做咖啡 / 热牛奶 / 蒸汽 / 热水 / 清洗 / 排废），以及操作与维护纪律。
-> 最后更新：2026-10-25（v1.33.1）。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
+> 最后更新：2026-10-25（v1.34.0）。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
 
 ---
 
@@ -35,11 +35,11 @@
 | `src/functionalChain.ts` | 元件→整机功能链追踪（按当前阀位），画布高亮 + Inspector 展示 |
 | `src/version.ts` | 版本号 APP_VERSION + 版本历史 CHANGELOG（预留） |
 | `docs/ai-protocol.md` | `fluidpath.ai-operations 0.2-draft` 外部 AI 协议规范：包络、组件/介质目录、7 类操作、错误语义、完整示例与提示词模板 |
-| `src/smart-draw/` | 智能绘图：模板（水路/咖啡/即热/奶路/蒸汽/组合）、参数化 build、块定义、咖啡机领域自由文本解析 |
+| `src/smart-draw/` | 智能绘图：模板（水路/咖啡/即热/奶路/蒸汽/组合/双锅炉骨架）、参数化 build、块定义、咖啡机领域自由文本解析 |
 | `src/components/SmartDrawingWizard.tsx` / `SmartDrawingPanel.tsx` | 三步生成向导（居中 Modal）与生成后的「继续完善」右栏（功能块/接点/关键词/检查/自动布线） |
 | `src/components/SaveStatusPill.tsx` / `SaveNudge.tsx` | 保存状态胶囊（本机草稿 vs 文件保存）与首次修改/插入/导出的保存教练 |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 72 个测试文件 / 486 通过 + 4 跳过（共 490），见 §6 |
+| `src/__tests__/` | 73 个测试文件 / 492 通过 + 4 跳过（共 496），见 §6 |
 | `/Users/leo/Desktop/Fluidpath studio/` | 机型图纸与协议文档目录（含统超定制系列图纸、图纸规范 v0.2 及增补），见 §4.7 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
@@ -202,11 +202,11 @@ pipeEffectiveDisabled(pipe) 依次短路：
 
 ---
 
-### 3.8 智能绘图与保存状态（1.33.1）
+### 3.8 智能绘图与保存状态（1.34.0）
 
 - **入口**：工具栏「智能绘图」或空画布主按钮；生成阶段为居中 Modal（三步：选场景→选配置→预览插入），生成后右栏切到「继续完善」。高级协议面板保留在右栏底部「高级：结构化指令」。
-- **模板**：`src/smart-draw/templates.ts` 6 个咖啡机液路模板（基础水路/咖啡冲泡/即热/奶路/蒸汽/咖啡+奶路组合）；`smart-draw/builders.ts` 统一 `createNode`/`connect`，管路 `points: []` 交给 `autoRoute` 障碍物避让。模板默认待机（泵停/两通阀关/三通阀 off），自带「待机/萃取/即热/奶路/蒸汽/排废」工况；咖啡模板可选「带蒸汽杆（单锅炉切换）」，蒸汽支路从锅炉出口三通分出；已补泵出口单向阀、锅炉出口十字四通 + 压力表 + OPV/安全阀 + 泄压排废。即热模板用 thermoblock 代替锅炉，安全附件同样保留。
-- **工程检查**：`smart-draw/engineering.ts` 检查蒸汽锅炉安全阀、锅炉压力表/OPV、泵出口单向阀、泵死堵、蒸汽注入奶路单向阀、奶路清洗、默认待机、缺少待机工况；奶路清洗已从标签正则改为**拓扑判定**（奶出口→二通阀→排废，深度 3），改标签不会误报；向导预览与「继续完善」面板可展开并点击定位。App 在 diagram 变化后 400ms 做增量检查，error 数上升时立即 toast 第一项。
+- **模板**：`src/smart-draw/templates.ts` 7 个咖啡机液路模板（基础水路/咖啡冲泡/即热/奶路/蒸汽/咖啡+奶路组合/双锅炉 BCMTS-lite）；`smart-draw/builders.ts` 统一 `createNode`/`connect`，管路 `points: []` 交给 `autoRoute` 障碍物避让。模板默认待机（泵停/两通阀关/三通阀 off），自带「待机/萃取/即热/奶路/蒸汽/排废」工况；咖啡模板可选「带蒸汽杆（单锅炉切换）」，蒸汽支路从锅炉出口三通分出；奶路出口带三通排废阀，蒸汽/奶路锅炉补水经单向阀 + 补水电磁阀；已补泵出口单向阀、锅炉出口十字四通 + 压力表 + OPV/安全阀 + 泄压排废。即热模板用 thermoblock 代替锅炉，安全附件同样保留。
+- **工程检查**：`smart-draw/engineering.ts` 检查蒸汽锅炉安全阀、锅炉压力表/OPV、泵出口单向阀、泵死堵、蒸汽注入奶路单向阀、奶路清洗、默认待机、缺少待机工况；新增双锅炉缺流量计（info）、多路排废缺总闸（warning）、蒸汽锅炉补水缺阀（warning）；安全阀/OPV 按常闭件停流，教学覆盖 flow 只改显示；奶路清洗已从标签正则改为**拓扑判定**（奶出口→二通阀→排废，深度 3），改标签不会误报；向导预览与「继续完善」面板可展开并点击定位。App 在 diagram 变化后 400ms 做增量检查，error 数上升时立即 toast 第一项。
 - **自由描述**：`smart-draw/intent.ts` 用咖啡机领域词典 + 否定词（无蒸汽/单奶罐）映射模板与选项；命中后 650ms 自动推进（有配置项到第 2 步，无配置项直接到预览），并列出「来自你的描述」；支持压力表/单向阀/三通/锅炉/水泵等元件级词。不做跨领域任意拓扑，也不调用外部模型。
 - **本机计数**：`smart-draw/telemetry.ts` 只写 localStorage（`event|prop=value`），记录模板选择/意图命中与未命中/功能块插入/保存成功/工程问题点击；不联网、不上报，`window.__fluidpathSmartTelemetry` 可查看。
 - **插入**：`insertSmartDrawing(result, "replace"|"append", anchorPortId?, medium?)`；replace 用于空画布并标记 dirty；append 追加到右侧、一次撤销；有锚点时自动生成「智能连接」管。
@@ -214,7 +214,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 - **结构化指令**：`ai/operations.ts` 支持新增/删除元件、连管/断管、重命名、泵阀状态和故障码关联；`removeComponent` 会清理相连管路，`disconnectPipe` 只断指定管，二者都进入 undo/redo。
 - **桌面关闭**：主进程在用户确认退出后设置窗口已批准关闭，并通过 `will-prevent-unload` 忽略渲染层 `beforeunload` 的拦截；关闭最后一个窗口直接 `app.quit()`，不再出现窗口消失但进程驻留、只能强制退出的情况。
 - **保存模型**：`ui.dirty` 仍表示“未保存到文件”；`ui.lastAutosaveAt` 由 autosave 写入；`ui.fileSavedAt` 在 `markSaved` 写入。状态栏 `SaveStatusPill` 区分本机草稿/文件未保存/已保存；`SaveNudge` 在首次修改/导出后提示保存文件，插入/加块由右栏 inline 保存条提示；关闭窗口只有 dirty 时才询问。
-- **测试**：`smart-drawing.test.ts` 9 例（模板结构/单锅炉蒸汽选项/自由文本/追加撤销/锚点连接）、`smart-engineering.test.ts` 5 例（默认待机/安全阀缺失/工程检查零项/功能块待机/奶路清洗拓扑）、`smart-telemetry.test.ts` 2 例（计数/重置）、`save-ux.test.tsx` 2 例（状态胶囊/保存事件）、`ai-panel-activation.test.tsx` 3 例（入口/挂载/英文）。全量 72 文件/486 通过 + 4 跳过。
+- **测试**：`smart-drawing.test.ts` 9 例（模板结构/单锅炉蒸汽选项/自由文本/追加撤销/锚点连接）、`smart-engineering.test.ts` 6 例（默认待机/安全阀缺失/工程检查零项/功能块待机/奶路清洗拓扑/流量计与补水阀规则）、`smart-template-flow.test.ts` 5 例（待机全停/奶出口与补水阀/双锅炉骨架/英文构建/泄压教学覆盖）、`smart-telemetry.test.ts` 2 例（计数/重置）、`save-ux.test.tsx` 2 例（状态胶囊/保存事件）、`ai-panel-activation.test.tsx` 3 例（入口/挂载/英文）。全量 73 文件/492 通过 + 4 跳过。
 
 ## 4. CAYE 咖啡机（BCMTS.json）完全解析
 
@@ -372,7 +372,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npm run check                    # tsc + 全量测试（当前 486 通过 + 4 跳过，72 文件）
+npm run check                    # tsc + 全量测试（当前 492 通过 + 4 跳过，73 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -430,8 +430,9 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `heat-exchanger-channel.test.ts` | 换热器双通道：两侧互不串供（供液/停流相位/需求域，1.29.3，5 例） |
 | `solenoid3-merge.test.ts` | 三通汇流（两进一出）：任一路入侧有供即出流 + 单入侧零回归（1.29.3，7 例） |
 | `stop-cause-branch.test.ts` | 停流归因：禁用旁支/串联禁用/不抓旁支/多阻断汇总/罐液源/脉冲阀开与关/工况快照（8 例） |
-| `smart-drawing.test.ts` | 智能绘图：6 模板结构、单锅炉蒸汽选项、自由文本、追加撤销、锚点连接（9 例） |
-| `smart-engineering.test.ts` | 智能绘图工程检查：默认待机、安全阀缺失、工程检查零项、功能块待机、奶路清洗拓扑（5 例） |
+| `smart-drawing.test.ts` | 智能绘图：7 模板结构、单锅炉蒸汽选项、自由文本、追加撤销、锚点连接（9 例） |
+| `smart-engineering.test.ts` | 智能绘图工程检查：默认待机、安全阀缺失、工程检查零项、功能块待机、奶路清洗拓扑、流量计/补水阀规则（6 例） |
+| `smart-template-flow.test.ts` | 智能绘图流动语义：待机全停、奶出口/补水阀、双锅炉骨架、英文构建、泄压教学覆盖（5 例） |
 | `smart-telemetry.test.ts` | 智能绘图本机计数：事件累积/属性聚合/重置（2 例） |
 | `save-ux.test.tsx` | 保存状态胶囊与保存教练事件（2 例） |
 | `ai-panel-activation.test.tsx` | 智能绘图入口、面板挂载/关闭、英文面板（3 例） |
@@ -447,7 +448,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：72 文件（70 通过 + 2 本机专属跳过）/ 490 用例（486 通过 + 4 跳过），tsc 无错误。**
+**当前全量：73 文件（71 通过 + 2 本机专属跳过）/ 496 用例（492 通过 + 4 跳过），tsc 无错误。**
 
 ---
 
@@ -479,6 +480,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.34.0 | 2026-10-25 | 智能绘图失真修复：泄压默认停显、奶出口三通排废、蒸汽/奶路补水阀、热牛奶工况；新增双锅炉 BCMTS-lite 模板；full 共用供水+流量计+排废总阀；工程规则补流量计/排废总闸/补水阀；安全阀/OPV 常闭语义；压力表死端呈现；73 文件/492 通过+4 跳过。 |
 | 1.33.1 | 2026-10-25 | 修复 macOS 关闭窗口卡死：确认退出后忽略 beforeunload 拦截；关闭最后一个窗口直接退出应用，不再需要强制结束进程；72 文件/486 通过+4 跳过。 |
 | 1.33.0 | 2026-10-25 | 智能绘图 P0+P1：本机匿名计数；意图命中自动推进/未命中计数；元件级词压力表/单向阀/三通/锅炉/水泵 + 快捷 chips；奶路清洗拓扑判定；即热咖啡机模板；推荐接点；结构化指令 removeComponent/disconnectPipe；工程检查增量 toast；72 文件/486 通过+4 跳过。 |
 | 1.32.1 | 2026-10-25 | 工程/设计 P0+部分 P1：模板默认待机+推荐工况；安全附件（泵出口单向阀、锅炉十字四通+压力表+OPV/安全阀+泄压排废）；工程检查规则（安全阀/压力表/单向阀/泵死堵/蒸汽注入奶路/奶路清洗/默认状态/待机工况）并在预览/右栏可定位；空画布三步清单、模板标签+大预览、插入后高亮不选、右栏建议下一步+折叠、inline 保存条；向导焦点陷阱/aria；71 文件/481 通过+4 跳过。 |

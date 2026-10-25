@@ -84,7 +84,8 @@ export function SmartDrawingWizard({
     setOptions(Object.fromEntries(next.options.map((o) => [o.key, o.default])));
     setIntentOptionKeys(new Set());
     setIntentSummary([]);
-    setStep(2);
+    // 没有配置项的模板直接到预览，避免出现一个空的“配置”步骤
+    setStep(next.options.length ? 2 : 3);
     trackSmart("template_select", { template: next.id });
   }
 
@@ -234,7 +235,7 @@ export function SmartDrawingWizard({
                 {eng.errors + eng.warnings === 0 ? (
                   <span className="smart-ok">✓ {t("工程检查通过")}</span>
                 ) : (
-                  <span className="smart-warn">⚠ {t("工程建议")} {eng.errors + eng.warnings} {t("项")}</span>
+                  <span className="smart-warn">⚠ {t("工程建议")} {eng.errors + eng.warnings + eng.infos} {t("项")}</span>
                 )}
               </div>
               {eng.issues.length > 0 && (
@@ -243,7 +244,7 @@ export function SmartDrawingWizard({
                     const label = engineeringIssueLabel(issue);
                     return (
                       <div key={issue.id} className={`smart-eng-item ${issue.severity}`}>
-                        <span>{issue.severity === "error" ? "⛔" : "⚠"}</span>
+                        <span>{issue.severity === "error" ? "⛔" : issue.severity === "warning" ? "⚠" : "💡"}</span>
                         <span><b>{label.title}</b>：{label.message}</span>
                       </div>
                     );

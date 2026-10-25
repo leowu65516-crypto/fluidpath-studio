@@ -70,6 +70,7 @@ describe("自由文本解析", () => {
     expect(parseSmartText("coffee machine with milk").templateId).toBe("full");
     expect(parseSmartText("基础水路").templateId).toBe("water");
     expect(parseSmartText("即热咖啡机").templateId).toBe("thermoblock");
+    expect(parseSmartText("BCMTS 真机骨架").templateId).toBe("dual-boiler");
     const steamCoffee = parseSmartText("咖啡机带蒸汽杆");
     expect(steamCoffee.templateId).toBe("coffee");
     expect(steamCoffee.options.steam).toBe(true);

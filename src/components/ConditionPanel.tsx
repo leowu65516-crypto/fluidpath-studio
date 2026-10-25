@@ -4,6 +4,7 @@ import { useAppState, saveWorkCondition, applyWorkCondition, updateWorkCondition
 import { getScenario } from "../scenarios";
 import { useT } from "../i18n";
 import { toast } from "../toast";
+import { trackSmart } from "../smart-draw/telemetry";
 
 /**
  * 工况面板：把当前完整教学状态存成方案，之后一键切换对比。
@@ -34,6 +35,7 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
 
   function apply(n: string) {
     applyWorkCondition(n);
+    trackSmart("condition_switch", { name: n });
     setOpenedCondition(n);
     toast(t("已恢复「{name}」的完整工况 —— 打开“回路诊断”查看工程流/停").replace("{name}", n));
   }

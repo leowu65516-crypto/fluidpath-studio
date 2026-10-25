@@ -61,6 +61,28 @@ describe("智能绘图工程检查", () => {
     expect(engineeringIssues(asDiagram(removed)).some((i) => i.titleZh.includes("奶路缺清洗"))).toBe(true);
   });
 
+  it("双锅炉共用供水缺流量计给 info，蒸汽锅炉缺补水阀给 warning", () => {
+    const dual = buildSmartTemplate(SMART_TEMPLATES.find((t) => t.id === "dual-boiler")!, {});
+    const meter = dual.nodes.find((n) => n.type === "flowMeter")!;
+    const meterPorts = new Set(meter.ports.map((p) => p.id));
+    const noMeter = {
+      ...dual,
+      nodes: dual.nodes.filter((n) => n.id !== meter.id),
+      pipes: dual.pipes.filter((p) => !meterPorts.has(p.fromPortId!) && !meterPorts.has(p.toPortId!)),
+    };
+    expect(engineeringIssues(asDiagram(noMeter)).some((i) => i.severity === "info" && i.titleZh.includes("流量计"))).toBe(true);
+
+    const steam = buildSmartTemplate(SMART_TEMPLATES.find((t) => t.id === "steam")!, {});
+    const fill = steam.nodes.find((n) => n.type === "solenoid2" && /补水|fill/i.test(n.label))!;
+    const fillPorts = new Set(fill.ports.map((p) => p.id));
+    const noFill = {
+      ...steam,
+      nodes: steam.nodes.filter((n) => n.id !== fill.id),
+      pipes: steam.pipes.filter((p) => !fillPorts.has(p.fromPortId!) && !fillPorts.has(p.toPortId!)),
+    };
+    expect(engineeringIssues(asDiagram(noFill)).some((i) => i.severity === "warning" && i.titleZh.includes("补水缺阀"))).toBe(true);
+  });
+
   it("模板工程检查为 0 项", () => {
     for (const template of SMART_TEMPLATES) {
       const result = buildSmartTemplate(template, {});

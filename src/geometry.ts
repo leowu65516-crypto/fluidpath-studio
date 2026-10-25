@@ -201,6 +201,8 @@ export function findPort(nodes: DiagramNode[], portId: string): PortRef | null {
 let _cachedPipes: Pipe[] = [];
 let _cachedDisabled = new Set<string>();
 let _demand = new Set<string>();
+let _demandComputed = false;
+let _demandHasRoots = false;
 export interface EnginePerfStats {
   lastMs: number;
   maxMs: number;
@@ -218,6 +220,7 @@ export function setCachedPipes(pipes: Pipe[], nodes?: DiagramNode[]) {
     const t0 = typeof performance !== "undefined" ? performance.now() : 0;
     _cachedDisabled = computeDisabledPipes(pipes, nodes);
     _demand = computeDemandPipes(pipes, nodes);
+    _demandComputed = true;
     if (typeof performance !== "undefined") {
       const dt = performance.now() - t0;
       _enginePerf = {
@@ -243,6 +246,8 @@ export function setCachedPipes(pipes: Pipe[], nodes?: DiagramNode[]) {
     // 清空后由 pipeEffectiveDisabled 实时判断，避免前一张图/前一阀位污染当前结果。
     _cachedDisabled = new Set();
     _demand = new Set();
+    _demandComputed = false;
+    _demandHasRoots = false;
   }
 }
 
@@ -299,6 +304,11 @@ export function pumpEffectiveOn(n: DiagramNode): boolean {
   if (n.fault === "pumpStuck") return false;
   return n.pumpOn !== false;
 }
+/** 安全阀 / OPV 是常闭泄压件：正常运行时不通流，只有教学覆盖或超压泄放才显示流动。 */
+export function isReliefValve(n: DiagramNode): boolean {
+  return n.type === "safetyValve" || n.type === "opv";
+}
+
 /** 两通开关阀（电磁阀 / 球阀）的工程有效导通状态。 */
 export function valveEffectiveOpen(n: DiagramNode): boolean {
   if (n.fault === "valveStuckOpen") return true;
@@ -365,6 +375,14 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       for (const p of n.ports) {
         for (const pipe of pipes) {
           if (pipe.fromPortId === p.id || pipe.toPortId === p.id) setSeed(pipe.id, "both");
+        }
+      }
+    }
+    if (isReliefValve(n)) {
+      // 常闭泄压件：自身两端管直接停流，不向主管路扩散。
+      for (const p of n.ports) {
+        for (const pipe of pipes) {
+          if (pipe.fromPortId === p.id || pipe.toPortId === p.id) disabledPipes.add(pipe.id);
         }
       }
     }
@@ -645,6 +663,7 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
   /** 源节点 u 是否允许通过 port 向下游放流（决定该出侧管是否有需求） */
   function canEmit(u: DiagramNode, port: Port): boolean {
     if (u.disabled) return false;
+    if (isReliefValve(u)) return false;
     if (u.type === "pump" || u.type === "milkPump") return pumpEffectiveOn(u);
     if (isTwoWayFlowValve(u)) return valveEffectiveOpen(u);
     if (u.type === "solenoid3") {
@@ -674,6 +693,7 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
     else if (n.type === "shape" && ((n.label || "").includes("排废") || (n.label || "").includes("冲泡")) && !n.disabled) roots.push(n);
     else if ((n.type === "pump" || n.type === "milkPump" || n.type === "airPump") && pumpEffectiveOn(n) && !n.disabled) roots.push(n);
   }
+  _demandHasRoots = roots.length > 0;
   for (const root of roots) {
     const hasDemandNode = new Set<string>();
     const queue: Array<{ node: DiagramNode; viaPortId?: string }> = [];
@@ -728,13 +748,18 @@ export function pipeEffectiveDisabled(
   if (!ignoreTeachingOverride && override === "flow") return false;
   if (!ignoreTeachingOverride && override === "stop") return true;
   if (pipe.disabled || pipe.fault === "pipeBlocked") return true;
+  // 安全阀/OPV 常闭：工程判断中与其相连的管一律停流；教学覆盖 flow 可在显示层单独放行。
+  const endpointNodes = [pipe.fromPortId, pipe.toPortId].map((pid) => pid ? findPort(nodes, pid)?.node : undefined);
+  if (endpointNodes.some((n) => n && isReliefValve(n))) return true;
   // 优先查预计算缓存（含泵/阀断点双向传播）
   if (!ignoreCache && _cachedDisabled.size > 0 && _cachedDisabled.has(pipe.id)) return true;
   // 供液侧递归判定
   const supplyStopped = pipeEffectiveDisabledRecursive(pipe, nodes, visitedPipes, ignoreTeachingOverride, ignoreDemand, ignoreCache);
   if (supplyStopped) return true;
   // 需求域：供液到达但下游无任何开放去处（全关死路）→ 不流动
-  if (!ignoreDemand && _demand.size > 0 && !_demand.has(pipe.id)) return true;
+  // 需求集合为空也要区分“尚未计算”和“有消费端但当前全关”：
+  // 后者必须停流，否则待机图上没有阀的补水/仪表支路会被误判为仍在流。
+  if (!ignoreDemand && _demandComputed && _demandHasRoots && !_demand.has(pipe.id)) return true;
   return false;
 }
 
@@ -752,7 +777,7 @@ export function pipeSupplyBlocked(pipe: Pipe, nodes: DiagramNode[]): boolean {
 
 /** 需求域判定（诊断归因用）：true = 当前不在任何有开放去处的需求链上。 */
 export function pipeDemandBlocked(pipe: Pipe): boolean {
-  return _demand.size > 0 && !_demand.has(pipe.id);
+  return _demandComputed && _demandHasRoots && !_demand.has(pipe.id);
 }
 
 /** 是否由预计算停流集（泵/阀/工程禁用及其传播）判定停流。 */
@@ -782,6 +807,8 @@ function pipeEffectiveDisabledRecursive(
   if (!ignoreTeachingOverride && override === "flow") return false;
   if (!ignoreTeachingOverride && override === "stop") return true;
   if (pipe.disabled || pipe.fault === "pipeBlocked") return true;
+  const recursiveEndpoints = [pipe.fromPortId, pipe.toPortId].map((pid) => pid ? findPort(nodes, pid)?.node : undefined);
+  if (recursiveEndpoints.some((n) => n && isReliefValve(n))) return true;
   const visited = visitedPipes ?? new Set<string>();
   if (visited.has(pipe.id)) return false;
   visited.add(pipe.id);

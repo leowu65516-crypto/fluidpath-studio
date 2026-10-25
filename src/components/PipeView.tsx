@@ -115,6 +115,12 @@ function PipeViewImpl({
   if (!pts || pts.length < 2) return null;
   const disabled = pipeEffectiveDisabled(pipe, nodes);
   const engineeringStopped = pipeTeachingOverride(pipe) ? pipeEngineeringDisabled(pipe, nodes) : disabled;
+  const endpointTypes = [pipe.fromPortId, pipe.toPortId].map((pid) => {
+    for (const n of nodes) if (pid && n.ports.some((p) => p.id === pid)) return n.type;
+    return undefined;
+  });
+  // 压力表是死端仪表：管路工程上必须停流，但这不是“没接好”，用专门的静态标注区分。
+  const gaugeDeadEnd = disabled && endpointTypes.includes("pressureGauge");
   const displayDimmed = !!pipe.displayDisabled;
   const steamDrain = isSteamDrainPipe(pipe, nodes, allPipes);
   const displayFluidType = steamDrain ? "steam" : pipe.fluidType;
@@ -153,13 +159,15 @@ function PipeViewImpl({
   const fluidOpacity = disabled ? Math.min(pipe.fluidOpacity, 0.16) : pipe.fluidOpacity;
   const labelY = mid.pt.y + (disabled ? 0 : -wallW * 0.7 - 4);
   const en = lang === "en";
-  const stateTitle = disabled !== engineeringStopped
-    ? disabled
-      ? (en ? "Teaching display: stopped (engineering state unchanged)" : "教学显示停流（工程判定不变）")
-      : (en ? "Teaching display: flowing (engineering state remains stopped)" : "教学显示流动（工程判定仍为停流）")
-    : disabled
-      ? (en ? "Engineering flow stopped" : "工程状态停流")
-      : displayDimmed ? (en ? "Canvas dimmed only (engineering state unchanged)" : "仅画布淡化（工程状态未改变）") : null;
+  const stateTitle = gaugeDeadEnd
+    ? (en ? "Pressure gauge dead end: transmits pressure, no flow" : "压力表死端：只传压，不流过")
+    : disabled !== engineeringStopped
+      ? disabled
+        ? (en ? "Teaching display: stopped (engineering state unchanged)" : "教学显示停流（工程判定不变）")
+        : (en ? "Teaching display: flowing (engineering state remains stopped)" : "教学显示流动（工程判定仍为停流）")
+      : disabled
+        ? (en ? "Engineering flow stopped" : "工程状态停流")
+        : displayDimmed ? (en ? "Canvas dimmed only (engineering state unchanged)" : "仅画布淡化（工程状态未改变）") : null;
 
   return (
     <g key={pipe.id}>
@@ -183,7 +191,12 @@ function PipeViewImpl({
       <g opacity={dimOpacity}>
         <path d={d} fill="none" stroke="#7d8b99" strokeOpacity={0.55} strokeWidth={wallW + 2.4} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={pipe.wallColor} strokeOpacity={wallOpacity} strokeWidth={wallW} strokeLinejoin="round" strokeLinecap="round" />
-        <path d={d} fill="none" stroke={visibleFluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={d} fill="none" stroke={gaugeDeadEnd ? "#6f8fa8" : visibleFluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" strokeDasharray={gaugeDeadEnd ? "3 4" : undefined} />
+        {gaugeDeadEnd && showPipeLabels && (
+          <text x={mid.pt.x} y={mid.pt.y - wallW * 0.7 - 18} textAnchor="middle" fontSize={10} fill="#54758d" fontFamily="system-ui, sans-serif" fontWeight={600} stroke="var(--canvas-label-halo)" strokeWidth={3} paintOrder="stroke">
+            {en ? "Pressure only · no flow" : "传压不流过"}
+          </text>
+        )}
         {!disabled && animationPlaying && pipe.animated && <path ref={(el) => { if (el) flowRefMap.set(pipe.id, el); else flowRefMap.delete(pipe.id); }} data-flow={pipe.id} d={d} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={Math.max(2, fluidW * 0.42)} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />}
         {!disabled && pipe.showArrow && (
           <g transform={`translate(${mid.pt.x} ${mid.pt.y}) rotate(${arrowAngle})`}>

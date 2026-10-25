@@ -1,7 +1,7 @@
 import type { SmartOptionValue } from "./types";
 
 export interface SmartTextIntent {
-  templateId: "water" | "coffee" | "thermoblock" | "milk" | "steam" | "full" | null;
+  templateId: "water" | "coffee" | "thermoblock" | "milk" | "steam" | "full" | "dual-boiler" | null;
   options: Record<string, SmartOptionValue>;
   understood: string[];
   unknown: string[];
@@ -28,6 +28,7 @@ export function parseSmartText(raw: string): SmartTextIntent {
   const water = has(text, ["水", "水路", "water", "锅炉", "boiler", "泵", "pump"]);
   const full = has(text, ["整机", "全自动", "双锅炉", "full", "combo", "dual boiler"]);
   const thermoblock = has(text, ["即热", "热块", "thermoblock", "instant"]);
+  const dualBoiler = has(text, ["真机", "骨架", "bcmts", "双锅炉骨架", "machine skeleton"]);
   const doubleTank = has(text, ["双奶罐", "两个奶罐", "two tanks", "dual tank", "2 tanks"]);
 
   if (milk) understood.push("奶路");
@@ -48,7 +49,8 @@ export function parseSmartText(raw: string): SmartTextIntent {
   if (noSteam) options.steam = false;
   if (singleTank) options.doubleTank = false;
 
-  if (thermoblock) templateId = "thermoblock";
+  if (dualBoiler) templateId = "dual-boiler";
+  else if (thermoblock) templateId = "thermoblock";
   else if (full || (milk && coffee)) templateId = "full";
   else if (milk) templateId = "milk";
   else if (coffee) templateId = "coffee";

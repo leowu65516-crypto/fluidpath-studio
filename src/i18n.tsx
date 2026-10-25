@@ -912,7 +912,31 @@ const EN: Record<string, string> = {
   "这里会告诉你还缺什么；点功能块会引导你选接点。": "This panel shows what's missing; clicking a block guides you to an anchor.",
   "知道了": "Got it",
   "三步开始": "Three steps to start",
-  "选择模板": "Choose a template"
+  "选择模板": "Choose a template",
+  "已根据你的描述选择：": "Selected from your description: ",
+  "来自你的描述": "from your description",
+  "推荐": "Recommended",
+  "使用推荐接点": "Use recommended anchor",
+  "支持新增/删除元件、连管/断管、重命名、泵阀状态和故障码关联。未知操作会拒绝，不会部分应用。": "Supports adding/removing components, connecting/disconnecting pipes, renaming, pump/valve states, and fault-code links. Unknown operations are rejected without partial application.",
+  "即热咖啡机": "Thermoblock coffee",
+  "进水 → 泵 → 即热加热块 → 冲泡三通阀 → 冲泡缸 → 咖啡出口 + 排废": "Inlet → pump → thermoblock → brew valve → chamber → coffee outlet + drain",
+  "即热": "Thermoblock",
+  "无锅炉": "No boiler",
+  "压力表支路": "Pressure gauge tap",
+  "压力表": "Pressure gauge",
+  "十字四通 + 压力表；接在现有管路上测压": "Cross + pressure gauge; tap into an existing line to measure pressure",
+  "单向阀": "Check valve",
+  "串联单向阀；按箭头方向导通": "Inline check valve; conducts in the arrow direction",
+  "三通接头": "Tee fitting",
+  "三通分支；接入后可再连两个出口": "Tee branch; connect one inlet and two outlets",
+  "热水锅炉": "Hot-water boiler",
+  "单台热水/咖啡锅炉；下进上出": "Single hot-water/coffee boiler; bottom in, top out",
+  "水泵": "Water pump",
+  "串联水泵；默认停机": "Inline water pump; stopped by default",
+  "带蒸汽杆（单锅炉切换）": "With steam wand (single-boiler switch)",
+  "蒸汽分支三通": "Steam branch tee",
+  "蒸汽阀": "Steam valve",
+  "锅炉出水": "Boiler out"
 
 };
 

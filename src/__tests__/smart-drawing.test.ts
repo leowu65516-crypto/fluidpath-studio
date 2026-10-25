@@ -3,6 +3,7 @@ import { SMART_TEMPLATES, buildSmartTemplate } from "../smart-draw/templates";
 import { SMART_BLOCKS } from "../smart-draw/blocks";
 import { parseBlockText, parseSmartText } from "../smart-draw/intent";
 import { diagnosisSummary } from "../diagnostics";
+import { engineeringIssues } from "../smart-draw/engineering";
 import { insertSmartDrawing, loadDiagram, store, undo } from "../store";
 import { createEmptyDiagram } from "../sample";
 import { pipePolyline } from "../geometry";
@@ -16,7 +17,7 @@ beforeEach(() => { loadDiagram(createEmptyDiagram()); });
 afterEach(() => { localStorage.clear(); });
 
 describe("智能绘图模板", () => {
-  it("四个模板结构合法且无重复 ID", () => {
+  it("六个模板结构合法且无重复 ID", () => {
     for (const template of SMART_TEMPLATES) {
       const result = buildSmartTemplate(template, {});
       expect(result.nodes.length).toBeGreaterThan(2);
@@ -42,6 +43,16 @@ describe("智能绘图模板", () => {
     expect(diagnosisSummary(asDiagram(single)).errors).toBe(0);
     expect(diagnosisSummary(asDiagram(full)).errors).toBe(0);
   });
+
+  it("单锅炉可加蒸汽杆，且仍通过工程检查", () => {
+    const coffee = SMART_TEMPLATES.find((t) => t.id === "coffee")!;
+    const result = buildSmartTemplate(coffee, { steam: true });
+    expect(result.nodes.some((n) => n.type === "steamWand")).toBe(true);
+    expect(result.conditions?.some((c) => /蒸汽/.test(c.name))).toBe(true);
+    const base = asDiagram(result);
+    const diagram = { ...base, settings: { ...base.settings, workConditions: result.conditions } } as Diagram;
+    expect(engineeringIssues(diagram)).toHaveLength(0);
+  });
 });
 
 describe("自由文本解析", () => {
@@ -58,6 +69,10 @@ describe("自由文本解析", () => {
     expect(parseSmartText("画一个奶路").templateId).toBe("milk");
     expect(parseSmartText("coffee machine with milk").templateId).toBe("full");
     expect(parseSmartText("基础水路").templateId).toBe("water");
+    expect(parseSmartText("即热咖啡机").templateId).toBe("thermoblock");
+    const steamCoffee = parseSmartText("咖啡机带蒸汽杆");
+    expect(steamCoffee.templateId).toBe("coffee");
+    expect(steamCoffee.options.steam).toBe(true);
   });
 
   it("功能块关键词", () => {
@@ -65,6 +80,11 @@ describe("自由文本解析", () => {
     expect(parseBlockText("加蒸汽杆")).toBe("steam-wand");
     expect(parseBlockText("加一个排废")).toBe("drain");
     expect(parseBlockText("加一段奶路")).toBe("milk-line");
+    expect(parseBlockText("加一个压力表")).toBe("pressure-gauge");
+    expect(parseBlockText("加一个单向阀")).toBe("check-valve");
+    expect(parseBlockText("加一个三通")).toBe("tee");
+    expect(parseBlockText("加一个锅炉")).toBe("boiler");
+    expect(parseBlockText("加一个水泵")).toBe("pump");
     expect(parseBlockText("随便说点什么")).toBeNull();
   });
 });

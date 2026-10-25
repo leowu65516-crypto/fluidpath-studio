@@ -7,6 +7,7 @@ import { parseBlockText } from "../smart-draw/intent";
 import { SMART_BLOCKS } from "../smart-draw/blocks";
 import type { SmartBlock } from "../smart-draw/types";
 import { toast } from "../toast";
+import { trackSmart } from "../smart-draw/telemetry";
 
 export function SmartDrawingPanel({
   onClose,
@@ -100,7 +101,7 @@ export function SmartDrawingPanel({
                   key={issue.id}
                   type="button"
                   className={`smart-eng-item ${issue.severity}`}
-                  onClick={() => blinkElements([...issue.nodeIds, ...issue.pipeIds])}
+                  onClick={() => { trackSmart("engineering_issue_click", { code: issue.id.split("-").slice(0, 2).join("-") }); blinkElements([...issue.nodeIds, ...issue.pipeIds]); }}
                 >
                   <span>{issue.severity === "error" ? "⛔" : "⚠"}</span>
                   <span><b>{label.title}</b>：{label.message}</span>
@@ -146,6 +147,13 @@ export function SmartDrawingPanel({
               aria-label={t("我想加…")}
             />
             <button className="btn" onClick={handleText} disabled={!text.trim()}>{t("添加")}</button>
+          </div>
+          <div className="smart-suggest-chips">
+            {SMART_BLOCKS.map((block) => (
+              <button key={block.id} type="button" className="smart-chip-btn" onClick={() => onAddBlock(block)}>
+                + {t(block.titleZh)}
+              </button>
+            ))}
           </div>
         </div>
 

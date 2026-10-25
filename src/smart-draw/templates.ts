@@ -36,6 +36,7 @@ function addBoilerSafety(opts: {
   pipes.push(connect(junction, "top", gauge, "bottom", fluid));
   pipes.push(connect(junction, "bottom", relief, "bottom", fluid));
   pipes.push(connect(relief, "right", waste, "left", "wasteLiquid"));
+  return { junction };
 }
 
 /** 在泵与下游之间插入单向阀。 */
@@ -81,7 +82,7 @@ function buildWater(): SmartBuildResult {
   };
 }
 
-function buildCoffee(): SmartBuildResult {
+function buildCoffee(options: Record<string, SmartOptionValue> = {}): SmartBuildResult {
   const inlet = makeNode("inlet", 80, 240, L("进水口", "Water inlet"));
   const pump = makeNode("pump", 220, 230, L("水泵", "Water pump"));
   const boiler = makeNode("hotWaterBoiler", 400, 210, L("热水锅炉", "Hot-water boiler"));
@@ -99,7 +100,52 @@ function buildCoffee(): SmartBuildResult {
     connect(brewValve, "bottom", drain, "left", "wasteLiquid", L("排废", "Drain")),
   ];
   addPumpCheck({ nodes, pipes, pump, next: boiler, nextPort: "bottom", fluid: "coldWater", x: 310, y: 260 });
-  addBoilerSafety({ nodes, pipes, boiler, boilerPort: "top", next: brewValve, nextPort: "left", fluid: "hotWater", kind: "opv", cross: { x: 520, y: 230 } });
+  const safety = addBoilerSafety({ nodes, pipes, boiler, boilerPort: "top", next: brewValve, nextPort: "left", fluid: "hotWater", kind: "opv", cross: { x: 520, y: 230 } });
+  let steamValve: DiagramNode | undefined;
+  if (options.steam === true) {
+    // 单锅炉：同一锅炉在“萃取/蒸汽”之间切换，蒸汽支路从锅炉出口三通分出
+    const steamTee = makeNode("teeF", 460, 230, L("蒸汽分支三通", "Steam branch tee"));
+    steamValve = makeNode("solenoid2", 440, 60, L("蒸汽阀", "Steam valve"));
+    const steamWand = makeNode("steamWand", 620, 40, L("蒸汽杆", "Steam wand"));
+    nodes.push(steamTee, steamValve, steamWand);
+    removeDirectPipe(pipes, boiler, "top", safety.junction, "left");
+    pipes.push(connect(boiler, "top", steamTee, "bottom", "hotWater", L("锅炉出水", "Boiler out")));
+    pipes.push(connect(steamTee, "right", safety.junction, "left", "hotWater"));
+    pipes.push(connect(steamTee, "top", steamValve, "left", "steam", L("蒸汽", "Steam")));
+    pipes.push(connect(steamValve, "right", steamWand, "top", "steam", L("蒸汽杆", "Steam wand")));
+  }
+  applyIdleStates(nodes);
+  return {
+    nodes,
+    pipes,
+    conditions: [
+      makeCondition(L("待机", "Idle"), nodes),
+      makeCondition(L("萃取", "Brew"), nodes, { [pump.id]: { pumpOn: true }, [brewValve.id]: { valvePath: "A" } }),
+      makeCondition(L("排废", "Drain"), nodes, { [pump.id]: { pumpOn: true }, [brewValve.id]: { valvePath: "B" } }),
+      ...(steamValve ? [makeCondition(L("蒸汽", "Steam"), nodes, { [pump.id]: { pumpOn: true }, [steamValve.id]: { valveState: "open" }, [brewValve.id]: { valvePath: "off" } })] : []),
+    ],
+  };
+}
+
+function buildThermoblock(): SmartBuildResult {
+  const inlet = makeNode("inlet", 80, 240, L("进水口", "Water inlet"));
+  const pump = makeNode("pump", 220, 230, L("水泵", "Water pump"));
+  const heater = makeNode("thermoblock", 400, 250, L("即热加热块", "Thermoblock"));
+  const brewValve = makeNode("solenoid3", 600, 220, L("咖啡冲泡三通阀", "Brew 3-way valve"));
+  const chamber = makeNode("brewChamber", 780, 190, L("冲泡缸", "Brew chamber"));
+  const coffee = makeNode("coffeeOutlet", 960, 120, L("咖啡出口", "Coffee outlet"));
+  const drain = makeNode("outlet", 760, 460, L("咖啡排废", "Coffee drain"));
+  const nodes = [inlet, pump, heater, brewValve, chamber, coffee, drain];
+  const pipes: Pipe[] = [
+    connect(inlet, "right", pump, "left", "coldWater", L("进水", "Feed")),
+    connect(pump, "right", heater, "left", "coldWater", L("泵出", "Pump out")),
+    connect(heater, "right", brewValve, "left", "hotWater", L("即热出水", "Heater out")),
+    connect(brewValve, "right", chamber, "bottom", "hotWater", L("冲泡进水", "Brew feed")),
+    connect(chamber, "top", coffee, "top", "coffee", L("咖啡液", "Coffee")),
+    connect(brewValve, "bottom", drain, "left", "wasteLiquid", L("排废", "Drain")),
+  ];
+  addPumpCheck({ nodes, pipes, pump, next: heater, nextPort: "left", fluid: "coldWater", x: 310, y: 260 });
+  addBoilerSafety({ nodes, pipes, boiler: heater, boilerPort: "right", next: brewValve, nextPort: "left", fluid: "hotWater", kind: "opv", cross: { x: 520, y: 230 } });
   applyIdleStates(nodes);
   return {
     nodes,
@@ -181,10 +227,14 @@ function buildMilk(options: Record<string, SmartOptionValue>): SmartBuildResult 
     };
   }
 
-  const tee = makeNode("tee", 580, 180, L("混合三通", "Mixing tee"));
-  nodes.push(tee);
+  const tee = makeNode("cross", 580, 180, "");
+  const cleaningValve = makeNode("solenoid2", 500, 40, L("奶路清洗阀", "Milk cleaning valve"));
+  const cleaningDrain = makeNode("outlet", 640, 20, L("奶路清洗排废", "Milk cleaning drain"));
+  nodes.push(tee, cleaningValve, cleaningDrain);
   pipes.push(connect(pump, "right", tee, "left", "coldMilk", L("奶泵出", "Pump out")));
   pipes.push(connect(tee, "right", outlet, "top", "coldMilk", L("奶路", "Milk line")));
+  pipes.push(connect(tee, "top", cleaningValve, "left", "coldWater", L("奶路清洗", "Milk cleaning")));
+  pipes.push(connect(cleaningValve, "right", cleaningDrain, "left", "wasteLiquid", L("清洗排废", "Cleaning drain")));
   addPumpCheck({ nodes, pipes, pump, next: tee, nextPort: "left", fluid: "coldMilk", x: 480, y: 200 });
 
   const steamInlet = makeNode("inlet", 180, 470, L("蒸汽补水口", "Steam water inlet"));
@@ -250,6 +300,10 @@ const optionsSteam: SmartOption[] = [
   { key: "steam", labelZh: "蒸汽加热支路", labelEn: "Steam heating branch", kind: "boolean", default: true },
 ];
 
+const optionsCoffeeSteam: SmartOption[] = [
+  { key: "steam", labelZh: "带蒸汽杆（单锅炉切换）", labelEn: "With steam wand (single-boiler switch)", kind: "boolean", default: false },
+];
+
 export const SMART_TEMPLATES: SmartTemplate[] = [
   {
     id: "water",
@@ -272,7 +326,7 @@ export const SMART_TEMPLATES: SmartTemplate[] = [
     keywords: ["咖啡", "冲泡", "coffee", "brew", "espresso"],
     tagsZh: ["咖啡", "冲泡", "带排废"],
     tagsEn: ["Coffee", "Brew", "With drain"],
-    options: [],
+    options: optionsCoffeeSteam,
     build: buildCoffee,
   },
   {
@@ -286,6 +340,18 @@ export const SMART_TEMPLATES: SmartTemplate[] = [
     tagsEn: ["Milk", "Two tanks", "Steam heat"],
     options: [...optionsDoubleTank, ...optionsSteam],
     build: buildMilk,
+  },
+  {
+    id: "thermoblock",
+    titleZh: "即热咖啡机",
+    titleEn: "Thermoblock coffee",
+    descZh: "进水 → 泵 → 即热加热块 → 冲泡三通阀 → 冲泡缸 → 咖啡出口 + 排废",
+    descEn: "Inlet → pump → thermoblock → brew valve → chamber → coffee outlet + drain",
+    keywords: ["即热", "热块", "thermoblock", "instant"],
+    tagsZh: ["即热", "无锅炉", "带排废"],
+    tagsEn: ["Thermoblock", "No boiler", "With drain"],
+    options: [],
+    build: buildThermoblock,
   },
   {
     id: "steam",

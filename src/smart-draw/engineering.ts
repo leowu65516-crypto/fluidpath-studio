@@ -90,6 +90,34 @@ function issue(
   return { id, severity, titleZh, titleEn, messageZh, messageEn, nodeIds: nodes.map((n) => n.id), pipeIds: pipes.map((p) => p.id) };
 }
 
+function hasMilkCleanPath(diagram: Diagram, milk: DiagramNode): boolean {
+  const { portToNode, nodePipes } = buildGraph(diagram);
+  const queue: Array<{ node: DiagramNode; depth: number }> = [{ node: milk, depth: 0 }];
+  const seen = new Set<string>([milk.id]);
+  while (queue.length) {
+    const { node, depth } = queue.shift()!;
+    if (depth > 0 && (node.type === "tee" || node.type === "cross")) {
+      for (const pipe of nodePipes.get(node.id) ?? []) {
+        const otherPortId = pipe.fromPortId && portToNode.get(pipe.fromPortId)?.id === node.id ? pipe.toPortId : pipe.fromPortId;
+        const other = otherPortId ? portToNode.get(otherPortId) : undefined;
+        if (!other) continue;
+        // 奶路清洗必须是“从奶路节点分出的两通阀 → 排出口”，不能把蒸汽加热排废算进来
+        if (!["solenoid2", "ballValve", "diaphragmValve2"].includes(other.type)) continue;
+        if (downstreamNodes(diagram, other, 3).some((n) => n.type === "outlet")) return true;
+      }
+    }
+    if (depth >= 4) continue;
+    for (const pipe of nodePipes.get(node.id) ?? []) {
+      const otherPortId = pipe.fromPortId && portToNode.get(pipe.fromPortId)?.id === node.id ? pipe.toPortId : pipe.fromPortId;
+      const other = otherPortId ? portToNode.get(otherPortId) : undefined;
+      if (!other || seen.has(other.id)) continue;
+      seen.add(other.id);
+      queue.push({ node: other, depth: depth + 1 });
+    }
+  }
+  return false;
+}
+
 /**
  * 咖啡机液路工程检查（启发式，不做 CFD）：
  * 安全件、泵出口单向阀、奶路清洗、默认状态、可运行工况。
@@ -151,7 +179,7 @@ export function engineeringIssues(diagram: Diagram): EngineeringIssue[] {
   }
 
   for (const pump of pumps) {
-    const downstream = downstreamNodes(diagram, pump, 4);
+    const downstream = downstreamNodes(diagram, pump, 8);
     if (!downstream.some((n) => n.type === "checkValve")) {
       out.push(issue(
         `check-${pump.id}`, "warning",
@@ -189,7 +217,8 @@ export function engineeringIssues(diagram: Diagram): EngineeringIssue[] {
   }
 
   for (const milk of milkOutlets) {
-    const hasClean = nodes.some((n) => /清洗|排废|clean|drain/i.test(n.label || "") && nearbyNode(diagram, milk, [n.type], 6));
+    // 不信标签：从奶路拓扑找“分出的两通阀 → 排出口”，而不是看名称里有没有“清洗”
+    const hasClean = hasMilkCleanPath(diagram, milk);
     if (!hasClean) {
       out.push(issue(
         `milk-clean-${milk.id}`, "warning",

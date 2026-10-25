@@ -2673,3 +2673,37 @@ button.smart-eng-item:hover { border-color: var(--accent); }
   background: var(--accent-soft); color: var(--accent);
   font-size: 11.5px; line-height: 1.45;
 }
+
+.smart-intent-applied {
+  padding: 7px 9px;
+  border: 1px solid var(--success-border);
+  border-radius: 8px;
+  background: var(--success-surface);
+  color: var(--success-text);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.smart-option-source {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--success-surface);
+  color: var(--success-text);
+  font-size: 9.5px;
+  font-weight: 650;
+}
+
+.smart-suggest-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.smart-chip-btn {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.smart-chip-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+.smart-anchor.recommended { border-color: var(--accent); background: var(--accent-soft); }

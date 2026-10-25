@@ -6,6 +6,7 @@ import { diagnosisSummary } from "../diagnostics";
 import { engineeringSummary, engineeringIssueLabel } from "../smart-draw/engineering";
 import { SMART_TEMPLATES, buildSmartTemplate, smartTemplateCounts } from "../smart-draw/templates";
 import { parseSmartText } from "../smart-draw/intent";
+import { trackSmart } from "../smart-draw/telemetry";
 import type { SmartBuildResult, SmartOptionValue, SmartTemplate } from "../smart-draw/types";
 import { DiagramPreview } from "./DiagramPreview";
 import type { Diagram } from "../types";
@@ -35,8 +36,11 @@ export function SmartDrawingWizard({
   const [templateId, setTemplateId] = useState<string>("water");
   const [options, setOptions] = useState<Record<string, SmartOptionValue>>({});
   const [freeText, setFreeText] = useState("");
+  const [intentOptionKeys, setIntentOptionKeys] = useState<Set<string>>(new Set());
+  const [intentSummary, setIntentSummary] = useState<string[]>([]);
   const [mode, setMode] = useState<"replace" | "append">(hasContent ? "append" : "replace");
   const modalRef = useRef<HTMLDivElement>(null);
+  const lastAutoText = useRef("");
 
   const template = SMART_TEMPLATES.find((tpl) => tpl.id === templateId) ?? SMART_TEMPLATES[0];
   const result = useMemo(() => buildSmartTemplate(template, options), [template, options]);
@@ -78,20 +82,37 @@ export function SmartDrawingWizard({
   function pickTemplate(next: SmartTemplate) {
     setTemplateId(next.id);
     setOptions(Object.fromEntries(next.options.map((o) => [o.key, o.default])));
+    setIntentOptionKeys(new Set());
+    setIntentSummary([]);
     setStep(2);
+    trackSmart("template_select", { template: next.id });
   }
 
-  function applyIntent(text: string) {
-    setFreeText(text);
+  // 自由描述命中模板时自动进入第 2 步；同一段文本只自动推进一次，避免用户返回时被反复弹走
+  useEffect(() => {
+    if (step !== 1) return;
+    const text = freeText.trim();
+    if (text.length < 4 || text === lastAutoText.current) return;
     const parsed = parseSmartText(text);
-    if (parsed.templateId) {
-      const next = SMART_TEMPLATES.find((tpl) => tpl.id === parsed.templateId);
-      if (next) {
-        setTemplateId(next.id);
-        setOptions({ ...Object.fromEntries(next.options.map((o) => [o.key, o.default])), ...parsed.options });
+    const timer = window.setTimeout(() => {
+      if (!parsed.templateId) {
+        if (text.length >= 4) trackSmart("intent_miss", { text: text.slice(0, 40) });
+        return;
       }
-    }
-  }
+      const next = SMART_TEMPLATES.find((tpl) => tpl.id === parsed.templateId);
+      if (!next) return;
+      lastAutoText.current = text;
+      setTemplateId(next.id);
+      setOptions({ ...Object.fromEntries(next.options.map((o) => [o.key, o.default])), ...parsed.options });
+      setIntentOptionKeys(new Set(Object.keys(parsed.options)));
+      setIntentSummary(parsed.understood);
+      // 有配置项时进入第 2 步；没有配置项直接到预览，避免空步骤
+      setStep(next.options.length ? 2 : 3);
+      trackSmart("intent_hit", { template: next.id });
+      trackSmart("intent_auto_advance", { template: next.id });
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [freeText, step]);
 
   return (
     <div className="smart-modal-overlay" data-ui="1" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -121,7 +142,7 @@ export function SmartDrawingWizard({
                 <textarea
                   className="smart-free-input"
                   value={freeText}
-                  onChange={(e) => applyIntent(e.target.value)}
+                  onChange={(e) => setFreeText(e.target.value)}
                   placeholder={t("例如：双锅炉咖啡机，带两个奶罐、奶泵、蒸汽杆和一条清洗旁通")}
                   rows={2}
                 />
@@ -165,6 +186,9 @@ export function SmartDrawingWizard({
             <div className="smart-step-pane">
               <div className="smart-pane-title">{t(template.titleZh)}</div>
               <div className="smart-pane-desc">{t(template.descZh)}</div>
+              {intentSummary.length > 0 && (
+                <div className="smart-intent-applied">✓ {t("已根据你的描述选择：")}{intentSummary.join(" · ")}</div>
+              )}
               {template.options.length === 0 ? (
                 <div className="smart-empty-note">{t("这个模板不需要额外配置，直接进入预览即可。")}</div>
               ) : (
@@ -176,9 +200,13 @@ export function SmartDrawingWizard({
                         <input
                           type="checkbox"
                           checked={Boolean(checked)}
-                          onChange={(e) => setOptions((prev) => ({ ...prev, [opt.key]: e.target.checked }))}
+                          onChange={(e) => {
+                            setOptions((prev) => ({ ...prev, [opt.key]: e.target.checked }));
+                            setIntentOptionKeys((prev) => { const next = new Set(prev); next.delete(opt.key); return next; });
+                          }}
                         />
                         <span>{t(opt.labelZh)}</span>
+                        {intentOptionKeys.has(opt.key) && <span className="smart-option-source">{t("来自你的描述")}</span>}
                       </label>
                     );
                   })}
@@ -251,7 +279,7 @@ export function SmartDrawingWizard({
                 {t("下一步")}
               </button>
             ) : (
-              <button className="btn" onClick={() => onInserted(result, hasContent ? mode : "replace")}>
+              <button className="btn" onClick={() => { trackSmart("wizard_insert", { template: template.id, mode: hasContent ? mode : "replace" }); onInserted(result, hasContent ? mode : "replace"); }}>
                 {t("插入画布")}
               </button>
             )}

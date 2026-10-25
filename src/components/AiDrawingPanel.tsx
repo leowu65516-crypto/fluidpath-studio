@@ -37,14 +37,14 @@ export function AiDrawingPanel({ onClose }: { onClose: () => void }) {
           const sample = await aiExample(diagram);
           downloadText(`${diagram.name}-ai-context.json`, JSON.stringify({
             instruction: "Return only fluidpath.ai-operations JSON matching this example. Use only supported operations, no arbitrary properties or teaching flow overrides. Retain the base hash; temporary IDs refer to newly added components/pipes. Numeric layout cells are optional. No engineering PASS claims.",
-            supportedOperations: ["addComponent", "connectPorts", "setComponentProperty (label only)", "setOperatingCondition", "defineFaultCode"],
+            supportedOperations: ["addComponent", "connectPorts", "setComponentProperty (label only)", "setOperatingCondition", "removeComponent", "disconnectPipe", "defineFaultCode"],
             base: { diagramSha256: await diagramFingerprint(diagram) }, catalog: aiCatalog(), diagram, example: sample,
           }, null, 2), "application/json");
         })}>{t("下载 AI 上下文")}</button>
         <button className="btn" disabled={busy} onClick={() => perform(async () => { setInput(JSON.stringify(await aiExample(diagram), null, 2)); setPlan(null); setApplied(false); })}>{t("载入示例指令")}</button>
       </div>
       <label className="fault-form">{t("指令 JSON")}<textarea className="fault-json" aria-label={t("指令 JSON")} value={input} onChange={e => { setInput(e.target.value); setPlan(null); setApplied(false); }} spellCheck={false} /></label>
-      <p className="fault-hint">{t("支持新增元件、连管、重命名、泵阀状态和故障码关联。未知操作会拒绝，不会部分应用。")}</p>
+      <p className="fault-hint">{t("支持新增/删除元件、连管/断管、重命名、泵阀状态和故障码关联。未知操作会拒绝，不会部分应用。")}</p>
       <button className="btn" disabled={busy || !canEdit || !input.trim()} onClick={() => perform(async () => { setPlan(null); setApplied(false); setPlan(await compileAiOperations(input, diagram)); })}>{t("校验并预览")}</button>
       {error && <div role="alert" className="fault-error">{t("指令未应用")}: {error}</div>}
       {plan && <section className="fault-card"><strong>{t("变更预览")}</strong><p>{plan.addedNodes.length} {t("元件")} · {plan.addedPipes.length} {t("管段")}</p><PlanPreview plan={plan} /><ol>{plan.changes.map((change, i) => <li key={i}>{change}</li>)}</ol><button className="btn" disabled={busy || applied || !canEdit} onClick={() => perform(async () => { await applyAiPlan(plan); setApplied(true); })}>{t(applied ? "已应用，可撤销" : "应用全部变更")}</button></section>}

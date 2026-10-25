@@ -24,7 +24,15 @@ export function SmartBlockDialog({
       ? ["steamBoiler", "solenoid3", "solenoid2", "tee", "hotWaterBoiler"]
       : block.id === "cleaning-bypass"
         ? ["hotWaterBoiler", "tee", "solenoid2", "pump"]
-        : ["tee", "solenoid2", "solenoid3", "hotWaterBoiler", "milkPump"];
+        : block.id === "pressure-gauge"
+          ? ["tee", "cross", "pump", "hotWaterBoiler", "milkPump"]
+          : block.id === "check-valve"
+            ? ["pump", "hotWaterBoiler", "tee"]
+            : block.id === "tee"
+              ? ["pump", "hotWaterBoiler", "milkPump", "tee"]
+              : block.id === "boiler" || block.id === "pump"
+                ? ["inlet", "tank", "tee", "pump"]
+                : ["tee", "solenoid2", "solenoid3", "hotWaterBoiler", "milkPump"];
     const list = nodes
       .filter((n) => !n.disabled)
       .flatMap((n) => n.ports
@@ -55,9 +63,9 @@ export function SmartBlockDialog({
             <div className="smart-empty-note">{t("没有找到可用接点。可以先放到右侧，稍后用连线工具连接。")}</div>
           ) : (
             <div className="smart-anchor-list">
-              {anchors.map(({ node, port }) => (
-                <button key={port.id} type="button" className="smart-anchor" onClick={() => onInsert(port.id)}>
-                  <span className="smart-anchor-node">{node.label}</span>
+              {anchors.map(({ node, port }, index) => (
+                <button key={port.id} type="button" className={`smart-anchor ${index === 0 ? "recommended" : ""}`} onClick={() => onInsert(port.id)}>
+                  <span className="smart-anchor-node">{index === 0 ? `⭐ ${t("推荐")} · ` : ""}{node.label}</span>
                   <span className="smart-anchor-port">{t("可用接点")} · {port.position}</span>
                 </button>
               ))}
@@ -66,7 +74,10 @@ export function SmartBlockDialog({
         </div>
         <footer className="smart-modal-foot">
           <button className="btn ghost" onClick={() => onInsert(null)}>{t("先放到右边，我自己连")}</button>
-          <button className="btn ghost" onClick={onCancel}>{t("取消")}</button>
+          <div className="smart-foot-right">
+            <button className="btn ghost" onClick={onCancel}>{t("取消")}</button>
+            {anchors.length > 0 && <button className="btn primary" onClick={() => onInsert(anchors[0].port.id)}>⭐ {t("使用推荐接点")}</button>}
+          </div>
         </footer>
       </div>
     </div>

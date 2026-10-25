@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.32.1";
+export const APP_VERSION = "1.33.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,19 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.33.0",
+    date: "2026-10-25",
+    highlights: [
+      "智能绘图 P0：新增本机匿名计数（模板选择/意图命中/未命中/功能块插入/保存成功/工程问题点击），只写 localStorage，不联网、不上报",
+      "智能绘图 P0：自由文本命中后自动推进配置步骤，并列出「来自你的描述」；未识别文本会静默计数，便于后续补词典",
+      "智能绘图 P0：功能块扩展到压力表、单向阀、三通、锅炉、水泵，继续完善面板新增「+ 加压力表」等快捷 chips；奶路清洗改为按拓扑（奶出口→二通阀→排废）判定，不再依赖标签文字",
+      "智能绘图 P1：新增即热咖啡机模板（进水→泵→即热块→冲泡三通阀→冲泡缸→出口+排废，含泵出口单向阀、OPV/压力表/泄压）；咖啡模板可选「带蒸汽杆（单锅炉切换）」；新增推荐接点（按功能块类型预选最合适的接入点）",
+      "智能绘图 P1：结构化指令新增 removeComponent / disconnectPipe，可删除元件、断开管路，支持撤销重做；协议文档补 §7.5/§7.6",
+      "智能绘图 P1：工程检查改为增量提醒：新增/连管后若 error 数上升，立即 toast 指出第一项 error，不再只等右栏静态扫描",
+      "全量 72 文件 / 486 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.32.1",
     date: "2026-10-25",

@@ -31,6 +31,8 @@ import { getBinding, matchKeys } from "./shortcuts";
 import { toast } from "./toast";
 import { useT } from "./i18n";
 import type { SmartBlock, SmartBuildResult } from "./smart-draw/types";
+import { engineeringIssueLabel, engineeringSummary } from "./smart-draw/engineering";
+import { trackSmart } from "./smart-draw/telemetry";
 
 const ARROW_DELTA: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0],
@@ -57,6 +59,8 @@ export default function App() {
   const [showSmartPanel, setShowSmartPanel] = useState(false);
   const [pendingBlock, setPendingBlock] = useState<SmartBlock | null>(null);
   const [saveNudge, setSaveNudge] = useState<{ kind: SaveNudgeKind; detail?: string } | null>(null);
+  const lastEngErrors = useRef(0);
+  const engInitialized = useRef(false);
   const [startSteps, setStartSteps] = useState(() => {
     try {
       return {
@@ -301,9 +305,11 @@ export default function App() {
       if (api?.saveJsonDialog) {
         const result = await api.saveJsonDialog({ json: JSON.stringify({ ...d, _version: 3, _exportedAt: new Date().toISOString() }, null, 2), defaultName: d.name || "fluidpath-diagram" });
         if (!result.saved) return;
+        trackSmart("save_success", { source: "close" });
       } else {
         const result = await saveJSONFile(d);
         if (!result.saved) return;
+        trackSmart("save_success", { source: "close-web" });
       }
     } catch { /* ignore */ }
     setClosePrompt(false);
@@ -361,12 +367,14 @@ export default function App() {
       return;
     }
     insertSmartDrawing(block.build(), "append");
+    trackSmart("block_insert", { block: block.id, anchored: "no" });
     setShowSmartPanel(true);
   }
 
   function handleBlockInsert(anchorPortId: string | null) {
     if (!pendingBlock) return;
     insertSmartDrawing(pendingBlock.build(), "append", anchorPortId ?? undefined, pendingBlock.medium);
+    trackSmart("block_insert", { block: pendingBlock.id, anchored: anchorPortId ? "yes" : "no" });
     setPendingBlock(null);
     setShowSmartPanel(true);
   }
@@ -381,6 +389,25 @@ export default function App() {
   useEffect(() => {
     if (appState.ui.fileSavedAt) setStartStep("save");
   }, [appState.ui.fileSavedAt]);
+
+  // 插块/连管/改图后增量检查：error 级工程问题增加时立即提示
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const eng = engineeringSummary(store.get().diagram);
+      if (!engInitialized.current) {
+        engInitialized.current = true;
+        lastEngErrors.current = eng.errors;
+        return;
+      }
+      if (eng.errors > lastEngErrors.current) {
+        const first = eng.issues.find((i) => i.severity === "error");
+        const firstLabel = first ? engineeringIssueLabel(first).title : "";
+        toast(`⛔ ${t("工程检查")}：${eng.errors} ${t("项")} error${firstLabel ? ` · ${firstLabel}` : ""}`, "error");
+      }
+      lastEngErrors.current = eng.errors;
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [appState.diagram, t]);
 
   // 导出图片/PDF/GIF 只算导出，不算保存图纸；提醒一次可编辑文件
   useEffect(() => {

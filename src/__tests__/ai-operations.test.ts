@@ -41,6 +41,27 @@ describe("AI operation compiler and atomic application", () => {
     await expect(compileAiOperations(JSON.stringify(request), d)).rejects.toThrow();
     expect(store.get().diagram).toBe(d); expect(d.nodes).toHaveLength(0);
   });
+  it("removes a component and disconnects a pipe without touching unrelated objects", async () => {
+    const d = store.get().diagram;
+    const plan = await compileAiOperations(JSON.stringify(await aiExample(d)), d);
+    await applyAiPlan(plan);
+    const next = store.get().diagram;
+    const valve = next.nodes.find((n) => n.type === "solenoid2")!;
+    const pipe = next.pipes.find((p) => p.toPortId === valve.ports.find((x) => x.direction === "in")?.id)!;
+    const request = await aiExample(next);
+    (request as unknown as { operations: unknown[] }).operations = [
+      { op: "disconnectPipe", pipe: pipe.id },
+      { op: "removeComponent", component: valve.id },
+    ];
+    const modified = await compileAiOperations(JSON.stringify(request), next);
+    await applyAiPlan(modified);
+    expect(store.get().diagram.nodes.some((n) => n.id === valve.id)).toBe(false);
+    expect(store.get().diagram.pipes.some((p) => p.id === pipe.id)).toBe(false);
+    expect(store.get().diagram.nodes.length).toBe(next.nodes.length - 1);
+    undo();
+    expect(store.get().diagram.nodes.some((n) => n.id === valve.id)).toBe(true);
+  });
+
   it("unknown schema cannot be treated as a legacy operation request", async () => {
     const d = store.get().diagram, request = await aiExample(d); request.targetSchemaVersion = 4;
     await expect(compileAiOperations(JSON.stringify(request), d)).rejects.toThrow(/schema/);

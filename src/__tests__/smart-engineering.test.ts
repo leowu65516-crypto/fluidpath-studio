@@ -12,7 +12,7 @@ function asDiagram(result: ReturnType<typeof buildSmartTemplate>): Diagram {
 }
 
 describe("智能绘图工程检查", () => {
-  it("五个模板默认是待机状态，并带推荐工况", () => {
+  it("所有模板默认是待机状态，并带推荐工况", () => {
     for (const template of SMART_TEMPLATES) {
       const result = buildSmartTemplate(template, {});
       const pumps = result.nodes.filter((n) => n.type === "pump" || n.type === "milkPump" || n.type === "airPump");
@@ -43,6 +43,22 @@ describe("智能绘图工程检查", () => {
       expect(result.nodes.filter((n) => n.type === "solenoid2").every((n) => n.valveState === "closed")).toBe(true);
       expect(result.nodes.filter((n) => n.type === "milkPump").every((n) => n.pumpOn === false)).toBe(true);
     }
+  });
+
+  it("奶路清洗按拓扑判定，不依赖标签文字", () => {
+    const milk = buildSmartTemplate(SMART_TEMPLATES.find((t) => t.id === "milk")!, {});
+    // 改掉所有“清洗”标签，拓扑仍在 → 不应误报
+    const renamed = { ...milk, nodes: milk.nodes.map((n) => ({ ...n, label: n.label.replace(/清洗/g, "X") })) };
+    expect(engineeringIssues(asDiagram(renamed)).some((i) => i.titleZh.includes("奶路缺清洗"))).toBe(false);
+    // 删掉清洗阀及其管路 → 应报奶路缺清洗
+    const valve = milk.nodes.find((n) => n.type === "solenoid2")!;
+    const portIds = new Set(valve.ports.map((p) => p.id));
+    const removed = {
+      ...milk,
+      nodes: milk.nodes.filter((n) => n.id !== valve.id),
+      pipes: milk.pipes.filter((p) => !portIds.has(p.fromPortId!) && !portIds.has(p.toPortId!)),
+    };
+    expect(engineeringIssues(asDiagram(removed)).some((i) => i.titleZh.includes("奶路缺清洗"))).toBe(true);
   });
 
   it("模板工程检查为 0 项", () => {

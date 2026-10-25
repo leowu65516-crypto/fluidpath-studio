@@ -10,7 +10,7 @@
 
 - AI 只能提交白名单操作；每个字段都会被逐项校验，未知字段直接拒绝整包请求。
 - 只能在现有图纸右侧追加新元件/新管段，或重命名、改泵阀状态、声明故障码。
-- 不能删除/移动/重连已有元件，不能批量改管路属性，不能跨图复制，不能写任意属性和教学显示覆盖。
+- 不能移动/重连已有元件，不能批量改管路属性，不能跨图复制，不能写任意属性和教学显示覆盖；可以删除元件（removeComponent）和断开管路（disconnectPipe）。
 - 不支持 CFD、精确混合、温度/压力/流量求解；`declaredMedium` 是声明介质，不代表已完成工程解析。
 - 协议不提供“自然语言 → 指令”的翻译；自然语言由外部 LLM 完成，本协议只接收最终 JSON。
 
@@ -197,7 +197,33 @@
 
 注意：`pulseAirValve` 现在支持开/关；关闭只停空气支路，不影响并联液体主路。球阀/隔膜阀不在 AI 白名单内，不能通过本操作改状态。
 
-### 7.5 `defineFaultCode`
+### 7.5 `removeComponent`
+
+```json
+{ "op": "removeComponent", "component": "old-valve" }
+```
+
+| 字段 | 必填 | 约束 |
+|---|---|---|
+| `op` | 是 | `removeComponent` |
+| `component` | 是 | 已有节点 ID 或本请求 tempId |
+
+效果：删除该元件及所有连接到它的管路；同一请求内后续操作不能再引用它。删除是原子的，失败不落地。
+
+### 7.6 `disconnectPipe`
+
+```json
+{ "op": "disconnectPipe", "pipe": "old-feed" }
+```
+
+| 字段 | 必填 | 约束 |
+|---|---|---|
+| `op` | 是 | `disconnectPipe` |
+| `pipe` | 是 | 已有管路 ID 或本请求 tempPipeId |
+
+效果：只删除这条管路，保留两端元件；元件端口恢复可用。若需要“只断开一端”，当前协议不支持，请删除后重新连接。
+
+### 7.7 `defineFaultCode`
 
 ```json
 {
@@ -271,7 +297,7 @@ Return ONLY one JSON object. No markdown fences, no explanation.
 Rules:
 - Copy protocol, protocolVersion, targetSchemaVersion, catalogVersion and base.diagramSha256 unchanged from the supplied context.
 - Generate a new unique requestId.
-- Use only these operations: addComponent, connectPorts, setComponentProperty (label only), setOperatingCondition, defineFaultCode.
+- Use only these operations: addComponent, connectPorts, setComponentProperty (label only), setOperatingCondition, removeComponent, disconnectPipe, defineFaultCode.
 - Use only component types and media keys listed in the context catalog.
 - For newly added components use port keys P1, P2, ... in catalog order.
 - For existing components use their permanent port IDs from the context diagram; never guess P1.
@@ -287,7 +313,7 @@ User request:
 
 ## 11. 已知限制
 
-- 只能新增/改名/改泵阀状态/声明故障码；不能删除、移动、重连或批量改管路属性。
+- 只能新增/删除/改名/改泵阀状态/断管/声明故障码；不能移动、重连或批量改管路属性。
 - 新增元件固定在现有内容右侧，不能自由放到任意坐标。
 - 不包含球阀、隔膜阀、隔膜切换阀、热交换器、即热加热块等类型的白名单。
 - 不校验物理可行性（压力、流量、温度、混合比例）；只校验协议、端口、介质声明和拓扑约束。

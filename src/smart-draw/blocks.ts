@@ -66,6 +66,75 @@ export const SMART_BLOCKS: SmartBlock[] = [
     },
   },
   {
+    id: "pressure-gauge",
+    titleZh: "压力表支路",
+    titleEn: "Pressure gauge tap",
+    descZh: "十字四通 + 压力表；接在现有管路上测压",
+    descEn: "Cross + pressure gauge; tap into an existing line",
+    keywords: ["压力表", "压力", "pressure", "gauge"],
+    medium: "coldWater",
+    build: () => {
+      const cross = makeNode("cross", 0, 0, "");
+      const gauge = makeNode("pressureGauge", 0, -110, L("压力表", "Pressure gauge"));
+      const nodes = [cross, gauge];
+      applyIdleStates(nodes);
+      return { nodes, pipes: [connect(cross, "top", gauge, "bottom", "coldWater")], inletPortId: cross.ports.find((p) => p.position === "left")?.id, outletPortId: cross.ports.find((p) => p.position === "right")?.id };
+    },
+  },
+  {
+    id: "check-valve",
+    titleZh: "单向阀",
+    titleEn: "Check valve",
+    descZh: "串联单向阀；按箭头方向导通",
+    descEn: "Inline check valve; conducts in the arrow direction",
+    keywords: ["单向阀", "止回", "check", "check valve"],
+    medium: "coldWater",
+    build: () => {
+      const node = makeNode("checkValve", 0, 0, L("单向阀", "Check valve"));
+      return { nodes: [node], pipes: [], inletPortId: node.ports.find((p) => p.direction === "in")?.id, outletPortId: node.ports.find((p) => p.direction === "out")?.id };
+    },
+  },
+  {
+    id: "tee",
+    titleZh: "三通接头",
+    titleEn: "Tee fitting",
+    descZh: "三通分支；接入后可再连两个出口",
+    descEn: "Tee branch; connect one inlet and two outlets",
+    keywords: ["三通", "tee", "分支"],
+    medium: "coldWater",
+    build: () => {
+      const node = makeNode("tee", 0, 0, L("三通接头", "Tee"));
+      return { nodes: [node], pipes: [], inletPortId: node.ports.find((p) => p.position === "left")?.id, outletPortId: node.ports.find((p) => p.position === "right")?.id };
+    },
+  },
+  {
+    id: "boiler",
+    titleZh: "热水锅炉",
+    titleEn: "Hot-water boiler",
+    descZh: "单台热水/咖啡锅炉；下进上出",
+    descEn: "Single hot-water/coffee boiler; bottom in, top out",
+    keywords: ["锅炉", "boiler", "热水锅炉"],
+    medium: "hotWater",
+    build: () => {
+      const node = makeNode("hotWaterBoiler", 0, 0, L("热水锅炉", "Hot-water boiler"));
+      return { nodes: [node], pipes: [], inletPortId: node.ports.find((p) => p.direction === "in")?.id, outletPortId: node.ports.find((p) => p.direction === "out")?.id };
+    },
+  },
+  {
+    id: "pump",
+    titleZh: "水泵",
+    titleEn: "Water pump",
+    descZh: "串联水泵；默认停机",
+    descEn: "Inline water pump; stopped by default",
+    keywords: ["水泵", "泵", "pump"],
+    medium: "coldWater",
+    build: () => {
+      const node = makeNode("pump", 0, 0, L("水泵", "Water pump"));
+      applyIdleStates([node]);
+      return { nodes: [node], pipes: [], inletPortId: node.ports.find((p) => p.direction === "in")?.id, outletPortId: node.ports.find((p) => p.direction === "out")?.id };
+    },
+  },
+  {
     id: "milk-line",
     titleZh: "奶路子系统",
     titleEn: "Milk subsystem",

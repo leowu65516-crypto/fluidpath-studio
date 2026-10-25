@@ -110,6 +110,26 @@ export async function compileAiOperations(json: string, current: Diagram): Promi
         if (state.valveState !== undefined && (!["open", "closed"].includes(String(state.valveState)) || !["solenoid2", "pulseAirValve"].includes(node.type))) throw new Error("Invalid two-port valve state");
         if (state.valvePath !== undefined && (!["A", "B", "off"].includes(String(state.valvePath)) || node.type !== "solenoid3")) throw new Error("Invalid three-port valve state");
         Object.assign(node, state); changes.push(`state: ${node.label} ${JSON.stringify(state)}`);
+      } else if (op.op === "removeComponent") {
+        keys(op, ["op", "component"]);
+        const node = nodeAt(op.component);
+        const portIds = new Set(node.ports.map((p) => p.id));
+        const removedPipes = diagram.pipes.filter((p) => (p.fromPortId && portIds.has(p.fromPortId)) || (p.toPortId && portIds.has(p.toPortId)));
+        diagram.nodes = diagram.nodes.filter((n) => n.id !== node.id);
+        diagram.pipes = diagram.pipes.filter((p) => !removedPipes.includes(p));
+        for (let i = addedNodes.length - 1; i >= 0; i--) if (addedNodes[i] === node.id) addedNodes.splice(i, 1);
+        for (const rp of removedPipes) {
+          for (let i = addedPipes.length - 1; i >= 0; i--) if (addedPipes[i] === rp.id) addedPipes.splice(i, 1);
+        }
+        changes.push(`- ${node.label} (${removedPipes.length} pipes)`);
+      } else if (op.op === "disconnectPipe") {
+        keys(op, ["op", "pipe"]);
+        const pipeId = reference(op.pipe, pipeMap);
+        const pipe = diagram.pipes.find((p) => p.id === pipeId);
+        if (!pipe) throw new Error(`Unknown pipe: ${pipeId}`);
+        diagram.pipes = diagram.pipes.filter((p) => p.id !== pipeId);
+        for (let i = addedPipes.length - 1; i >= 0; i--) if (addedPipes[i] === pipeId) addedPipes.splice(i, 1);
+        changes.push(`- pipe ${pipe.label}`);
       } else if (op.op === "defineFaultCode") {
         keys(op, ["op", "code", "label", "targets"]);
         const code = text(op.code, "code"), label = obj(op.label); keys(label, ["zh", "en"]);

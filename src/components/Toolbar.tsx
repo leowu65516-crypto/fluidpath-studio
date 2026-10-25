@@ -25,6 +25,7 @@ import { PromptDialog } from "./PromptDialog";
 import { useT } from "../i18n";
 import { LayerPanel } from "./LayerPanel";
 import { toast } from "../toast";
+import { trackSmart } from "../smart-draw/telemetry";
 
 
 function Icon({ d }: { d: string }) {
@@ -272,6 +273,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       try {
         const result = await saveJSONFile(diagram);
         markSaved();
+        trackSmart("save_success", { source: "browser" });
         toast(result.picker ? `${t("已保存到")} ${result.filename}` : t("浏览器已开始下载文件"));
       } catch (err) {
         if ((err as DOMException)?.name === "AbortError") return;
@@ -284,6 +286,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       if (!result.saved) return;
       setSourceFilePath(result.path ?? null);
       markSaved();
+      trackSmart("save_success", { source: "electron" });
       toast(`${t("已保存到")} ${result.path ?? ""}`);
     } catch (err) {
       toast(`${t("保存失败")}：${(err as Error).message}`, "error");

@@ -1,7 +1,7 @@
 import type { SmartOptionValue } from "./types";
 
 export interface SmartTextIntent {
-  templateId: "water" | "coffee" | "milk" | "steam" | "full" | null;
+  templateId: "water" | "coffee" | "thermoblock" | "milk" | "steam" | "full" | null;
   options: Record<string, SmartOptionValue>;
   understood: string[];
   unknown: string[];
@@ -26,7 +26,8 @@ export function parseSmartText(raw: string): SmartTextIntent {
   const cleaning = has(text, ["清洗", "clean", "cleaning"]);
   const drain = has(text, ["排废", "排水", "drain", "waste"]);
   const water = has(text, ["水", "水路", "water", "锅炉", "boiler", "泵", "pump"]);
-  const full = has(text, ["整机", "全自动", "双锅炉", "咖啡机", "full", "combo", "dual boiler"]);
+  const full = has(text, ["整机", "全自动", "双锅炉", "full", "combo", "dual boiler"]);
+  const thermoblock = has(text, ["即热", "热块", "thermoblock", "instant"]);
   const doubleTank = has(text, ["双奶罐", "两个奶罐", "two tanks", "dual tank", "2 tanks"]);
 
   if (milk) understood.push("奶路");
@@ -47,7 +48,8 @@ export function parseSmartText(raw: string): SmartTextIntent {
   if (noSteam) options.steam = false;
   if (singleTank) options.doubleTank = false;
 
-  if (full || (milk && coffee) || (coffee && steam && !milk)) templateId = "full";
+  if (thermoblock) templateId = "thermoblock";
+  else if (full || (milk && coffee)) templateId = "full";
   else if (milk) templateId = "milk";
   else if (coffee) templateId = "coffee";
   else if (steam) templateId = "steam";
@@ -62,6 +64,11 @@ export function parseBlockText(raw: string): string | null {
   const text = raw.trim().toLowerCase();
   if (!text) return null;
   if (has(text, ["奶", "牛奶", "milk", "奶路"])) return "milk-line";
+  if (has(text, ["压力表", "压力", "pressure", "gauge"])) return "pressure-gauge";
+  if (has(text, ["单向阀", "止回", "check"])) return "check-valve";
+  if (has(text, ["三通", "tee", "分支"])) return "tee";
+  if (has(text, ["锅炉", "boiler"])) return "boiler";
+  if (has(text, ["水泵", "泵", "pump"])) return "pump";
   if (has(text, ["蒸汽", "steam", "蒸汽杆"])) return "steam-wand";
   if (has(text, ["清洗", "clean", "cleaning", "旁通"])) return "cleaning-bypass";
   if (has(text, ["排废", "排水", "drain", "waste"])) return "drain";

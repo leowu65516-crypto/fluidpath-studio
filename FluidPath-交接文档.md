@@ -202,7 +202,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 
 ---
 
-### 3.8 智能绘图与保存状态（1.32.0）
+### 3.8 智能绘图与保存状态（1.32.1）
 
 - **入口**：工具栏「智能绘图」或空画布主按钮；生成阶段为居中 Modal（三步：选场景→选配置→预览插入），生成后右栏切到「继续完善」。高级协议面板保留在右栏底部「高级：结构化指令」。
 - **模板**：`src/smart-draw/templates.ts` 5 个咖啡机液路模板（基础水路/咖啡冲泡/奶路/蒸汽/咖啡+奶路组合）；`smart-draw/builders.ts` 统一 `createNode`/`connect`，管路 `points: []` 交给 `autoRoute` 障碍物避让。模板默认待机（泵停/两通阀关/三通阀 off），自带「待机/萃取/奶路/蒸汽/排废」工况；已补泵出口单向阀、锅炉出口十字四通 + 压力表 + OPV/安全阀 + 泄压排废。
@@ -210,8 +210,8 @@ pipeEffectiveDisabled(pipe) 依次短路：
 - **自由描述**：`smart-draw/intent.ts` 用咖啡机领域词典 + 否定词（无蒸汽/单奶罐）映射模板与选项；不做跨领域任意拓扑，也不调用外部模型。
 - **插入**：`insertSmartDrawing(result, "replace"|"append", anchorPortId?, medium?)`；replace 用于空画布并标记 dirty；append 追加到右侧、一次撤销；有锚点时自动生成「智能连接」管。
 - **继续完善**：块定义在 `smart-draw/blocks.ts`（蒸汽杆/清洗旁通/排废/奶路子系统）；`SmartBlockDialog` 列出可用接点；「自动布线全部管路」调用 `batchReroutePipes`。
-- **保存模型**：`ui.dirty` 仍表示“未保存到文件”；`ui.lastAutosaveAt` 由 autosave 写入；`ui.fileSavedAt` 在 `markSaved` 写入。状态栏 `SaveStatusPill` 区分本机草稿/文件未保存/已保存；`SaveNudge` 在首次修改、插入、加块、导出后提示保存文件；关闭窗口只有 dirty 时才询问。
-- **测试**：`smart-drawing.test.ts` 8 例（模板结构/选项/自由文本/追加撤销/锚点连接）、`save-ux.test.tsx` 2 例（状态胶囊/保存事件）、`ai-panel-activation.test.tsx` 3 例（入口/挂载/英文）。全量 70 文件/477 通过 + 4 跳过。
+- **保存模型**：`ui.dirty` 仍表示“未保存到文件”；`ui.lastAutosaveAt` 由 autosave 写入；`ui.fileSavedAt` 在 `markSaved` 写入。状态栏 `SaveStatusPill` 区分本机草稿/文件未保存/已保存；`SaveNudge` 在首次修改/导出后提示保存文件，插入/加块由右栏 inline 保存条提示；关闭窗口只有 dirty 时才询问。
+- **测试**：`smart-drawing.test.ts` 8 例（模板结构/选项/自由文本/追加撤销/锚点连接）、`smart-engineering.test.ts` 4 例（默认待机/安全阀缺失/工程检查零项/功能块待机）、`save-ux.test.tsx` 2 例（状态胶囊/保存事件）、`ai-panel-activation.test.tsx` 3 例（入口/挂载/英文）。全量 71 文件/481 通过 + 4 跳过。
 
 ## 4. CAYE 咖啡机（BCMTS.json）完全解析
 
@@ -426,6 +426,11 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `tank-source-supply.test.ts` | 储液罐液源：罐出侧不因入侧全停判停（1.29.2，5 例） |
 | `heat-exchanger-channel.test.ts` | 换热器双通道：两侧互不串供（供液/停流相位/需求域，1.29.3，5 例） |
 | `solenoid3-merge.test.ts` | 三通汇流（两进一出）：任一路入侧有供即出流 + 单入侧零回归（1.29.3，7 例） |
+| `stop-cause-branch.test.ts` | 停流归因：禁用旁支/串联禁用/不抓旁支/多阻断汇总/罐液源/脉冲阀开与关/工况快照（8 例） |
+| `smart-drawing.test.ts` | 智能绘图：5 模板结构、选项、自由文本、追加撤销、锚点连接（8 例） |
+| `smart-engineering.test.ts` | 智能绘图工程检查：默认待机、安全阀缺失、工程检查零项、功能块待机（4 例） |
+| `save-ux.test.tsx` | 保存状态胶囊与保存教练事件（2 例） |
+| `ai-panel-activation.test.tsx` | 智能绘图入口、面板挂载/关闭、英文面板（3 例） |
 | `geometry.test.ts` | 引擎基础单元测试 |
 | `scenario.test.tsx` / `scenario-verify.test.tsx` | 场景演示（角色解析/基线复位/链式高亮/快照还原 + BCMTS 引擎流动验证） |
 | `msy2.test.tsx` / `b2c-json.test.tsx` / `fixed-diagram.test.tsx` / `fix-optimized.test.tsx` / `fix62.test.tsx` / `distribute.test.tsx` 等 | 各示例图纸加载/渲染回归（fix-optimized 导入 MSY2.json） |

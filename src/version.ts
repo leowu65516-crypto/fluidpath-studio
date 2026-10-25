@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.33.0";
+export const APP_VERSION = "1.33.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.33.1",
+    date: "2026-10-25",
+    highlights: [
+      "修复 macOS 关闭窗口卡死：用户确认退出后，主进程忽略渲染层 beforeunload 的拦截；关闭最后一个窗口直接退出应用，不再需要去活动监视器强制结束进程",
+      "全量 72 文件 / 486 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.33.0",
     date: "2026-10-25",

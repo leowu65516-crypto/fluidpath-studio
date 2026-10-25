@@ -2,9 +2,6 @@ const { app, BrowserWindow, shell, dialog, ipcMain, clipboard } = require("elect
 const path = require("path");
 const fs = require("fs");
 
-// 允许 PDF 导出等弹窗
-const isMac = process.platform === "darwin";
-
 // macOS 双击 .json 打开时，open-file 事件可能在窗口创建前触发，先缓存路径
 let pendingFilePath = null;
 const approvedCloseWindows = new Set();
@@ -66,6 +63,13 @@ function createWindow() {
   win.webContents.on("new-window", (e, url) => {
     e.preventDefault();
     shell.openExternal(url);
+  });
+
+  // 渲染层有未保存修改时，beforeunload 会阻止窗口卸载。
+  // 用户已在关闭弹窗中确认退出时，必须忽略这次 beforeunload，
+  // 否则 close() 会被浏览器层再次拦下，表现为“点关闭没反应，只能强制退出”。
+  win.webContents.on("will-prevent-unload", (event) => {
+    if (approvedCloseWindows.has(win.id)) event.preventDefault();
   });
 
   // 关闭前询问是否另存：阻止默认关闭，通知渲染进程弹确认框
@@ -169,7 +173,9 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  if (!isMac) app.quit();
+  // 单窗口桌面工具：关闭最后一个窗口即退出，避免 mac 上窗口消失但进程常驻、
+  // 用户只能去活动监视器强制退出的困惑。
+  app.quit();
 });
 
 // macOS 打开文件（.json 工程文件）

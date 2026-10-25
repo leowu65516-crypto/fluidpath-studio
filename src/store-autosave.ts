@@ -12,6 +12,15 @@ const AUTOSAVE_KEY = (id: string) => `fluidpath.autosave.v1.${id}`;
 const SAVED_KEY = (id: string) => `fluidpath.saved.ts.${id}`;
 const LAST_DIAGRAM_KEY = "fluidpath.lastDiagramId";
 
+export function latestAutosaveAt(diagramId: string): number {
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY(diagramId));
+    if (!raw) return 0;
+    const versions = JSON.parse(raw) as AutosaveVersion[];
+    return versions[0]?.ts ?? 0;
+  } catch { return 0; }
+}
+
 export interface AutosaveVersion {
   ts: number;
   diagram: Diagram;
@@ -102,9 +111,11 @@ function persistAutosave(diagram: Diagram) {
     if (raw) { try { versions = JSON.parse(raw) as AutosaveVersion[]; } catch { versions = []; } }
     // 与最新版本内容一致则不重复写（防抖 + 去重）
     if (versions[0] && JSON.stringify(versions[0].diagram) === JSON.stringify(diagram)) return;
-    versions.unshift({ ts: Date.now(), diagram: structuredClone(diagram) });
+    const ts = Date.now();
+    versions.unshift({ ts, diagram: structuredClone(diagram) });
     versions = versions.slice(0, AUTOSAVE_MAX_VERSIONS);
     localStorage.setItem(key, JSON.stringify(versions));
+    notifyUI({ lastAutosaveAt: ts });
   } catch { /* 存储满/不可用：忽略，不影响主流程 */ }
 }
 

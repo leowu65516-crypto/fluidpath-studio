@@ -35,7 +35,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenAi }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenAi?: () => void }) {
+export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenSmart }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenSmart?: () => void }) {
   const { diagram, ui } = useAppState();
   const { t, lang, setLang } = useT();
   const mode = ui.mode ?? "edit";
@@ -290,6 +290,13 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
     }
   }
 
+  // 保存胶囊/保存提示都通过事件请求工具栏的保存流程，避免复制 Electron/浏览器分支
+  useEffect(() => {
+    const onSave = () => { void saveToLocal(); };
+    window.addEventListener("fluidpath:save-file", onSave);
+    return () => window.removeEventListener("fluidpath:save-file", onSave);
+  });
+
   function viewSize() {
     const el = svgRef.current;
     return { w: el?.clientWidth ?? 1200, h: el?.clientHeight ?? 800 };
@@ -423,9 +430,9 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" onClick={onOpenAdvice} title={t("回路诊断：智能检查液路并给出修改建议")}>
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M12 16.5h.01" />{t("回路诊断")}
       </button>
-      {onOpenAi && (
-        <button className="tb-btn" onClick={onOpenAi} title={t("AI 绘图")}>
-          <Icon d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9L18 15z" />{t("AI 绘图")}
+      {onOpenSmart && (
+        <button className="tb-btn" onClick={onOpenSmart} title={t("智能绘图")}>
+          <Icon d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9L18 15z" />{t("智能绘图")}
         </button>
       )}
       <button className={`tb-btn${condOpen ? " active" : ""}`} onClick={() => setCondOpen((v) => !v)} title={t("工况：把当前阀位/泵开关存成方案，一键切换对比")}>

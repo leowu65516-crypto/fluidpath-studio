@@ -27,8 +27,8 @@ export function AiDrawingPanel({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState(""), [busy, setBusy] = useState(false), [applied, setApplied] = useState(false);
   const canEdit = (ui.mode ?? "edit") === "edit";
   async function perform(action: () => Promise<void>) { setBusy(true); setError(""); try { await action(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }
-  return <aside className="fault-panel ai-drawing-panel" aria-label={t("AI 指令")} data-ui="1">
-    <header className="fault-header"><div><strong>{t("AI 绘图")}</strong><span>{t("结构化指令预览与应用")}</span></div><button className="btn ghost sq" onClick={onClose} aria-label={t("关闭 AI 绘图")}>×</button></header>
+  return <aside className="fault-panel ai-drawing-panel" aria-label={t("高级：结构化指令")} data-ui="1">
+    <header className="fault-header"><div><strong>{t("高级：结构化指令")}</strong><span>{t("外部 AI 生成的结构化指令预览与应用")}</span></div><button className="btn ghost sq" onClick={onClose} aria-label={t("关闭高级指令")}>×</button></header>
     <div className="fault-scroll">
       <p className="fault-intro">{t("下载图纸上下文交给 AI，再粘贴生成的指令 JSON。校验和预览后一次应用，可撤销。")}</p>
       <p className="fault-hint">{t("此入口不连接模型服务；支持列出的操作，不代表已实现完整 v4 仿真。")}</p>

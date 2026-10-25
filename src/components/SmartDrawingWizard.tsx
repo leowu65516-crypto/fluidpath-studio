@@ -1,0 +1,227 @@
+import { useEffect, useMemo, useState } from "react";
+import { store, useAppState } from "../store";
+import { setCachedPipes } from "../geometry";
+import { useT } from "../i18n";
+import { diagnosisSummary } from "../diagnostics";
+import { SMART_TEMPLATES, buildSmartTemplate, smartTemplateCounts } from "../smart-draw/templates";
+import { parseSmartText } from "../smart-draw/intent";
+import type { SmartBuildResult, SmartOptionValue, SmartTemplate } from "../smart-draw/types";
+import { DiagramPreview } from "./DiagramPreview";
+import type { Diagram } from "../types";
+
+function previewDiagram(result: SmartBuildResult): Diagram {
+  return {
+    id: "smart-preview",
+    name: "smart-preview",
+    nodes: result.nodes,
+    pipes: result.pipes,
+    settings: { showGrid: true, background: "#eef2f7", globalAnimationPlaying: false },
+  };
+}
+
+export function SmartDrawingWizard({
+  onClose,
+  onInserted,
+}: {
+  onClose: () => void;
+  onInserted: (result: SmartBuildResult, mode: "replace" | "append") => void;
+}) {
+  const { diagram } = useAppState();
+  const { t } = useT();
+  const hasContent = diagram.nodes.length > 0 || diagram.pipes.length > 0;
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [templateId, setTemplateId] = useState<string>("water");
+  const [options, setOptions] = useState<Record<string, SmartOptionValue>>({});
+  const [freeText, setFreeText] = useState("");
+  const [mode, setMode] = useState<"replace" | "append">(hasContent ? "append" : "replace");
+
+  const template = SMART_TEMPLATES.find((tpl) => tpl.id === templateId) ?? SMART_TEMPLATES[0];
+  const result = useMemo(() => buildSmartTemplate(template, options), [template, options]);
+  // 预览诊断会临时改写引擎缓存；算完立即恢复当前画布，避免关闭向导后画布沿用预览的流动结果。
+  const diag = useMemo(() => {
+    const summary = diagnosisSummary(previewDiagram(result));
+    const live = store.get().diagram;
+    setCachedPipes(live.pipes, live.nodes);
+    return summary;
+  }, [result]);
+
+  useEffect(() => () => {
+    const live = store.get().diagram;
+    setCachedPipes(live.pipes, live.nodes);
+  }, []);
+  const intent = useMemo(() => parseSmartText(freeText), [freeText]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  function pickTemplate(next: SmartTemplate) {
+    setTemplateId(next.id);
+    setOptions(Object.fromEntries(next.options.map((o) => [o.key, o.default])));
+    setStep(2);
+  }
+
+  function applyIntent(text: string) {
+    setFreeText(text);
+    const parsed = parseSmartText(text);
+    if (parsed.templateId) {
+      const next = SMART_TEMPLATES.find((tpl) => tpl.id === parsed.templateId);
+      if (next) {
+        setTemplateId(next.id);
+        setOptions({ ...Object.fromEntries(next.options.map((o) => [o.key, o.default])), ...parsed.options });
+      }
+    }
+  }
+
+  return (
+    <div className="smart-modal-overlay" data-ui="1" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="smart-modal" role="dialog" aria-modal="true" aria-label={t("智能绘图")}>
+        <header className="smart-modal-head">
+          <div>
+            <div className="smart-modal-title">✨ {t("智能绘图")}</div>
+            <div className="smart-modal-sub">{t("描述或选择模板，快速得到可编辑液路图")}</div>
+          </div>
+          <button className="btn ghost sq" onClick={onClose} aria-label={t("关闭")}>×</button>
+        </header>
+
+        <div className="smart-steps" aria-label={t("步骤")}>
+          {[1, 2, 3].map((n) => (
+            <div key={n} className={`smart-step ${step === n ? "on" : ""} ${step > n ? "done" : ""}`}>
+              <span className="smart-step-num">{step > n ? "✓" : n}</span>
+              <span>{n === 1 ? t("选场景") : n === 2 ? t("选配置") : t("预览插入")}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="smart-modal-body">
+          {step === 1 && (
+            <div className="smart-step-pane">
+              <label className="smart-free-label">
+                {t("直接描述你的想法（咖啡机液路）")}
+                <textarea
+                  className="smart-free-input"
+                  value={freeText}
+                  onChange={(e) => applyIntent(e.target.value)}
+                  placeholder={t("例如：双锅炉咖啡机，带两个奶罐、奶泵、蒸汽杆和一条清洗旁通")}
+                  rows={2}
+                />
+              </label>
+              {freeText.trim() && (
+                <div className="smart-intent">
+                  <span className="smart-intent-label">{t("我理解到：")}</span>
+                  {intent.understood.length ? intent.understood.map((x) => <span key={x} className="smart-chip">{x}</span>) : <span className="smart-muted">{t("还没有识别到场景，先从下面选一个")}</span>}
+                  {intent.unknown.length > 0 && <span className="smart-muted">{t("未完全识别：")}{intent.unknown.join("、")}</span>}
+                </div>
+              )}
+              <div className="smart-template-grid">
+                {SMART_TEMPLATES.map((tpl) => {
+                  const preview = buildSmartTemplate(tpl, {});
+                  const counts = smartTemplateCounts(tpl);
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      className={`smart-template-card ${templateId === tpl.id ? "on" : ""}`}
+                      onClick={() => pickTemplate(tpl)}
+                    >
+                      <div className="smart-template-preview">
+                        <DiagramPreview nodes={preview.nodes} pipes={preview.pipes} />
+                      </div>
+                      <div className="smart-template-title">{t(tpl.titleZh)}</div>
+                      <div className="smart-template-desc">{t(tpl.descZh)}</div>
+                      <div className="smart-template-tags">
+                        <span>{counts.nodes} {t("元件")}</span>
+                        <span>{counts.pipes} {t("管路")}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="smart-step-pane">
+              <div className="smart-pane-title">{t(template.titleZh)}</div>
+              <div className="smart-pane-desc">{t(template.descZh)}</div>
+              {template.options.length === 0 ? (
+                <div className="smart-empty-note">{t("这个模板不需要额外配置，直接进入预览即可。")}</div>
+              ) : (
+                <div className="smart-options">
+                  {template.options.map((opt) => {
+                    const checked = options[opt.key] ?? opt.default;
+                    return (
+                      <label key={opt.key} className={`smart-option ${checked ? "on" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(checked)}
+                          onChange={(e) => setOptions((prev) => ({ ...prev, [opt.key]: e.target.checked }))}
+                        />
+                        <span>{t(opt.labelZh)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="smart-option-summary">
+                {t("将生成")} {result.nodes.length} {t("个元件")} · {result.pipes.length} {t("段管路")}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="smart-step-pane">
+              <div className="smart-preview-wrap">
+                <DiagramPreview nodes={result.nodes} pipes={result.pipes} className="smart-preview" showLabels />
+              </div>
+              <div className="smart-summary">
+                <span>✓ {result.nodes.length} {t("个元件")}</span>
+                <span>✓ {result.pipes.length} {t("段管路")}</span>
+                {diag.errors === 0 ? (
+                  <span className="smart-ok">✓ {t("结构检查通过")}</span>
+                ) : (
+                  <span className="smart-warn">⚠ {t("结构检查有")} {diag.errors} {t("处问题")}</span>
+                )}
+              </div>
+              {hasContent && (
+                <div className="smart-insert-mode">
+                  <div className="smart-mode-title">{t("当前画布已有内容，插入方式：")}</div>
+                  <label className={`smart-mode ${mode === "append" ? "on" : ""}`}>
+                    <input type="radio" checked={mode === "append"} onChange={() => setMode("append")} />
+                    <span>{t("追加到右侧（推荐）")}</span>
+                    <small>{t("保留原图，一次撤销")}</small>
+                  </label>
+                  <label className={`smart-mode ${mode === "replace" ? "on" : ""}`}>
+                    <input type="radio" checked={mode === "replace"} onChange={() => setMode("replace")} />
+                    <span>{t("新建一张图")}</span>
+                    <small>{t("当前内容会被替换")}</small>
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <footer className="smart-modal-foot">
+          <button className="btn ghost" onClick={onClose}>{t("取消")}</button>
+          <div className="smart-foot-right">
+            {step > 1 && <button className="btn ghost" onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}>{t("上一步")}</button>}
+            {step < 3 ? (
+              <button className="btn" onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3)} disabled={step === 1 && !templateId}>
+                {t("下一步")}
+              </button>
+            ) : (
+              <button className="btn" onClick={() => onInserted(result, hasContent ? mode : "replace")}>
+                {t("插入画布")}
+              </button>
+            )}
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}

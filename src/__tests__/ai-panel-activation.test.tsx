@@ -5,7 +5,7 @@
  * - 英文模式下面板无中文 UI 残留
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, cleanup, fireEvent, screen, act } from "@testing-library/react";
+import { render, cleanup, fireEvent, screen, act, within } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import App from "../App";
 import { Toolbar } from "../components/Toolbar";
@@ -23,22 +23,23 @@ afterEach(() => {
 
 const svgRef = { current: null } as React.MutableRefObject<SVGSVGElement | null>;
 
-describe("AI 绘图入口", () => {
+describe("智能绘图入口", () => {
   it("Toolbar 提供可点击的 AI 绘图按钮", () => {
     const onOpenAi = vi.fn();
-    render(<LangProvider><Toolbar svgRef={svgRef} onOpenAi={onOpenAi} /></LangProvider>);
-    fireEvent.click(screen.getByRole("button", { name: /AI 绘图/ }));
+    render(<LangProvider><Toolbar svgRef={svgRef} onOpenSmart={onOpenAi} /></LangProvider>);
+    fireEvent.click(screen.getAllByRole("button", { name: /智能绘图/ })[0]);
     expect(onOpenAi).toHaveBeenCalledTimes(1);
   });
 
   it("App 从工具栏打开并关闭 AI 面板", () => {
     const view = render(<LangProvider><App /></LangProvider>);
     expect(view.container.querySelector(".ai-drawing-panel")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /AI 绘图/ }));
-    expect(view.container.querySelector(".ai-drawing-panel")).toBeTruthy();
-    expect(screen.getByText("结构化指令预览与应用")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /关闭 AI 绘图/ }));
-    expect(view.container.querySelector(".ai-drawing-panel")).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: /智能绘图/ })[0]);
+    expect(view.container.querySelector(".smart-modal")).toBeTruthy();
+    expect(screen.getAllByText("描述或选择模板，快速得到可编辑液路图").length).toBeGreaterThan(0);
+    const modal = view.container.querySelector(".smart-modal") as HTMLElement;
+    fireEvent.click(within(modal).getByRole("button", { name: /关闭/ }));
+    expect(view.container.querySelector(".smart-modal")).toBeNull();
   });
 
   it("英文模式下面板无中文 UI 残留", () => {

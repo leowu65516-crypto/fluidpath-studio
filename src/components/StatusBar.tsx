@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useAppState } from "../store";
 import { useT } from "../i18n";
 import { diagnosisSummary } from "../diagnostics";
+import { SaveStatusPill } from "./SaveStatusPill";
 
 /** 读取上次导出格式用于状态栏提示 */
 function lastExportLabel(): string {
@@ -46,7 +47,7 @@ export function StatusBar() {
           {diag.warnings > 0 && <span className="sb-warning">⚠ {diag.warnings}</span>}
           {diag.errors === 0 && diag.warnings === 0 && <span className="sb-success">✓ {t("正常")}</span>}
         </span>
-        <span className={`sb-item ${ui.dirty ? "sb-dirty" : "sb-saved"}`}>{ui.dirty ? "● " + t("未保存") : "✓ " + t("已保存")}</span>
+        <SaveStatusPill />
       </div>
     </div>
   );

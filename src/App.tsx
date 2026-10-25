@@ -15,17 +15,22 @@ import { AdvicePanel } from "./components/AdvicePanel";
 import { ValidationPanel } from "./components/ValidationPanel";
 import { FaultCodePanel } from "./components/FaultCodePanel";
 import { AiDrawingPanel } from "./components/AiDrawingPanel";
+import { SmartDrawingWizard } from "./components/SmartDrawingWizard";
+import { SmartDrawingPanel } from "./components/SmartDrawingPanel";
+import { SmartBlockDialog } from "./components/SmartBlockDialog";
+import { SaveNudge, type SaveNudgeKind } from "./components/SaveNudge";
 import { selectFaultCodes, setSimulationRunning } from "./fault-codes/session";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, setWorkMode, useAppState } from "./store";
-import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath } from "./store";
+import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath, insertSmartDrawing, fitToScreen } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave, recordSavedAt } from "./store";
 import type { AutosaveVersion } from "./store";
 import { decompressDiagram, parseDiagramJSON, saveJSONFile } from "./export";
 import { getBinding, matchKeys } from "./shortcuts";
 import { toast } from "./toast";
 import { useT } from "./i18n";
+import type { SmartBlock, SmartBuildResult } from "./smart-draw/types";
 
 const ARROW_DELTA: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0],
@@ -48,6 +53,10 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
   const [showAi, setShowAi] = useState(false);
+  const [showSmartWizard, setShowSmartWizard] = useState(false);
+  const [showSmartPanel, setShowSmartPanel] = useState(false);
+  const [pendingBlock, setPendingBlock] = useState<SmartBlock | null>(null);
+  const [saveNudge, setSaveNudge] = useState<{ kind: SaveNudgeKind; detail?: string } | null>(null);
   const [gateOk, setGateOk] = useState(() => !shouldGate() || gateAuthed());
   // 状态栏诊断徽章点击 → 打开回路诊断面板
   useEffect(() => {
@@ -65,7 +74,8 @@ export default function App() {
     if (!api?.onCloseRequested) return;
     const onClose = () => {
       const d = store.get().diagram;
-      if (d.nodes.length === 0 && !store.get().ui.dirty) {
+      // 已保存/无修改直接关闭；只有存在未保存到文件的修改才询问
+      if (!store.get().ui.dirty) {
         recordSavedAt(d.id);
         api.confirmClose?.();
       } else {
@@ -88,8 +98,18 @@ export default function App() {
       // 正常关闭时写入基准；崩溃不会触发 beforeunload，下一次仍可恢复。
       recordSavedAt(d.id);
     };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (store.get().ui.dirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
     window.addEventListener("beforeunload", onUnload);
-    return () => window.removeEventListener("beforeunload", onUnload);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", onUnload);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
   }, []);
   // 启动即空白工作台（不弹欢迎页）；仅首次使用自动打开「使用指南」
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
@@ -114,7 +134,14 @@ export default function App() {
   const mode = appState.ui.mode ?? "edit";
   const modeRef = useRef(mode);
   // 故障/验收面板占用右栏；切出编辑模式时收起 AI 绘图，避免与模式面板抢占
-  useEffect(() => { if (mode !== "edit") setShowAi(false); }, [mode]);
+  useEffect(() => {
+    if (mode !== "edit") {
+      setShowAi(false);
+      setShowSmartWizard(false);
+      setShowSmartPanel(false);
+      setPendingBlock(null);
+    }
+  }, [mode]);
   const [modeNotice, setModeNotice] = useState<"edit" | "present" | "verify" | "fault" | null>(null);
   const modeNoticeTimer = useRef<number | undefined>();
   useEffect(() => {
@@ -289,6 +316,74 @@ export default function App() {
     closeWelcome();
   }
 
+  function openSmartWizard() {
+    if (mode !== "edit") {
+      setWorkMode("edit");
+      window.setTimeout(() => { setShowAdvice(false); setShowAi(false); setShowSmartWizard(true); }, 0);
+      return;
+    }
+    setShowAdvice(false);
+    setShowAi(false);
+    setShowSmartWizard(true);
+  }
+
+  function handleSmartInserted(result: SmartBuildResult, insertMode: "replace" | "append") {
+    const res = insertSmartDrawing(result, insertMode);
+    setShowSmartWizard(false);
+    setShowSmartPanel(true);
+    setShowAdvice(false);
+    setShowAi(false);
+    setSaveNudge({ kind: "insert", detail: `${res.nodeIds.length} ${t("个元件")} · ${res.pipeIds.length} ${t("段管路")}` });
+    window.setTimeout(() => {
+      const svg = svgRef.current;
+      fitToScreen(svg?.clientWidth || 1200, svg?.clientHeight || 800);
+    }, 40);
+  }
+
+  function handleAddBlock(block: SmartBlock) {
+    if (block.build().inletPortId && appState.diagram.nodes.length > 0) {
+      setPendingBlock(block);
+      return;
+    }
+    insertSmartDrawing(block.build(), "append");
+    setShowSmartPanel(true);
+    setSaveNudge({ kind: "block", detail: t(block.titleZh) });
+  }
+
+  function handleBlockInsert(anchorPortId: string | null) {
+    if (!pendingBlock) return;
+    insertSmartDrawing(pendingBlock.build(), "append", anchorPortId ?? undefined, pendingBlock.medium);
+    setSaveNudge({ kind: "block", detail: t(pendingBlock.titleZh) });
+    setPendingBlock(null);
+    setShowSmartPanel(true);
+  }
+
+  function dismissSaveNudge() {
+    if (saveNudge?.kind === "first-edit") {
+      try { localStorage.setItem("fluidpath.saveCoach.dismissedAt", String(Date.now())); } catch { /* ignore */ }
+    }
+    setSaveNudge(null);
+  }
+
+  // 导出图片/PDF/GIF 只算导出，不算保存图纸；提醒一次可编辑文件
+  useEffect(() => {
+    const onExported = () => setSaveNudge((current) => current ?? { kind: "export" });
+    window.addEventListener("fluidpath:exported", onExported);
+    return () => window.removeEventListener("fluidpath:exported", onExported);
+  }, []);
+
+  // 首次修改时给一次“自动保存 vs 保存文件”教练；同一会话最多一次，24h 内可免打扰
+  useEffect(() => {
+    if (!appState.ui.dirty || saveNudge || showSmartWizard || pendingBlock || closePrompt) return;
+    try {
+      if (sessionStorage.getItem("fluidpath.saveCoach.seen") === "1") return;
+      const dismissed = Number(localStorage.getItem("fluidpath.saveCoach.dismissedAt") ?? 0);
+      if (Date.now() - dismissed < 24 * 3600 * 1000) return;
+      sessionStorage.setItem("fluidpath.saveCoach.seen", "1");
+    } catch { /* ignore */ }
+    setSaveNudge({ kind: "first-edit" });
+  }, [appState.ui.dirty, saveNudge, showSmartWizard, pendingBlock, closePrompt]);
+
   if (!gateOk) {
     return <PasswordGate onPass={() => { setGateAuthed(); setGateOk(true); }} />;
   }
@@ -298,6 +393,13 @@ export default function App() {
     <FaultCodePanel onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }} />
   ) : mode === "verify" ? (
     <ValidationPanel onClose={() => setWorkMode("edit")} />
+  ) : showSmartPanel ? (
+    <SmartDrawingPanel
+      onClose={() => setShowSmartPanel(false)}
+      onAddBlock={handleAddBlock}
+      onOpenWizard={openSmartWizard}
+      onOpenAdvanced={() => { setShowSmartPanel(false); setShowAi(true); }}
+    />
   ) : showAi ? (
     <AiDrawingPanel onClose={() => setShowAi(false)} />
   ) : showAdvice ? (
@@ -322,7 +424,7 @@ export default function App() {
             <span className="mode-banner-lock">{modeInfo.lock}</span>
           </div>
         )}
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenAi={() => { if (mode !== "edit") { setWorkMode("edit"); window.setTimeout(() => { setShowAdvice(false); setShowAi(true); }, 0); } else { setShowAdvice(false); setShowAi((v) => !v); } }} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenSmart={openSmartWizard} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <div className="canvas-anchor">
@@ -331,8 +433,9 @@ export default function App() {
             <div className="canvas-empty-overlay" data-ui="1">
               <div className="canvas-empty-card">
                 <div className="canvas-empty-title">☕ {t("从这里开始")}</div>
-                <button className="canvas-empty-action" onClick={() => insertTemplate("循环回路")}>🔄 {t("插入循环回路模板")}</button>
-                <button className="canvas-empty-action" onClick={() => welcomeFileRef.current?.click()}>📂 {t("打开 JSON")}</button>
+                <button className="canvas-empty-action primary" onClick={openSmartWizard}>✨ {t("智能绘图")}</button>
+                <div className="canvas-empty-sub">{t("描述或选择模板，快速得到可编辑液路图")}</div>
+                <button className="canvas-empty-action" onClick={() => welcomeFileRef.current?.click()}>📂 {t("打开已有图纸")}</button>
                 <div className="canvas-empty-hint">{t("或从左侧元件库拖拽 / 双击添加元件")}</div>
               </div>
             </div>
@@ -364,18 +467,32 @@ export default function App() {
       {showSearch && <SearchPanel onClose={() => setShowSearch(false)} />}
       {showShortcutSettings && <ShortcutSettings onClose={() => setShowShortcutSettings(false)} />}
       {showScenario && <ScenarioPanel onClose={() => setShowScenario(false)} />}
+      {showSmartWizard && <SmartDrawingWizard onClose={() => setShowSmartWizard(false)} onInserted={handleSmartInserted} />}
+      {pendingBlock && (
+        <SmartBlockDialog
+          block={pendingBlock}
+          nodes={appState.diagram.nodes}
+          usedPortIds={new Set(appState.diagram.pipes.flatMap((p) => [p.fromPortId, p.toPortId]).filter((x): x is string => !!x))}
+          onCancel={() => setPendingBlock(null)}
+          onInsert={handleBlockInsert}
+        />
+      )}
+      {saveNudge && !showSmartWizard && !pendingBlock && (
+        <SaveNudge kind={saveNudge.kind} detail={saveNudge.detail} onDismiss={dismissSaveNudge} />
+      )}
       {/* 崩溃恢复横幅 */}
       {/* 关闭前询问是否另存 */}
       {closePrompt && (
         <div className="close-save-overlay" data-ui="1">
           <div className="close-save-card">
-            <div className="close-save-title">💾 {t("是否另存图纸到本地？")}</div>
-            <div className="close-save-sub">{t("当前图纸有未保存的内容")}</div>
+            <div className="close-save-title">💾 {t("保存并退出？")}</div>
+            <div className="close-save-sub">{t("当前图纸有未保存到文件的修改。")}</div>
             <div className="close-save-actions">
-              <button className="btn" onClick={handleCloseSave}>💾 {t("另存到本地")}</button>
+              <button className="btn" onClick={handleCloseSave}>💾 {t("保存并退出")}</button>
               <button className="btn ghost" onClick={handleCloseNoSave}>{t("不保存，直接退出")}</button>
               <button className="btn ghost" onClick={() => setClosePrompt(false)}>{t("取消")}</button>
             </div>
+            <div className="close-save-sub">{t("自动备份仍保留最近 5 个版本，可在下次启动时恢复。")}</div>
           </div>
         </div>
       )}

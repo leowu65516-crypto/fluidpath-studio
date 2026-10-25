@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { uid, FLUID_PRESETS } from "./types";
 import type {
+  FluidType,
   AppState,
   Diagram,
   DiagramNode,
@@ -19,7 +20,7 @@ import type {
 } from "./types";
 import { createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagram, createMilkFoamDiagram, createCommercialMachineDiagram, createDemoMachineDiagram, createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "./sample";
 import { createNode } from "./symbols";
-import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
+import { findPort, nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { connectionErrorMessage, validatePipeConnection } from "./connection";
 import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsToPreset, type ValveAction } from "./scenarios";
 import {
@@ -35,6 +36,7 @@ import {
 } from "./presets";
 import { toast } from "./toast";
 import type { FixAction } from "./advice";
+import type { SmartBuildResult } from "./smart-draw/types";
 import { resetDiagnosticSession, syncDiagnosticDiagram } from "./fault-codes/session";
 
 /** 当前 UI 语言（由 LangProvider 同步到 html lang；供数据层 toast 双语） */
@@ -107,13 +109,14 @@ export {
   scheduleAutosave,
   flushAutosave,
   getAutosaveVersions,
+  latestAutosaveAt,
   pendingAutosave,
   restoreAutosaveVersion,
   recordSavedAt,
   clearAutosave,
   lastEditedDiagramId
 } from "./store-autosave";
-import { initAutosave, type ElectronBridge } from "./store-autosave";
+import { initAutosave, setSourceFilePath as _setSourceFilePath, type ElectronBridge } from "./store-autosave";
 
 initAutosave({
   getDiagram: () => state.diagram,
@@ -306,7 +309,7 @@ export function newDiagram() {
 }
 
 export function markSaved() {
-  setUI({ dirty: false });
+  setUI({ dirty: false, fileSavedAt: Date.now() });
   _recordSavedAt(state.diagram.id);
 }
 
@@ -2266,6 +2269,92 @@ export function insertTemplate(name: string) {
   loadDiagram(diagram);
 }
 
+// ===== 智能绘图：模板/块的原子插入 =====
+function smartDefaultSettings(): Diagram["settings"] {
+  return {
+    showGrid: true,
+    background: "#eef2f7",
+    globalAnimationPlaying: true,
+    crossoverHops: true,
+    showPipeLabels: false,
+    showPipeDiameters: false,
+    showFluidLabels: false,
+    layers: [{ id: "layer_default", name: "默认层", visible: true }],
+  };
+}
+
+/**
+ * 插入智能绘图结果：
+ * - replace：仅用于空画布，加载为一套新图纸；
+ * - append：追加到现有内容右侧，一次撤销；可把锚点端口连到块的入口。
+ */
+export function insertSmartDrawing(
+  result: SmartBuildResult,
+  mode: "replace" | "append",
+  anchorPortId?: string,
+  medium: FluidType = "coldWater",
+): { nodeIds: string[]; pipeIds: string[] } {
+  if (mode === "replace") {
+    // 新生成的图纸不应继承上一张图的源文件路径，避免「保存」覆盖旧文件
+    _setSourceFilePath(null);
+    const diagram: Diagram = {
+      id: uid("diagram"),
+      name: "智能绘图",
+      nodes: result.nodes,
+      pipes: result.pipes,
+      settings: smartDefaultSettings(),
+    };
+    loadDiagram(diagram);
+    // 生成的是新图纸，不是已保存文件：标记 dirty，让保存提示/状态栏立即出现
+    setUI({ dirty: true, fileSavedAt: undefined });
+    _scheduleAutosave(state.diagram);
+    const nodeIds = result.nodes.map((n) => n.id);
+    const pipeIds = result.pipes.map((p) => p.id);
+    setSelection({ nodes: nodeIds, pipes: pipeIds });
+    return { nodeIds, pipeIds };
+  }
+
+  const dxBase = state.diagram.nodes.length
+    ? Math.max(...state.diagram.nodes.map((n) => n.x + n.width)) + 240
+    : 120;
+  const minX = result.nodes.length ? Math.min(...result.nodes.map((n) => n.x)) : 0;
+  const dx = dxBase - minX;
+  const nodes = result.nodes;
+  for (const n of nodes) n.x += dx;
+
+  const newPipes = [...result.pipes];
+  if (anchorPortId) {
+    const anchor = findPort(state.diagram.nodes, anchorPortId);
+    const inlet = findPort(nodes, result.inletPortId ?? "");
+    if (anchor && inlet) {
+      const color = FLUID_PRESETS.find((f) => f.key === medium)?.color ?? "#2f7fd6";
+      newPipes.push({
+        id: uid("pipe"),
+        label: "智能连接",
+        fromPortId: anchor.port.id,
+        toPortId: inlet.port.id,
+        points: [],
+        ...basePipeObj(),
+        fluidType: medium,
+        fluidColor: color,
+      });
+    }
+  }
+
+  updateDiagram((d) => {
+    d.nodes.push(...nodes);
+    d.pipes.push(...newPipes);
+  }, true);
+  const nodeIds = nodes.map((n) => n.id);
+  const pipeIds = newPipes.map((p) => p.id);
+  setSelection({ nodes: nodeIds, pipes: pipeIds });
+  return { nodeIds, pipeIds };
+}
+
+function basePipeObj() {
+  return { nominalDiameter: "DN25", visualDiameter: 10, wallColor: "#5b6b7d", fluidOpacity: 0.92, direction: "forward" as const, flowSpeed: 1.2, particleDensity: "medium" as const, animated: true, showArrow: true, fluidType: "coldWater" as const, material: "custom" as const, wallOpacity: 1, routing: "orthogonal" as const, cornerRadius: 0 };
+}
+
 // ===== 元件样式预设 =====
 const STYLE_PRESETS: Record<string, Partial<DiagramNode>> = {
   "默认工业风": { fill: "#ffffff", stroke: "#3d4c5e" },
@@ -2286,10 +2375,6 @@ export function applyStylePreset(presetName: string, nodeIds: string[]) {
 export function getStylePresets() { return Object.keys(STYLE_PRESETS); }
 
 // 辅助函数 — 模板用
-function basePipeObj() {
-  return { nominalDiameter: "DN25", visualDiameter: 10, wallColor: "#5b6b7d", fluidOpacity: 0.92, direction: "forward" as const, flowSpeed: 1.2, particleDensity: "medium" as const, animated: true, showArrow: true, fluidType: "coldWater" as const, material: "custom" as const, wallOpacity: 1, routing: "orthogonal" as const, cornerRadius: 0 };
-}
-
 // 测试/调试钩子：允许页面上下文访问 React 应用的 store 实例
 if (typeof window !== "undefined") {
   (window as unknown as { __fluidpathStore?: typeof store }).__fluidpathStore = store;

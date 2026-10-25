@@ -368,6 +368,10 @@ export interface UIState {
   selection: Selection;
   mouseWorld: Pt;
   dirty: boolean;
+  /** 最近一次本机自动保存时间（ms） */
+  lastAutosaveAt?: number;
+  /** 最近一次保存为文件的时间（ms） */
+  fileSavedAt?: number;
   /** 工作模式：编辑 / 演示 / 验收 / 故障排查（面板显隐由 App 联动） */
   mode?: "edit" | "present" | "verify" | "fault";
   clipboard?: { nodes: DiagramNode[]; pipes: Pipe[] } | null;

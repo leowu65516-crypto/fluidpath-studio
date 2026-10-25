@@ -476,6 +476,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
         setTimeout(() => setQuizSaved(false), 2500);
       }
     }
+    window.dispatchEvent(new CustomEvent("fluidpath:exported"));
     onClose();
   };
 

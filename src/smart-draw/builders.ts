@@ -1,4 +1,4 @@
-import type { DiagramNode, FluidType, Pipe, PortPosition } from "../types";
+import type { DiagramNode, FluidType, Pipe, PortPosition, WorkCondition } from "../types";
 import { FLUID_PRESETS, uid } from "../types";
 import { createNode } from "../symbols";
 
@@ -68,9 +68,42 @@ export function offsetNodes(nodes: DiagramNode[], dx: number, dy: number): Diagr
   return nodes;
 }
 
-export function mergeResults(results: Array<{ nodes: DiagramNode[]; pipes: Pipe[] }>) {
+export function mergeResults(results: Array<{ nodes: DiagramNode[]; pipes: Pipe[]; conditions?: WorkCondition[] }>) {
   return {
     nodes: results.flatMap((r) => r.nodes),
     pipes: results.flatMap((r) => r.pipes),
+    conditions: results.flatMap((r) => r.conditions ?? []),
   };
+}
+
+export interface StateValue {
+  pumpOn?: boolean;
+  valveState?: "open" | "closed";
+  valvePath?: "A" | "B" | "off";
+}
+
+/** 生成图的默认安全状态：泵停、两通阀关、三通阀 off；隔膜阀没有 off，保留 A。 */
+export function applyIdleStates(nodes: DiagramNode[]): void {
+  for (const n of nodes) {
+    if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = false;
+    else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") n.valveState = "closed";
+    else if (n.type === "solenoid3") n.valvePath = "off";
+    else if (n.type === "diaphragmValve3") n.valvePath = "A";
+  }
+}
+
+export function makeCondition(
+  name: string,
+  nodes: DiagramNode[],
+  overrides: Record<string, StateValue> = {},
+): WorkCondition {
+  const state: Record<string, StateValue> = {};
+  for (const n of nodes) {
+    if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") state[n.id] = { pumpOn: false };
+    else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") state[n.id] = { valveState: "closed" };
+    else if (n.type === "solenoid3") state[n.id] = { valvePath: "off" };
+    else if (n.type === "diaphragmValve3") state[n.id] = { valvePath: "A" };
+  }
+  for (const [id, value] of Object.entries(overrides)) state[id] = { ...state[id], ...value };
+  return { name, state };
 }

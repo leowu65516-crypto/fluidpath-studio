@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useT } from "../i18n";
 
 export type SaveNudgeKind = "first-edit" | "insert" | "block" | "reroute" | "export";
@@ -12,6 +13,10 @@ export function SaveNudge({
   onDismiss: () => void;
 }) {
   const { t } = useT();
+  useEffect(() => {
+    const timer = window.setTimeout(onDismiss, 10000);
+    return () => window.clearTimeout(timer);
+  }, [onDismiss]);
   const title = kind === "first-edit"
     ? t("修改已自动保存在本机")
     : kind === "insert"

@@ -57,6 +57,15 @@ export default function App() {
   const [showSmartPanel, setShowSmartPanel] = useState(false);
   const [pendingBlock, setPendingBlock] = useState<SmartBlock | null>(null);
   const [saveNudge, setSaveNudge] = useState<{ kind: SaveNudgeKind; detail?: string } | null>(null);
+  const [startSteps, setStartSteps] = useState(() => {
+    try {
+      return {
+        template: localStorage.getItem("fluidpath.smart.step.template") === "1",
+        insert: localStorage.getItem("fluidpath.smart.step.insert") === "1",
+        save: localStorage.getItem("fluidpath.smart.step.save") === "1",
+      };
+    } catch { return { template: false, insert: false, save: false }; }
+  });
   const [gateOk, setGateOk] = useState(() => !shouldGate() || gateAuthed());
   // 状态栏诊断徽章点击 → 打开回路诊断面板
   useEffect(() => {
@@ -316,7 +325,13 @@ export default function App() {
     closeWelcome();
   }
 
+  function setStartStep(key: "template" | "insert" | "save") {
+    setStartSteps((prev) => ({ ...prev, [key]: true }));
+    try { localStorage.setItem(`fluidpath.smart.step.${key}`, "1"); } catch { /* ignore */ }
+  }
+
   function openSmartWizard() {
+    setStartStep("template");
     if (mode !== "edit") {
       setWorkMode("edit");
       window.setTimeout(() => { setShowAdvice(false); setShowAi(false); setShowSmartWizard(true); }, 0);
@@ -328,12 +343,12 @@ export default function App() {
   }
 
   function handleSmartInserted(result: SmartBuildResult, insertMode: "replace" | "append") {
-    const res = insertSmartDrawing(result, insertMode);
+    insertSmartDrawing(result, insertMode);
+    setStartStep("insert");
     setShowSmartWizard(false);
     setShowSmartPanel(true);
     setShowAdvice(false);
     setShowAi(false);
-    setSaveNudge({ kind: "insert", detail: `${res.nodeIds.length} ${t("个元件")} · ${res.pipeIds.length} ${t("段管路")}` });
     window.setTimeout(() => {
       const svg = svgRef.current;
       fitToScreen(svg?.clientWidth || 1200, svg?.clientHeight || 800);
@@ -347,13 +362,11 @@ export default function App() {
     }
     insertSmartDrawing(block.build(), "append");
     setShowSmartPanel(true);
-    setSaveNudge({ kind: "block", detail: t(block.titleZh) });
   }
 
   function handleBlockInsert(anchorPortId: string | null) {
     if (!pendingBlock) return;
     insertSmartDrawing(pendingBlock.build(), "append", anchorPortId ?? undefined, pendingBlock.medium);
-    setSaveNudge({ kind: "block", detail: t(pendingBlock.titleZh) });
     setPendingBlock(null);
     setShowSmartPanel(true);
   }
@@ -365,6 +378,10 @@ export default function App() {
     setSaveNudge(null);
   }
 
+  useEffect(() => {
+    if (appState.ui.fileSavedAt) setStartStep("save");
+  }, [appState.ui.fileSavedAt]);
+
   // 导出图片/PDF/GIF 只算导出，不算保存图纸；提醒一次可编辑文件
   useEffect(() => {
     const onExported = () => setSaveNudge((current) => current ?? { kind: "export" });
@@ -374,7 +391,7 @@ export default function App() {
 
   // 首次修改时给一次“自动保存 vs 保存文件”教练；同一会话最多一次，24h 内可免打扰
   useEffect(() => {
-    if (!appState.ui.dirty || saveNudge || showSmartWizard || pendingBlock || closePrompt) return;
+    if (!appState.ui.dirty || saveNudge || showSmartWizard || showSmartPanel || pendingBlock || closePrompt) return;
     try {
       if (sessionStorage.getItem("fluidpath.saveCoach.seen") === "1") return;
       const dismissed = Number(localStorage.getItem("fluidpath.saveCoach.dismissedAt") ?? 0);
@@ -382,7 +399,7 @@ export default function App() {
       sessionStorage.setItem("fluidpath.saveCoach.seen", "1");
     } catch { /* ignore */ }
     setSaveNudge({ kind: "first-edit" });
-  }, [appState.ui.dirty, saveNudge, showSmartWizard, pendingBlock, closePrompt]);
+  }, [appState.ui.dirty, saveNudge, showSmartWizard, showSmartPanel, pendingBlock, closePrompt]);
 
   if (!gateOk) {
     return <PasswordGate onPass={() => { setGateAuthed(); setGateOk(true); }} />;
@@ -433,6 +450,18 @@ export default function App() {
             <div className="canvas-empty-overlay" data-ui="1">
               <div className="canvas-empty-card">
                 <div className="canvas-empty-title">☕ {t("从这里开始")}</div>
+                <div className="smart-start-checklist">
+                  <div className="smart-check-title">{t("三步开始")}</div>
+                  {([
+                    ["template", t("选择模板")],
+                    ["insert", t("插入画布")],
+                    ["save", t("保存文件")],
+                  ] as const).map(([key, label], i) => (
+                    <div key={key} className={`smart-check-step ${startSteps[key] ? "done" : ""}`}>
+                      <span>{startSteps[key] ? "✓" : i + 1}</span>{label}
+                    </div>
+                  ))}
+                </div>
                 <button className="canvas-empty-action primary" onClick={openSmartWizard}>✨ {t("智能绘图")}</button>
                 <div className="canvas-empty-sub">{t("描述或选择模板，快速得到可编辑液路图")}</div>
                 <button className="canvas-empty-action" onClick={() => welcomeFileRef.current?.click()}>📂 {t("打开已有图纸")}</button>

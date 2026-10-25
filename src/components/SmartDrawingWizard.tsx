@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { store, useAppState } from "../store";
 import { setCachedPipes } from "../geometry";
 import { useT } from "../i18n";
 import { diagnosisSummary } from "../diagnostics";
+import { engineeringSummary, engineeringIssueLabel } from "../smart-draw/engineering";
 import { SMART_TEMPLATES, buildSmartTemplate, smartTemplateCounts } from "../smart-draw/templates";
 import { parseSmartText } from "../smart-draw/intent";
 import type { SmartBuildResult, SmartOptionValue, SmartTemplate } from "../smart-draw/types";
@@ -15,7 +16,7 @@ function previewDiagram(result: SmartBuildResult): Diagram {
     name: "smart-preview",
     nodes: result.nodes,
     pipes: result.pipes,
-    settings: { showGrid: true, background: "#eef2f7", globalAnimationPlaying: false },
+    settings: { showGrid: true, background: "#eef2f7", globalAnimationPlaying: false, workConditions: result.conditions },
   };
 }
 
@@ -27,17 +28,20 @@ export function SmartDrawingWizard({
   onInserted: (result: SmartBuildResult, mode: "replace" | "append") => void;
 }) {
   const { diagram } = useAppState();
-  const { t } = useT();
+  const { t, lang } = useT();
+  const isZh = lang === "zh";
   const hasContent = diagram.nodes.length > 0 || diagram.pipes.length > 0;
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [templateId, setTemplateId] = useState<string>("water");
   const [options, setOptions] = useState<Record<string, SmartOptionValue>>({});
   const [freeText, setFreeText] = useState("");
   const [mode, setMode] = useState<"replace" | "append">(hasContent ? "append" : "replace");
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const template = SMART_TEMPLATES.find((tpl) => tpl.id === templateId) ?? SMART_TEMPLATES[0];
   const result = useMemo(() => buildSmartTemplate(template, options), [template, options]);
   // 预览诊断会临时改写引擎缓存；算完立即恢复当前画布，避免关闭向导后画布沿用预览的流动结果。
+  const eng = useMemo(() => engineeringSummary(previewDiagram(result)), [result]);
   const diag = useMemo(() => {
     const summary = diagnosisSummary(previewDiagram(result));
     const live = store.get().diagram;
@@ -52,11 +56,23 @@ export function SmartDrawingWizard({
   const intent = useMemo(() => parseSmartText(freeText), [freeText]);
 
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const root = modalRef.current;
+    const focusable = () => Array.from(root?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ) ?? []).filter((el) => el.offsetParent !== null);
+    focusable()[0]?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => { window.removeEventListener("keydown", onKey); previous?.focus?.(); };
   }, [onClose]);
 
   function pickTemplate(next: SmartTemplate) {
@@ -79,7 +95,7 @@ export function SmartDrawingWizard({
 
   return (
     <div className="smart-modal-overlay" data-ui="1" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="smart-modal" role="dialog" aria-modal="true" aria-label={t("智能绘图")}>
+      <div className="smart-modal" role="dialog" aria-modal="true" aria-label={t("智能绘图")} ref={modalRef}>
         <header className="smart-modal-head">
           <div>
             <div className="smart-modal-title">✨ {t("智能绘图")}</div>
@@ -90,7 +106,7 @@ export function SmartDrawingWizard({
 
         <div className="smart-steps" aria-label={t("步骤")}>
           {[1, 2, 3].map((n) => (
-            <div key={n} className={`smart-step ${step === n ? "on" : ""} ${step > n ? "done" : ""}`}>
+            <div key={n} className={`smart-step ${step === n ? "on" : ""} ${step > n ? "done" : ""}`} aria-current={step === n ? "step" : undefined}>
               <span className="smart-step-num">{step > n ? "✓" : n}</span>
               <span>{n === 1 ? t("选场景") : n === 2 ? t("选配置") : t("预览插入")}</span>
             </div>
@@ -126,6 +142,7 @@ export function SmartDrawingWizard({
                       key={tpl.id}
                       type="button"
                       className={`smart-template-card ${templateId === tpl.id ? "on" : ""}`}
+                      aria-pressed={templateId === tpl.id}
                       onClick={() => pickTemplate(tpl)}
                     >
                       <div className="smart-template-preview">
@@ -134,8 +151,8 @@ export function SmartDrawingWizard({
                       <div className="smart-template-title">{t(tpl.titleZh)}</div>
                       <div className="smart-template-desc">{t(tpl.descZh)}</div>
                       <div className="smart-template-tags">
-                        <span>{counts.nodes} {t("元件")}</span>
-                        <span>{counts.pipes} {t("管路")}</span>
+                        {(isZh ? tpl.tagsZh : tpl.tagsEn).map((tag) => <span key={tag} className="smart-tag">{tag}</span>)}
+                        <span className="smart-tag muted">{counts.nodes} {t("元件")}</span>
                       </div>
                     </button>
                   );
@@ -186,7 +203,26 @@ export function SmartDrawingWizard({
                 ) : (
                   <span className="smart-warn">⚠ {t("结构检查有")} {diag.errors} {t("处问题")}</span>
                 )}
+                {eng.errors + eng.warnings === 0 ? (
+                  <span className="smart-ok">✓ {t("工程检查通过")}</span>
+                ) : (
+                  <span className="smart-warn">⚠ {t("工程建议")} {eng.errors + eng.warnings} {t("项")}</span>
+                )}
               </div>
+              {eng.issues.length > 0 && (
+                <div className="smart-eng-list">
+                  {eng.issues.slice(0, 4).map((issue) => {
+                    const label = engineeringIssueLabel(issue);
+                    return (
+                      <div key={issue.id} className={`smart-eng-item ${issue.severity}`}>
+                        <span>{issue.severity === "error" ? "⛔" : "⚠"}</span>
+                        <span><b>{label.title}</b>：{label.message}</span>
+                      </div>
+                    );
+                  })}
+                  {eng.issues.length > 4 && <div className="smart-muted">+{eng.issues.length - 4} {t("更多")}</div>}
+                </div>
+              )}
               {hasContent && (
                 <div className="smart-insert-mode">
                   <div className="smart-mode-title">{t("当前画布已有内容，插入方式：")}</div>

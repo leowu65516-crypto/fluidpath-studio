@@ -2302,7 +2302,7 @@ export function insertSmartDrawing(
       name: "智能绘图",
       nodes: result.nodes,
       pipes: result.pipes,
-      settings: smartDefaultSettings(),
+      settings: { ...smartDefaultSettings(), workConditions: result.conditions },
     };
     loadDiagram(diagram);
     // 生成的是新图纸，不是已保存文件：标记 dirty，让保存提示/状态栏立即出现
@@ -2310,7 +2310,7 @@ export function insertSmartDrawing(
     _scheduleAutosave(state.diagram);
     const nodeIds = result.nodes.map((n) => n.id);
     const pipeIds = result.pipes.map((p) => p.id);
-    setSelection({ nodes: nodeIds, pipes: pipeIds });
+    blinkElements([...nodeIds, ...pipeIds]);
     return { nodeIds, pipeIds };
   }
 
@@ -2347,7 +2347,7 @@ export function insertSmartDrawing(
   }, true);
   const nodeIds = nodes.map((n) => n.id);
   const pipeIds = newPipes.map((p) => p.id);
-  setSelection({ nodes: nodeIds, pipes: pipeIds });
+  blinkElements([...nodeIds, ...pipeIds]);
   return { nodeIds, pipeIds };
 }
 

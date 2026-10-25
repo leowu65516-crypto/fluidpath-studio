@@ -1,7 +1,7 @@
 # FluidPath Studio & CAYE 全自动咖啡机 · 完全参考手册
 
 > 本文档是理解 **FluidPath Studio 应用** 与 **CAYE 咖啡机图纸（`/Users/leo/Desktop/BCMTS.json`）** 的第一参考：应用架构、技术栈、流体仿真引擎原理、咖啡机整机原理（做咖啡 / 热牛奶 / 蒸汽 / 热水 / 清洗 / 排废），以及操作与维护纪律。
-> 最后更新：2026-10-25（v1.32.0）。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
+> 最后更新：2026-10-25（v1.32.1）。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
 
 ---
 
@@ -39,7 +39,7 @@
 | `src/components/SmartDrawingWizard.tsx` / `SmartDrawingPanel.tsx` | 三步生成向导（居中 Modal）与生成后的「继续完善」右栏（功能块/接点/关键词/检查/自动布线） |
 | `src/components/SaveStatusPill.tsx` / `SaveNudge.tsx` | 保存状态胶囊（本机草稿 vs 文件保存）与首次修改/插入/导出的保存教练 |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 70 个测试文件 / 477 通过 + 4 跳过（共 481），见 §6 |
+| `src/__tests__/` | 71 个测试文件 / 481 通过 + 4 跳过（共 485），见 §6 |
 | `/Users/leo/Desktop/Fluidpath studio/` | 机型图纸与协议文档目录（含统超定制系列图纸、图纸规范 v0.2 及增补），见 §4.7 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |
@@ -205,7 +205,8 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ### 3.8 智能绘图与保存状态（1.32.0）
 
 - **入口**：工具栏「智能绘图」或空画布主按钮；生成阶段为居中 Modal（三步：选场景→选配置→预览插入），生成后右栏切到「继续完善」。高级协议面板保留在右栏底部「高级：结构化指令」。
-- **模板**：`src/smart-draw/templates.ts` 5 个咖啡机液路模板（基础水路/咖啡冲泡/奶路/蒸汽/咖啡+奶路组合）；`smart-draw/builders.ts` 统一 `createNode`/`connect`，管路 `points: []` 交给 `autoRoute` 障碍物避让。
+- **模板**：`src/smart-draw/templates.ts` 5 个咖啡机液路模板（基础水路/咖啡冲泡/奶路/蒸汽/咖啡+奶路组合）；`smart-draw/builders.ts` 统一 `createNode`/`connect`，管路 `points: []` 交给 `autoRoute` 障碍物避让。模板默认待机（泵停/两通阀关/三通阀 off），自带「待机/萃取/奶路/蒸汽/排废」工况；已补泵出口单向阀、锅炉出口十字四通 + 压力表 + OPV/安全阀 + 泄压排废。
+- **工程检查**：`smart-draw/engineering.ts` 检查蒸汽锅炉安全阀、锅炉压力表/OPV、泵出口单向阀、泵死堵、蒸汽注入奶路单向阀、奶路清洗、默认待机、缺少待机工况；向导预览与「继续完善」面板可展开并点击定位。
 - **自由描述**：`smart-draw/intent.ts` 用咖啡机领域词典 + 否定词（无蒸汽/单奶罐）映射模板与选项；不做跨领域任意拓扑，也不调用外部模型。
 - **插入**：`insertSmartDrawing(result, "replace"|"append", anchorPortId?, medium?)`；replace 用于空画布并标记 dirty；append 追加到右侧、一次撤销；有锚点时自动生成「智能连接」管。
 - **继续完善**：块定义在 `smart-draw/blocks.ts`（蒸汽杆/清洗旁通/排废/奶路子系统）；`SmartBlockDialog` 列出可用接点；「自动布线全部管路」调用 `batchReroutePipes`。
@@ -368,7 +369,7 @@ pipeEffectiveDisabled(pipe) 依次短路：
 ```bash
 export PATH="/Users/leo/.workbuddy/binaries/node/versions/22.22.2/bin:$PATH"  # 每条命令前必加
 npx tsc --noEmit                 # 类型检查
-npm run check                    # tsc + 全量测试（当前 477 通过 + 4 跳过，70 文件）
+npm run check                    # tsc + 全量测试（当前 481 通过 + 4 跳过，71 文件）
 npm run build                    # 构建前端（dist/，Electron 必须）
 npx electron-builder --mac --config.electronDist=node_modules/electron/dist   # 打包 DMG（本地 Electron，免下载）
 npx electron scripts/verify-asar.cjs   # 入包验证
@@ -437,7 +438,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 | `e2e-workflow.test.ts` | 关键流程 E2E（启动→工况→演示→诊断→导出/分享往返） |
 | `propagation.test.ts`、`fluidRules.test.ts`、`bom-fault-guide.test.ts`、`knowledge-diagnostics.test.ts` 等 | 引擎传播、流体规则、BOM/知识库/诊断 |
 
-**当前全量：70 文件（68 通过 + 2 本机专属跳过）/ 481 用例（477 通过 + 4 跳过），tsc 无错误。**
+**当前全量：71 文件（69 通过 + 2 本机专属跳过）/ 485 用例（481 通过 + 4 跳过），tsc 无错误。**
 
 ---
 
@@ -469,6 +470,7 @@ d.nodes.forEach(n => (n.ports || []).forEach(p => (portNode[p.id] = n)));
 
 | 版本 | 日期 | 主要变更 |
 |---|---|---|
+| 1.32.1 | 2026-10-25 | 工程/设计 P0+部分 P1：模板默认待机+推荐工况；安全附件（泵出口单向阀、锅炉十字四通+压力表+OPV/安全阀+泄压排废）；工程检查规则（安全阀/压力表/单向阀/泵死堵/蒸汽注入奶路/奶路清洗/默认状态/待机工况）并在预览/右栏可定位；空画布三步清单、模板标签+大预览、插入后高亮不选、右栏建议下一步+折叠、inline 保存条；向导焦点陷阱/aria；71 文件/481 通过+4 跳过。 |
 | 1.32.0 | 2026-10-25 | 智能绘图 P0+P1：三步向导（5 个咖啡机液路模板）、自由描述、空画布加载/非空追加、一次撤销、自动适应；生成后「继续完善」功能块/接点/关键词/结构检查/自动布线；保存信心系统（本机草稿 vs 文件保存、首次修改教练、插入/导出提示、关闭三选一）；高级结构化指令保留；70 文件/477 通过+4 跳过。 |
 | 1.31.5 | 2026-10-25 | 激活 AI 绘图面板：工具栏「AI 绘图」入口 + 右栏挂载（此前 AiDrawingPanel 无人引用）；新增 docs/ai-protocol.md（0.2-draft 包络/目录/5 类操作/错误语义/示例/提示词模板）；App 右栏改为显式分支并联动模式；新增管路编号 Linter（自动编号重复检测 + 一键重排，保留自定义名称）；AI 面板激活回归 3 例 + 编号重排 1 例，68 文件/467 通过+4 跳过。 |
 | 1.31.4 | 2026-10-22 | 工程禁用旁支停流止于三通/四通：脉冲空气阀禁用或关闭只停空气支路，奶泵仍可从奶罐吸奶；「为什么停流」改为分层归因（本管→上游供液→下游去处），汇流点不再误报关闭的清洗旁支，多阻断汇总并补下游阀/泵/禁用件/储液罐液源说明；脉冲空气阀支持开/关（属性、画布徽标、工况快照、故障模拟）；67 文件/463 通过+4 跳过。 |

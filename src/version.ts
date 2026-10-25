@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.32.0";
+export const APP_VERSION = "1.32.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,17 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.32.1",
+    date: "2026-10-25",
+    highlights: [
+      "工程 P0：智能绘图模板默认改为待机状态（泵停、两通阀关、三通阀 off），并自带「待机/萃取/奶路/蒸汽/排废」等推荐工况；插入后可直接切换观察流动",
+      "工程 P0：模板补齐泵出口单向阀、锅炉出口十字四通 + 压力表 + OPV/安全阀 + 泄压排废；新增工程检查规则（蒸汽锅炉安全阀、锅炉压力表/OPV、泵出口单向阀、泵死堵、蒸汽注入奶路单向阀、奶路清洗、默认状态、待机工况），预览与继续完善面板可展开并定位问题",
+      "设计 P0：空画布三步清单（选模板/插入/保存）；模板卡新增单/双锅炉、奶路、蒸汽等语义标签并放大预览；插入后不再全选节点，改为短暂高亮；继续完善面板改为「建议下一步 + 更多功能块/更多操作」折叠，并加入本机自动保存 inline 条；保存浮层 10 秒自动收起，插入/加块不再与浮层竞争",
+      "设计 P1：工程问题列表可点击定位；向导焦点陷阱、Esc、aria-current/aria-pressed；预览显示结构+工程双重检查；DMG 1.32.1",
+      "全量 71 文件 / 481 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.32.0",
     date: "2026-10-25",

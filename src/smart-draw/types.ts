@@ -1,4 +1,4 @@
-import type { DiagramNode, FluidType, Pipe } from "../types";
+import type { DiagramNode, FluidType, Pipe, WorkCondition } from "../types";
 
 export type SmartOptionValue = boolean | string | number;
 
@@ -14,6 +14,8 @@ export interface SmartOption {
 export interface SmartBuildResult {
   nodes: DiagramNode[];
   pipes: Pipe[];
+  /** 生成图自带的推荐工况（待机/萃取/奶路/清洗等） */
+  conditions?: WorkCondition[];
   /** 供引导连接使用的入口端口（块级） */
   inletPortId?: string;
   /** 供后续连接使用的出口端口 */
@@ -27,6 +29,8 @@ export interface SmartTemplate {
   descZh: string;
   descEn: string;
   keywords: string[];
+  tagsZh: string[];
+  tagsEn: string[];
   options: SmartOption[];
   build: (options: Record<string, SmartOptionValue>) => SmartBuildResult;
 }

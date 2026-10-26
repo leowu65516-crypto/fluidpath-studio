@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.35.2";
+export const APP_VERSION = "1.35.3";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.35.3",
+    date: "2026-10-26",
+    highlights: [
+      "缩略图改为完整模板投影：不再删减元器件，二级系统与安全附件降透明度显示；插入后默认显示完整图纸、仅把视口聚焦主链，缩略图与画布元器件集合完全一致",
+      "主链视图仍可手动切换（只看主链/显示全部），折叠时保留串联单向阀/流量计并隐藏悬空接头",
+      "全量 74 文件 / 496 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.35.2",
     date: "2026-10-26",

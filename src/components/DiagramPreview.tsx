@@ -16,10 +16,10 @@ export function DiagramPreview({
   className?: string;
   showLabels?: boolean;
   highlightNodeIds?: string[];
-  /** 卡片缩略图模式：使用与实际画布“只看主链”完全相同的投影。 */
+  /** 卡片缩略图模式：显示完整模板，二级系统/附件降透明度，不删减元器件。 */
   compact?: boolean;
 }) {
-  const projection = smartViewProjection(nodes, pipes, compact ? "main" : "all");
+  const projection = smartViewProjection(nodes, pipes, "all");
   const visibleNodes = projection.visibleNodes;
   if (!visibleNodes.length) return null;
   const visiblePipes = projection.visiblePipes;
@@ -54,7 +54,7 @@ export function DiagramPreview({
         );
       })}
       {visibleNodes.map((n) => (
-        <g key={n.id}>
+        <g key={n.id} opacity={compact && (n.smartSecondary || n.type === "pressureGauge" || n.type === "safetyValve" || n.type === "opv") ? 0.52 : 1}>
           <g transform={`translate(${n.x} ${n.y}) rotate(${n.rotation} ${n.width / 2} ${n.height / 2})`}>
             <NodeSymbol node={n} />
           </g>

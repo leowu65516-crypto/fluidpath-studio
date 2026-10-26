@@ -356,7 +356,8 @@ export default function App() {
     setStartStep("insert");
     setShowSmartWizard(false);
     setShowSmartPanel(true);
-    setSmartView("main");
+    // 插入后保留完整图纸；先用主链视口聚焦，不删减元器件，缩略图与画布内容始终一致。
+    setSmartView("all");
     setShowAdvice(false);
     setShowAi(false);
     window.setTimeout(() => {

@@ -1,6 +1,7 @@
 import type { DiagramNode, Pipe } from "../types";
 import { nodeBBox, pathD, pipePolyline, smoothPath } from "../geometry";
 import { NodeSymbol } from "../symbols";
+import { smartViewProjection } from "../smart-draw/view";
 
 export function DiagramPreview({
   nodes,
@@ -15,31 +16,31 @@ export function DiagramPreview({
   className?: string;
   showLabels?: boolean;
   highlightNodeIds?: string[];
-  /** 卡片缩略图模式：隐藏安全附件/单向阀与泄压口，避免 30+ 元件的模板卡变成线团。 */
+  /** 卡片缩略图模式：使用与实际画布“只看主链”完全相同的投影。 */
   compact?: boolean;
 }) {
-  // 只隐藏分支附件，保留串联单向阀/流量计，保证卡片上的主链连续可见。
-  const accessoryTypes = new Set(["pressureGauge", "safetyValve", "opv"]);
-  const visibleNodes = compact
-    ? nodes.filter((n) => !accessoryTypes.has(n.type) && !(n.type === "outlet" && /relief|安全排废|泄压/i.test(n.label)))
-    : nodes;
+  const projection = smartViewProjection(nodes, pipes, compact ? "main" : "all");
+  const visibleNodes = projection.visibleNodes;
   if (!visibleNodes.length) return null;
-  const visiblePortIds = new Set(visibleNodes.flatMap((n) => n.ports.map((p) => p.id)));
-  const visiblePipes = compact
-    ? pipes.filter((p) => (!p.fromPortId || visiblePortIds.has(p.fromPortId)) && (!p.toPortId || visiblePortIds.has(p.toPortId)))
-    : pipes;
+  const visiblePipes = projection.visiblePipes;
   const boxes = visibleNodes.map(nodeBBox);
   const pad = 40;
-  const x = Math.min(...boxes.map((b) => b.x)) - pad;
-  const y = Math.min(...boxes.map((b) => b.y)) - pad;
-  const w = Math.max(...boxes.map((b) => b.x + b.w)) - x + pad;
-  const h = Math.max(...boxes.map((b) => b.y + b.h)) - y + pad + (showLabels ? 30 : 0);
+  // 走线用完整节点图计算（与画布一致），仅按投影过滤绘制，否则缩略图会重新路由成另一张图。
+  const pipePolylines = visiblePipes
+    .map((pipe) => ({ pipe, pts: pipePolyline(pipe, nodes) }))
+    .filter((x): x is { pipe: Pipe; pts: NonNullable<ReturnType<typeof pipePolyline>> } => !!x.pts);
+  const allPoints = [
+    ...boxes.flatMap((b) => [{ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y + b.h }]),
+    ...pipePolylines.flatMap((x) => x.pts),
+  ];
+  const x = Math.min(...allPoints.map((p) => p.x)) - pad;
+  const y = Math.min(...allPoints.map((p) => p.y)) - pad;
+  const w = Math.max(...allPoints.map((p) => p.x)) - x + pad;
+  const h = Math.max(...allPoints.map((p) => p.y)) - y + pad + (showLabels ? 30 : 0);
   const highlight = new Set(highlightNodeIds);
   return (
     <svg className={className} viewBox={`${x} ${y} ${w} ${h}`} role="img" aria-label="preview">
-      {visiblePipes.map((p) => {
-        const points = pipePolyline(p, visibleNodes);
-        if (!points) return null;
+      {pipePolylines.map(({ pipe: p, pts: points }) => {
         return (
           <path
             key={p.id}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { SMART_TEMPLATES, buildSmartTemplate } from "../smart-draw/templates";
 import { nodeBBox, pipePolyline } from "../geometry";
+import { smartViewProjection } from "../smart-draw/view";
 import type { Pt } from "../types";
 
 function segCross(a: Pt, b: Pt, c: Pt, d: Pt): boolean {
@@ -42,6 +43,28 @@ describe("智能绘图模板布局", () => {
               }
             }
           }
+        }
+      }
+    }
+  });
+
+  it("缩略图与画布主链投影一致：无悬空管，串联件保留", () => {
+    for (const template of SMART_TEMPLATES) {
+      const result = buildSmartTemplate(template, {});
+      const projection = smartViewProjection(result.nodes, result.pipes, "main");
+      const visiblePorts = new Set(projection.visibleNodes.flatMap((n) => n.ports.map((p) => p.id)));
+      for (const pipe of projection.visiblePipes) {
+        expect(visiblePorts.has(pipe.fromPortId!)).toBe(true);
+        expect(visiblePorts.has(pipe.toPortId!)).toBe(true);
+      }
+      const hasCoffee = result.nodes.some((n) => n.type === "coffeeOutlet");
+      if (hasCoffee) {
+        if (result.nodes.some((n) => n.type === "checkValve")) {
+          expect(projection.visibleNodes.some((n) => n.type === "checkValve")).toBe(true);
+        }
+        // 全量整机模板才带流量计；单个咖啡模板没有流量计时不作要求
+        if (result.nodes.some((n) => n.type === "flowMeter")) {
+          expect(projection.visibleNodes.some((n) => n.type === "flowMeter")).toBe(true);
         }
       }
     }

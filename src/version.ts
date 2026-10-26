@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.35.1";
+export const APP_VERSION = "1.35.2";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.35.2",
+    date: "2026-10-26",
+    highlights: [
+      "缩略图与插入画布统一投影：卡片、预览、画布“只看主链”共用 smartViewProjection，节点/管段过滤和走线计算完全一致，不再出现缩略图与实际图不同",
+      "缩略图保留串联单向阀/流量计、隐藏分支附件与二级系统；走线仍用完整节点图计算，避免卡片上的链路断开或折线变形",
+      "新增投影一致性回归测试；全量 74 文件 / 496 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.35.1",
     date: "2026-10-26",

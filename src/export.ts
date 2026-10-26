@@ -1021,7 +1021,7 @@ export function exportJSON(diagram: Diagram) {
 /** 工程图纸导出：剔除所有讲解覆盖，避免人工动画状态进入工程交付。 */
 export function exportEngineeringJSON(diagram: Diagram) {
   const out = structuredClone(diagram);
-  for (const node of out.nodes) delete node.displayDisabled;
+  for (const node of out.nodes) { delete node.displayDisabled; delete node.smartSecondary; }
   for (const pipe of out.pipes) {
     delete pipe.displayDisabled;
     delete pipe.teachingOverride;

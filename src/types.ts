@@ -101,6 +101,8 @@ export interface DiagramNode {
   disabled?: boolean;
   /** 仅画布显示淡化，不改变工程状态、验收结果或导出。 */
   displayDisabled?: boolean;
+  /** 智能绘图生成图中的二级系统（奶路/蒸汽/排废/安全附件）；主链视图据此隐藏，工程导出剔除。 */
+  smartSecondary?: boolean;
   /** 两通电磁阀状态：开 / 关 */
   valveState?: "open" | "closed";
   /** 三通状态。对隔膜切换阀而言 A/B 是内部稳定状态槽，不表示端口方位或流向。 */

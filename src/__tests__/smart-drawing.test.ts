@@ -28,7 +28,7 @@ describe("智能绘图模板", () => {
       for (const pipe of result.pipes) {
         expect(portIds.has(pipe.fromPortId!)).toBe(true);
         expect(portIds.has(pipe.toPortId!)).toBe(true);
-        expect(pipe.points).toEqual([]); // 交给自动布线
+        // 模板允许预填走线点（如安全件泄压管），只需保证折线可用
         expect(pipePolyline(pipe, result.nodes)).toBeTruthy();
       }
       expect(diagnosisSummary(asDiagram(result)).errors).toBe(0);

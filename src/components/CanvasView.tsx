@@ -95,17 +95,36 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
   const { diagram, ui } = app;
   const smartHiddenNodeIds = useMemo(() => {
     if (smartView !== "main") return new Set<string>();
-    const accessory = new Set(["pressureGauge", "safetyValve", "opv", "checkValve"]);
+    // 模板节点带 smartSecondary 标记（语言无关）；再按类型兜底隐藏分支附件，
+    // 保留链路上的串联件（单向阀/流量计），避免主链被“剪断”。
+    const accessory = new Set(["pressureGauge", "safetyValve", "opv"]);
     const hasCoffee = diagram.nodes.some((n) => n.type === "coffeeOutlet");
-    const secondary = new Set(["milkPump", "milkOutlet", "diaphragmValve3", "steamBoiler", "steamWand", "tank"]);
     return new Set(diagram.nodes.filter((n) => {
       if (accessory.has(n.type)) return true;
-      if (n.type === "outlet" && /排废|清洗|relief|drain|clean|safety/i.test(n.label)) return true;
-      // 咖啡机的“主链”视图只保留咖啡主链；奶路/蒸汽作为二级系统，点“显示全部”再展开。
-      return hasCoffee && (secondary.has(n.type) || /奶|milk|蒸汽|steam|补水|fill|加热|heat|清洗|clean/i.test(n.label));
+      // 只有咖啡机整机才折叠奶路/蒸汽二级系统；奶路/蒸汽模板本身的主链保持完整。
+      if (hasCoffee && n.smartSecondary) return true;
+      return n.type === "outlet" && /排废|清洗|relief|drain|clean|safety/i.test(n.label);
     }).map((n) => n.id));
   }, [diagram.nodes, smartView]);
   const smartHiddenPortIds = useMemo(() => new Set(diagram.nodes.filter((n) => smartHiddenNodeIds.has(n.id)).flatMap((n) => n.ports.map((p) => p.id))), [diagram.nodes, smartHiddenNodeIds]);
+  // 主链模式：所有相连管路都被隐藏的节点（如空标签的三通/四通）也一并隐藏，避免留下“悬空接头”。
+  useMemo(() => {
+    if (smartView !== "main") return;
+    for (const node of diagram.nodes) {
+      if (smartHiddenNodeIds.has(node.id)) continue;
+      const own = new Set(node.ports.map((p) => p.id));
+      const incident = diagram.pipes.filter((p) => own.has(p.fromPortId ?? "") || own.has(p.toPortId ?? ""));
+      if (incident.length === 0) { smartHiddenNodeIds.add(node.id); continue; }
+      const anyVisible = incident.some((p) => {
+        const other = [p.fromPortId, p.toPortId].find((pid) => pid && !own.has(pid));
+        return other !== undefined && !smartHiddenPortIds.has(other);
+      });
+      if (!anyVisible) {
+        smartHiddenNodeIds.add(node.id);
+        for (const port of node.ports) smartHiddenPortIds.add(port.id);
+      }
+    }
+  }, [diagram.nodes, diagram.pipes, smartView, smartHiddenNodeIds, smartHiddenPortIds]);
   const blinkIds = new Set(ui.blink?.ids ?? []);
   const blinkStamp = ui.blink?.stamp ?? 0;
   // 元件→整机功能链（单选时高亮；演示/多选时不叠加）

@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.35.0";
+export const APP_VERSION = "1.35.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.35.1",
+    date: "2026-10-26",
+    highlights: [
+      "修复主链视图断链：折叠只针对分支附件与二级系统（模板节点带 smartSecondary 标记，语言无关），串联单向阀/流量计/四通保留在主链上，不再出现悬空接头或断开的元件",
+      "模板布局重排：奶路蒸汽块重排（加热单向阀竖置在奶路三通正下方，补水阀与锅炉错位防重叠）；咖啡/即热泄压排废改走左侧通道；蒸汽模板阀/杆/排废重排；full/dual 共用供水与排废总线预填走线",
+      "所有模板默认走线 0 交叉、元件 0 重叠，并新增交叉回归测试（smart-layout 第 3 例）",
+      "全量 74 文件 / 495 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.35.0",
     date: "2026-10-26",

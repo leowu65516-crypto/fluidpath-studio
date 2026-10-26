@@ -17,6 +17,11 @@ function stopTeaching(pipe: Pipe): Pipe {
   return pipe;
 }
 
+/** 将一组节点标记为二级系统（主链视图折叠时隐藏）。 */
+function markSecondary(nodes: DiagramNode[]): void {
+  for (const n of nodes) n.smartSecondary = true;
+}
+
 /** 在锅炉出口线上插入十字四通 + 压力表 + 安全阀/OPV + 泄压排废。 */
 function addBoilerSafety(opts: {
   nodes: DiagramNode[];
@@ -28,13 +33,15 @@ function addBoilerSafety(opts: {
   fluid: "hotWater" | "steam";
   kind: "opv" | "safetyValve";
   cross: { x: number; y: number };
+  waste?: { x: number; y: number };
 }) {
-  const { nodes, pipes, boiler, boilerPort, next, nextPort, fluid, kind, cross } = opts;
+  const { nodes, pipes, boiler, boilerPort, next, nextPort, fluid, kind, cross, waste: wasteAt } = opts;
   removeDirectPipe(pipes, boiler, boilerPort, next, nextPort);
   const junction = makeNode("cross", cross.x, cross.y, "");
   const gauge = makeNode("pressureGauge", cross.x, cross.y - 120, L("压力表", "Pressure gauge"));
   const relief = makeNode(kind, cross.x, cross.y + 110, kind === "opv" ? L("OPV 泄压", "OPV relief") : L("安全阀", "Safety valve"));
-  const waste = makeNode("outlet", cross.x + 140, cross.y + 130, kind === "opv" ? L("泄压排废", "Relief drain") : L("安全排废", "Safety drain"));
+  const waste = makeNode("outlet", wasteAt?.x ?? cross.x + 140, wasteAt?.y ?? cross.y + 130, kind === "opv" ? L("泄压排废", "Relief drain") : L("安全排废", "Safety drain"));
+  markSecondary([gauge, relief, waste]);
   nodes.push(junction, gauge, relief, waste);
   const tag = boiler.label;
   pipes.push(connect(boiler, boilerPort, junction, "left", fluid, L(`${tag}出口`, `${tag} out`)));
@@ -43,7 +50,13 @@ function addBoilerSafety(opts: {
   gaugePipe.annotation = L("传压不流过", "Pressure only");
   pipes.push(gaugePipe);
   pipes.push(stopTeaching(connect(junction, "bottom", relief, "bottom", fluid, L(`${tag}泄压`, `${tag} relief`))));
-  pipes.push(stopTeaching(connect(relief, "right", waste, "left", "wasteLiquid", L(`${tag}泄压排废`, `${tag} relief drain`))));
+  const wastePipe = stopTeaching(connect(relief, "right", waste, "left", "wasteLiquid", L(`${tag}泄压排废`, `${tag} relief drain`)));
+  if (wasteAt && wasteAt.x < cross.x) {
+    // 泄压口放在十字四通左侧时，先向下绕到安全阀下方再折左，避免穿过阀体与泄压管。
+    const yLine = cross.y + 210;
+    wastePipe.points = [{ x: cross.x + 64, y: yLine }, { x: wasteAt.x, y: yLine }];
+  }
+  pipes.push(wastePipe);
   return { junction };
 }
 
@@ -108,7 +121,7 @@ function buildCoffee(options: Record<string, SmartOptionValue> = {}): SmartBuild
     connect(brewValve, "bottom", drain, "left", "wasteLiquid", L("排废", "Drain")),
   ];
   addPumpCheck({ nodes, pipes, pump, next: boiler, nextPort: "bottom", fluid: "coldWater", x: 310, y: 260 });
-  const safety = addBoilerSafety({ nodes, pipes, boiler, boilerPort: "top", next: brewValve, nextPort: "left", fluid: "hotWater", kind: "opv", cross: { x: 520, y: 230 } });
+  const safety = addBoilerSafety({ nodes, pipes, boiler, boilerPort: "top", next: brewValve, nextPort: "left", fluid: "hotWater", kind: "opv", cross: { x: 520, y: 230 }, waste: { x: 270, y: 380 } });
   let steamValve: DiagramNode | undefined;
   if (options.steam === true) {
     // 单锅炉：同一锅炉在“萃取/蒸汽”之间切换，蒸汽支路从锅炉出口三通分出
@@ -153,7 +166,7 @@ function buildThermoblock(): SmartBuildResult {
     connect(brewValve, "bottom", drain, "left", "wasteLiquid", L("排废", "Drain")),
   ];
   addPumpCheck({ nodes, pipes, pump, next: heater, nextPort: "left", fluid: "coldWater", x: 310, y: 260 });
-  addBoilerSafety({ nodes, pipes, boiler: heater, boilerPort: "right", next: brewValve, nextPort: "left", fluid: "hotWater", kind: "opv", cross: { x: 520, y: 230 } });
+  addBoilerSafety({ nodes, pipes, boiler: heater, boilerPort: "right", next: brewValve, nextPort: "left", fluid: "hotWater", kind: "opv", cross: { x: 520, y: 230 }, waste: { x: 270, y: 380 } });
   applyIdleStates(nodes);
   return {
     nodes,
@@ -169,9 +182,9 @@ function buildThermoblock(): SmartBuildResult {
 function buildSteam(): SmartBuildResult {
   const inlet = makeNode("inlet", 80, 200, L("蒸汽补水口", "Steam water inlet"));
   const boiler = makeNode("steamBoiler", 340, 180, L("蒸汽锅炉", "Steam boiler"));
-  const valve = makeNode("solenoid3", 560, 200, L("蒸汽三通阀", "Steam 3-way valve"));
-  const wand = makeNode("steamWand", 800, 140, L("蒸汽杆", "Steam wand"));
-  const drain = makeNode("outlet", 700, 520, L("蒸汽排废", "Steam drain"));
+  const valve = makeNode("solenoid3", 560, 300, L("蒸汽三通阀", "Steam 3-way valve"));
+  const wand = makeNode("steamWand", 780, 270, L("蒸汽杆", "Steam wand"));
+  const drain = makeNode("outlet", 700, 560, L("蒸汽排废", "Steam drain"));
   const nodes = [inlet, boiler, valve, wand, drain];
   const pipes: Pipe[] = [
     connect(inlet, "right", boiler, "top", "coldWater", L("蒸汽补水", "Steam feed")),
@@ -186,7 +199,7 @@ function buildSteam(): SmartBuildResult {
   pipes.push(connect(inlet, "right", check, "left", "coldWater", L("蒸汽补水", "Steam feed")));
   pipes.push(connect(check, "right", fillValve, "left", "coldWater", L("补水阀前", "Before fill valve")));
   pipes.push(connect(fillValve, "right", boiler, "top", "coldWater", L("锅炉补水", "Boiler feed")));
-  addBoilerSafety({ nodes, pipes, boiler, boilerPort: "bottom", next: valve, nextPort: "left", fluid: "steam", kind: "safetyValve", cross: { x: 700, y: 300 } });
+  addBoilerSafety({ nodes, pipes, boiler, boilerPort: "bottom", next: valve, nextPort: "left", fluid: "steam", kind: "safetyValve", cross: { x: 470, y: 300 }, waste: { x: 600, y: 540 } });
   applyIdleStates(nodes);
   return {
     nodes,
@@ -212,6 +225,7 @@ function buildMilk(options: Record<string, SmartOptionValue>): SmartBuildResult 
   if (doubleTank) {
     const tankB = makeNode("tank", 80, 330, L("奶罐 B", "Milk tank B"));
     selective = makeNode("diaphragmValve3", 250, 180, L("选择阀", "Selector"));
+    markSecondary([tankB, selective]);
     nodes.push(tankB, selective);
     pipes.push(connect(tankA, "top", selective, "left", "coldMilk", L("奶罐 A 出液", "Tank A out")));
     pipes.push(connect(tankB, "top", selective, "bottom", "coldMilk", L("奶罐 B 出液", "Tank B out")));
@@ -249,6 +263,7 @@ function buildMilk(options: Record<string, SmartOptionValue>): SmartBuildResult 
   const tee = makeNode("cross", 580, 180, "");
   const cleaningValve = makeNode("solenoid2", 500, 40, L("奶路清洗阀", "Milk cleaning valve"));
   const cleaningDrain = makeNode("outlet", 640, 20, L("奶路清洗排废", "Milk cleaning drain"));
+  markSecondary([tee, cleaningValve, cleaningDrain, outletValve, outlet, milkDrain]);
   nodes.push(tee, cleaningValve, cleaningDrain);
   pipes.push(connect(pump, "right", tee, "left", "coldMilk", L("奶泵出", "Pump out")));
   pipes.push(connect(tee, "right", outletValve, "left", "coldMilk", L("奶路", "Milk line")));
@@ -257,22 +272,24 @@ function buildMilk(options: Record<string, SmartOptionValue>): SmartBuildResult 
   addPumpCheck({ nodes, pipes, pump, next: tee, nextPort: "left", fluid: "coldMilk", x: 500, y: 200 });
 
   // 蒸汽锅炉补水：补水口 → 单向阀 → 补水电磁阀 → 锅炉，待机时阀关，避免“永远在补水”。
-  const steamInlet = makeNode("inlet", 160, 470, L("蒸汽补水口", "Steam water inlet"));
-  const fillCheck = makeNode("checkValve", 250, 470, L("补水单向阀", "Fill check valve"));
-  const fillValve = makeNode("solenoid2", 340, 470, L("蒸汽补水阀", "Steam fill valve"));
-  const steamBoiler = makeNode("steamBoiler", 460, 420, L("蒸汽锅炉", "Steam boiler"));
-  const heatValve = makeNode("solenoid3", 600, 420, L("牛奶加热三通阀", "Milk heat valve"));
-  const check = makeNode("checkValve", 760, 420, L("加热单向阀", "Heat check valve"));
-  const waste = makeNode("outlet", 760, 620, L("加热排废", "Heat drain"));
+  const steamInlet = makeNode("inlet", 380, 460, L("蒸汽补水口", "Steam water inlet"));
+  const fillCheck = makeNode("checkValve", 480, 460, L("补水单向阀", "Fill check valve"));
+  const fillValve = makeNode("solenoid2", 560, 440, L("蒸汽补水阀", "Steam fill valve"));
+  const steamBoiler = makeNode("steamBoiler", 560, 520, L("蒸汽锅炉", "Steam boiler"));
+  const heatValve = makeNode("solenoid3", 760, 430, L("牛奶加热三通阀", "Milk heat valve"));
+  const check = makeNode("checkValve", 620, 320, L("加热单向阀", "Heat check valve"));
+  check.rotation = 90; // 单向阀竖放：下进上出，蒸汽从下方汇入奶路三通
+  const waste = makeNode("outlet", 900, 560, L("加热排废", "Heat drain"));
+  markSecondary([steamInlet, fillCheck, fillValve, steamBoiler, heatValve, check, waste, pump, tankA]);
+  if (selective) markSecondary([selective]);
   nodes.push(steamInlet, fillCheck, fillValve, steamBoiler, heatValve, check, waste);
   pipes.push(connect(steamInlet, "right", fillCheck, "left", "coldWater", L("蒸汽补水", "Steam feed")));
   pipes.push(connect(fillCheck, "right", fillValve, "left", "coldWater", L("补水阀前", "Before fill valve")));
   pipes.push(connect(fillValve, "right", steamBoiler, "top", "coldWater", L("锅炉补水", "Boiler feed")));
-  pipes.push(connect(steamBoiler, "bottom", heatValve, "left", "steam", L("蒸汽", "Steam")));
   pipes.push(connect(heatValve, "right", check, "left", "steam", L("加热蒸汽", "Heat steam")));
   pipes.push(connect(check, "right", tee, "bottom", "steam", L("混合加热", "Heat mix")));
   pipes.push(connect(heatValve, "bottom", waste, "left", "wasteLiquid", L("加热排废", "Heat drain")));
-  addBoilerSafety({ nodes, pipes, boiler: steamBoiler, boilerPort: "bottom", next: heatValve, nextPort: "left", fluid: "steam", kind: "safetyValve", cross: { x: 620, y: 620 } });
+  addBoilerSafety({ nodes, pipes, boiler: steamBoiler, boilerPort: "bottom", next: heatValve, nextPort: "left", fluid: "steam", kind: "safetyValve", cross: { x: 610, y: 800 }, waste: { x: 750, y: 950 } });
   applyIdleStates(nodes);
   return {
     nodes,
@@ -347,7 +364,10 @@ function buildFull(options: Record<string, SmartOptionValue>): SmartBuildResult 
   pipes.push(connect(coffeeCheck, "right", meter, "left", "coldWater", L("泵出口计量", "Pump out to meter")));
   pipes.push(connect(meter, "right", supplyTee, "left", "coldWater", L("计量后供水", "Metered supply")));
   pipes.push(connect(supplyTee, "right", coffeeBoiler, "bottom", "coldWater", L("咖啡锅炉补水", "Coffee boiler feed")));
-  pipes.push(connect(supplyTee, "bottom", fillCheck, "left", "coldWater", L("蒸汽锅炉补水", "Steam boiler feed")));
+  const steamFeed = connect(supplyTee, "bottom", fillCheck, "left", "coldWater", L("蒸汽锅炉补水", "Steam boiler feed"));
+  // 预填走线：沿共用供水左侧通道直下到蒸汽补水单向阀，避免穿过奶泵/加热块。
+  steamFeed.points = [{ x: 340, y: 454 }, { x: 340, y: 1004 }];
+  pipes.push(steamFeed);
 
   // 排废总网：咖啡排废 + 奶路排废 + 加热排废汇入总排废阀，避免三路直接散落。
   const drainOutlets = all.filter((n) => n.type === "outlet"
@@ -370,10 +390,16 @@ function buildFull(options: Record<string, SmartOptionValue>): SmartBuildResult 
     const header = makeNode("cross", 1000, 760, L("排废汇流", "Drain header"));
     drainValve = makeNode("solenoid2", 1120, 760, L("排废总阀", "Main drain valve"));
     const drainOut = makeNode("outlet", 1240, 760, L("总排废口", "Main drain outlet"));
+    markSecondary([header, drainValve, drainOut]);
     all.push(header, drainValve, drainOut);
     const ports: PortPosition[] = ["left", "top", "bottom"];
     drainSources.slice(0, 3).forEach((source, i) => {
-      pipes.push(connect(source.node, source.port, header, ports[i], "wasteLiquid", L(`${source.label}汇流`, `${source.label} to header`)));
+      const drainPipe = connect(source.node, source.port, header, ports[i], "wasteLiquid", L(`${source.label}汇流`, `${source.label} to header`));
+      // 预填走线：咖啡排废走右侧直下，奶排废走底部汇流，避免三路在排废总网处交叉。
+      if (/咖啡|coffee/i.test(source.label)) drainPipe.points = [{ x: 639, y: 380 }, { x: 980, y: 380 }, { x: 980, y: 840 }, { x: 1000, y: 840 }];
+      if (/牛奶|milk/i.test(source.label)) drainPipe.points = [{ x: 880, y: 704 }, { x: 880, y: 1160 }, { x: 1032, y: 1160 }];
+      if (/加热|heat/i.test(source.label)) drainPipe.points = [{ x: 799, y: 1200 }, { x: 1032, y: 1200 }];
+      pipes.push(drainPipe);
     });
     pipes.push(connect(header, "right", drainValve, "left", "wasteLiquid", L("排废总阀前", "Before main drain valve")));
     pipes.push(connect(drainValve, "right", drainOut, "left", "wasteLiquid", L("总排废", "Main drain")));
@@ -384,10 +410,10 @@ function buildFull(options: Record<string, SmartOptionValue>): SmartBuildResult 
     nodes: all,
     pipes,
     zones: [
-      { id: "supply", labelZh: "共用供水", labelEn: "Shared supply", x: 30, y: 160, w: 560, h: 190, color: "#2f7fd6" },
-      { id: "coffee", labelZh: "咖啡主链", labelEn: "Coffee chain", x: 560, y: 35, w: 700, h: 360, color: "#b9770e" },
-      { id: "steam-milk", labelZh: "蒸汽 / 奶路", labelEn: "Steam / milk", x: 300, y: 400, w: 780, h: 300, color: "#7a5cc4" },
-      { id: "drain", labelZh: "排废总网", labelEn: "Drain header", x: 930, y: 650, w: 430, h: 180, color: "#4f7d63" },
+      { id: "supply", labelZh: "共用供水", labelEn: "Shared supply", x: 30, y: 140, w: 560, h: 300, color: "#2f7fd6" },
+      { id: "coffee", labelZh: "咖啡主链", labelEn: "Coffee chain", x: 560, y: 30, w: 720, h: 400, color: "#b9770e" },
+      { id: "steam-milk", labelZh: "蒸汽 / 奶路", labelEn: "Steam / milk", x: 290, y: 520, w: 720, h: 990, color: "#7a5cc4" },
+      { id: "drain", labelZh: "排废总网", labelEn: "Drain header", x: 940, y: 700, w: 400, h: 220, color: "#4f7d63" },
     ],
     conditions: [
       makeCondition(L("待机", "Idle"), all),

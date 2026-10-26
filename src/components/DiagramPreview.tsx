@@ -18,7 +18,8 @@ export function DiagramPreview({
   /** 卡片缩略图模式：隐藏安全附件/单向阀与泄压口，避免 30+ 元件的模板卡变成线团。 */
   compact?: boolean;
 }) {
-  const accessoryTypes = new Set(["pressureGauge", "safetyValve", "opv", "checkValve"]);
+  // 只隐藏分支附件，保留串联单向阀/流量计，保证卡片上的主链连续可见。
+  const accessoryTypes = new Set(["pressureGauge", "safetyValve", "opv"]);
   const visibleNodes = compact
     ? nodes.filter((n) => !accessoryTypes.has(n.type) && !(n.type === "outlet" && /relief|安全排废|泄压/i.test(n.label)))
     : nodes;

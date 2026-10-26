@@ -370,7 +370,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         </span>
         <button className="tb-btn sq" onClick={() => setZoomCenter(ui.zoom * 1.2, viewSize().w, viewSize().h)} title={t("放大")}>+</button>
         <button className="tb-btn sq" onClick={() => fitToScreen(viewSize().w, viewSize().h)} title={t("适应画布")}>⊡</button>
-        <button className="tb-btn sq" onClick={() => { batchReroutePipes(diagram.pipes.map((x) => x.id)); toast(t("已重新自动布线；手动折点已清除")); }} title={t("整理管路")}>🧹</button>
         <button className="tb-btn" onClick={toggleTheme} title={t("切换明暗主题")} aria-label={t("切换明暗主题")}>
           {isDark
             ? <Icon d="M12 3v1M0 12h1M12 23v-1M23 12h-1M5.6 5.6l-.7-.7M19.1 19.1l.7.7M5.6 18.4l-.7.7M19.1 4.9l.7-.7" />
@@ -440,6 +439,9 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
           <Icon d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9L18 15z" />{t("智能绘图")}
         </button>
       )}
+      <button className="tb-btn" data-testid="tidy-pipes" onClick={() => { batchReroutePipes(diagram.pipes.map((x) => x.id)); toast(t("已重新自动布线；手动折点已清除")); }} title={t("整理管路：一键重排所有管路，绕开元件、消除交叉（可撤销）")}>
+        <Icon d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08M7.07 14.94a3 3 0 0 1 3 3.02c0 2.24-1.8 4.04-4 4.04-1.51 0-2.92-.92-4-2.02-.5-.5 2-.69 2-2.02a3 3 0 0 1 3-3.02z" />{t("整理管路")}
+      </button>
       <button className={`tb-btn${condOpen ? " active" : ""}`} onClick={() => setCondOpen((v) => !v)} title={t("工况：把当前阀位/泵开关存成方案，一键切换对比")}>
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M8 12h8" />{t("工况")}
       </button>

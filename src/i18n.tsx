@@ -972,7 +972,8 @@ const EN: Record<string, string> = {
   "双击重命名": "Double-click to rename",
   "重命名分区": "Rename zone",
   "输入新的分区名称": "Enter a new zone name",
-  "已更新分区名称": "Zone renamed to {name}"
+  "已更新分区名称": "Zone renamed to {name}",
+  "整理管路：一键重排所有管路，绕开元件、消除交叉（可撤销）": "Tidy pipes: reroute everything around components and clear crossings (undoable)"
 
 };
 

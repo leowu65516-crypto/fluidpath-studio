@@ -29,7 +29,7 @@ import { resolveFaultTargets } from "../fault-codes/profile";
 import { useT } from "../i18n";
 import { smartViewProjection } from "../smart-draw/view";
 import { ContextMenu } from "./ContextMenu";
-import { focusElement, blinkElements, showChainPath, overrideScenarioNode } from "../store";
+import { focusElement, blinkElements, showChainPath, overrideScenarioNode, batchReroutePipes } from "../store";
 import { collectAdvice, traceStopCause } from "../advice";
 import { traceFunctionalChain } from "../functionalChain";
 import {
@@ -893,6 +893,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
       items.push({ label: `📋 ${t("粘贴 (Ctrl+V)")}`, onClick: () => pasteFromClipboard(), disabled: !store.get().ui.clipboard });
       items.push({ label: "---", divider: true });
       items.push({ label: `⊡ ${t("适应画布")}`, onClick: () => { const el = document.querySelector(".main-canvas"); fitToScreen((el as HTMLElement)?.clientWidth ?? 1200, (el as HTMLElement)?.clientHeight ?? 800); } });
+      items.push({ label: `🧹 ${t("整理管路")}`, onClick: () => { batchReroutePipes(store.get().diagram.pipes.map((x) => x.id)); toast(t("已重新自动布线；手动折点已清除")); } });
       items.push({ label: `📊 ${t("生成图例")}`, onClick: () => { const svg = document.querySelector(".main-canvas") as SVGSVGElement | null; if (!svg) return; const bb = svg.getBoundingClientRect(); const wx = (-store.get().ui.panX) / store.get().ui.zoom + bb.width / 2 / store.get().ui.zoom - 180; const wy = (-store.get().ui.panY) / store.get().ui.zoom + bb.height / 2 / store.get().ui.zoom; generateLegend(wx, wy, lang); } });
       items.push({ label: "---", divider: true });
       items.push({ label: `🗑️ ${t("全部清除")}`, onClick: () => { if (confirm(t("确定清空整个画布？"))) newDiagram(); }, danger: true });

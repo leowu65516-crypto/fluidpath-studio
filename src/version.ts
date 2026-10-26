@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.36.0";
+export const APP_VERSION = "1.36.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.36.1",
+    date: "2026-10-26",
+    highlights: [
+      "整理管路入口补齐：除智能绘图右栏外，新增工具栏 🧹 按钮与画布右键菜单「整理管路」，任何图纸都能一键重新自动布线",
+      "全量 74 文件 / 497 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.36.0",
     date: "2026-10-26",

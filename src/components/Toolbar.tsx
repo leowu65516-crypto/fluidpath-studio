@@ -15,7 +15,8 @@ import {
   setZoomCenter,
   undo,
   updateDiagram,
-  useAppState
+  useAppState,
+  batchReroutePipes
 } from "../store";
 import { exportEngineeringJSON, exportGIF, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram, saveJSONFile } from "../export";
 import { exportMachinePack, parseMachinePack } from "../machinePack";
@@ -369,6 +370,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
         </span>
         <button className="tb-btn sq" onClick={() => setZoomCenter(ui.zoom * 1.2, viewSize().w, viewSize().h)} title={t("放大")}>+</button>
         <button className="tb-btn sq" onClick={() => fitToScreen(viewSize().w, viewSize().h)} title={t("适应画布")}>⊡</button>
+        <button className="tb-btn sq" onClick={() => { batchReroutePipes(diagram.pipes.map((x) => x.id)); toast(t("已重新自动布线；手动折点已清除")); }} title={t("整理管路")}>🧹</button>
         <button className="tb-btn" onClick={toggleTheme} title={t("切换明暗主题")} aria-label={t("切换明暗主题")}>
           {isDark
             ? <Icon d="M12 3v1M0 12h1M12 23v-1M23 12h-1M5.6 5.6l-.7-.7M19.1 19.1l.7.7M5.6 18.4l-.7.7M19.1 4.9l.7-.7" />

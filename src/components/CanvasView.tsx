@@ -96,7 +96,14 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
   const smartHiddenNodeIds = useMemo(() => {
     if (smartView !== "main") return new Set<string>();
     const accessory = new Set(["pressureGauge", "safetyValve", "opv", "checkValve"]);
-    return new Set(diagram.nodes.filter((n) => accessory.has(n.type) || (n.type === "outlet" && /排废|清洗|relief|drain|clean|safety/i.test(n.label))).map((n) => n.id));
+    const hasCoffee = diagram.nodes.some((n) => n.type === "coffeeOutlet");
+    const secondary = new Set(["milkPump", "milkOutlet", "diaphragmValve3", "steamBoiler", "steamWand", "tank"]);
+    return new Set(diagram.nodes.filter((n) => {
+      if (accessory.has(n.type)) return true;
+      if (n.type === "outlet" && /排废|清洗|relief|drain|clean|safety/i.test(n.label)) return true;
+      // 咖啡机的“主链”视图只保留咖啡主链；奶路/蒸汽作为二级系统，点“显示全部”再展开。
+      return hasCoffee && (secondary.has(n.type) || /奶|milk|蒸汽|steam|补水|fill|加热|heat|清洗|clean/i.test(n.label));
+    }).map((n) => n.id));
   }, [diagram.nodes, smartView]);
   const smartHiddenPortIds = useMemo(() => new Set(diagram.nodes.filter((n) => smartHiddenNodeIds.has(n.id)).flatMap((n) => n.ports.map((p) => p.id))), [diagram.nodes, smartHiddenNodeIds]);
   const blinkIds = new Set(ui.blink?.ids ?? []);
@@ -1338,7 +1345,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
             return <rect data-ui="1" x={viewRect.x} y={viewRect.y} width={viewRect.w} height={viewRect.h} fill="url(#dotgrid)" pointerEvents="none" />;
           })()}
           {/* 智能绘图的系统分区提示：只做背景引导，不参与命中/工程判定 */}
-          {(diagram.settings.smartZones ?? []).map((zone) => (
+          {(diagram.settings.smartZones ?? []).filter((zone) => smartView !== "main" || zone.id === "supply" || zone.id === "coffee").map((zone) => (
             <g key={zone.id} pointerEvents="none">
               <rect x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={16} fill={zone.color ?? "#2f7fd6"} fillOpacity={0.025} stroke={zone.color ?? "#2f7fd6"} strokeOpacity={0.26} strokeWidth={1.2} strokeDasharray="8 7" />
               <text x={zone.x + 14} y={zone.y + 22} fontSize={13} fontWeight={700} fill={zone.color ?? "#2f7fd6"} fillOpacity={0.72} fontFamily="system-ui, sans-serif">

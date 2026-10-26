@@ -373,7 +373,10 @@ export default function App() {
   function focusSmartGroup(kind: "main" | "accessories") {
     const svg = svgRef.current;
     const nodes = appState.diagram.nodes;
-    const mainTypes = new Set(["inlet", "pump", "milkPump", "hotWaterBoiler", "steamBoiler", "thermoblock", "brewChamber", "coffeeOutlet", "milkOutlet", "steamWand", "tank"]);
+    const coffeeMain = new Set(["inlet", "pump", "hotWaterBoiler", "thermoblock", "brewChamber", "coffeeOutlet"]);
+    const mainTypes = nodes.some((n) => n.type === "coffeeOutlet")
+      ? coffeeMain
+      : new Set(["inlet", "pump", "milkPump", "hotWaterBoiler", "steamBoiler", "thermoblock", "brewChamber", "coffeeOutlet", "milkOutlet", "steamWand", "tank"]);
     const accessoryTypes = new Set(["pressureGauge", "safetyValve", "opv", "checkValve"]);
     const ids = nodes
       .filter((n) => kind === "main" ? mainTypes.has(n.type) : accessoryTypes.has(n.type) || (/排废|清洗|drain|clean/i.test(n.label) && n.type === "outlet"))

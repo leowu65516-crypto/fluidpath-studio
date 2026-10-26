@@ -1847,6 +1847,26 @@ export function fitToScreen(viewW: number, viewH: number) {
   setUI({ zoom, panX, panY });
 }
 
+/** 将视口聚焦到一组节点（用于智能绘图插入后先看主链，而不是把整张 36 元件图缩到 52%）。 */
+export function fitToNodeIds(ids: string[], viewW: number, viewH: number, maxZoom = 1): void {
+  const nodes = state.diagram.nodes.filter((n) => ids.includes(n.id));
+  if (!nodes.length) return;
+  const boxes = nodes.map(nodeBBox);
+  const minX = Math.min(...boxes.map((b) => b.x));
+  const minY = Math.min(...boxes.map((b) => b.y));
+  const maxX = Math.max(...boxes.map((b) => b.x + b.w));
+  const maxY = Math.max(...boxes.map((b) => b.y + b.h));
+  const pad = 90;
+  const contentW = Math.max(1, maxX - minX + pad * 2);
+  const contentH = Math.max(1, maxY - minY + pad * 2);
+  const zoom = Math.min(viewW / contentW, viewH / contentH, maxZoom, 2);
+  setUI({
+    zoom,
+    panX: (viewW - contentW * zoom) / 2 - (minX - pad) * zoom,
+    panY: (viewH - contentH * zoom) / 2 - (minY - pad) * zoom,
+  });
+}
+
 // ===== 多选对齐 + 等距分布 =====
 export function alignSelection(dir: "left" | "right" | "top" | "bottom" | "centerH" | "centerV") {
   const sel = state.ui.selection;
@@ -2302,7 +2322,7 @@ export function insertSmartDrawing(
       name: "智能绘图",
       nodes: result.nodes,
       pipes: result.pipes,
-      settings: { ...smartDefaultSettings(), workConditions: result.conditions },
+      settings: { ...smartDefaultSettings(), workConditions: result.conditions, smartZones: result.zones },
     };
     loadDiagram(diagram);
     // 生成的是新图纸，不是已保存文件：标记 dirty，让保存提示/状态栏立即出现
@@ -2344,6 +2364,9 @@ export function insertSmartDrawing(
   updateDiagram((d) => {
     d.nodes.push(...nodes);
     d.pipes.push(...newPipes);
+    if (result.zones?.length) {
+      d.settings.smartZones = [...(d.settings.smartZones ?? []), ...result.zones.map((zone) => ({ ...zone, x: zone.x + dx }))];
+    }
   }, true);
   const nodeIds = nodes.map((n) => n.id);
   const pipeIds = newPipes.map((p) => p.id);

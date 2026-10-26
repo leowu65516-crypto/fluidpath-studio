@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.34.0";
+export const APP_VERSION = "1.35.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.35.0",
+    date: "2026-10-26",
+    highlights: [
+      "智能绘图视图优化：模板卡改为紧凑骨架预览，隐藏压力表/安全阀/单向阀等附件，基础水路不再在卡片里显示完整附件链",
+      "插入后默认聚焦咖啡主链而不是整张 36 元件图；新增「只看主链 / 显示全部」「定位主链 / 定位安全附件」控制，低缩放自动隐藏管路/介质标签",
+      "full / dual-boiler 增加共用供水、咖啡主链、蒸汽/奶路、排废总网四个画布分区标题；重排安全附件、奶泵/出口阀、流量计/分配三通坐标，消除模板节点重叠",
+      "新增布局回归测试：所有模板元件矩形不重叠、整机/双锅炉分区与单一进水口校验；test 74 文件/494 通过+4 跳过",
+    ],
+  },
   {
     version: "1.34.0",
     date: "2026-10-25",

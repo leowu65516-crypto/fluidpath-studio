@@ -955,7 +955,11 @@ const EN: Record<string, string> = {
   "排废总阀": "Main drain valve",
   "总排废口": "Main drain outlet",
   "排废总阀前": "Before main drain valve",
-  "总排废": "Main drain"
+  "总排废": "Main drain",
+  "定位主链": "Focus main chain",
+  "定位安全附件": "Focus safety accessories",
+  "只看主链": "Main chain only",
+  "显示全部": "Show all"
 
 };
 

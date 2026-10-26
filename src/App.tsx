@@ -23,7 +23,7 @@ import { selectFaultCodes, setSimulationRunning } from "./fault-codes/session";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, setWorkMode, useAppState } from "./store";
-import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath, insertSmartDrawing, fitToScreen } from "./store";
+import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath, insertSmartDrawing, fitToScreen, fitToNodeIds } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave, recordSavedAt } from "./store";
 import type { AutosaveVersion } from "./store";
 import { decompressDiagram, parseDiagramJSON, saveJSONFile } from "./export";
@@ -57,6 +57,7 @@ export default function App() {
   const [showAi, setShowAi] = useState(false);
   const [showSmartWizard, setShowSmartWizard] = useState(false);
   const [showSmartPanel, setShowSmartPanel] = useState(false);
+  const [smartView, setSmartView] = useState<"all" | "main">("all");
   const [pendingBlock, setPendingBlock] = useState<SmartBlock | null>(null);
   const [saveNudge, setSaveNudge] = useState<{ kind: SaveNudgeKind; detail?: string } | null>(null);
   const lastEngErrors = useRef(0);
@@ -202,6 +203,7 @@ export default function App() {
     const enc = params.get("diagram");
     if (enc) {
       try {
+        setSmartView("all");
         loadDiagram(decompressDiagram(enc));
         // 清除 URL 参数，避免刷新重复加载
         history.replaceState({}, "", location.pathname);
@@ -219,6 +221,7 @@ export default function App() {
     if (!api?.onOpenFile) return;
     return api.onOpenFile(({ path, content }) => {
       try {
+        setSmartView("all");
         loadDiagram(parseDiagramJSON(content));
         setSourceFilePath(path);
       } catch (err) {
@@ -353,12 +356,30 @@ export default function App() {
     setStartStep("insert");
     setShowSmartWizard(false);
     setShowSmartPanel(true);
+    setSmartView("main");
     setShowAdvice(false);
     setShowAi(false);
     window.setTimeout(() => {
       const svg = svgRef.current;
-      fitToScreen(svg?.clientWidth || 1200, svg?.clientHeight || 800);
-    }, 40);
+      const mainTypes = new Set(["inlet", "pump", "hotWaterBoiler", "thermoblock", "brewChamber", "coffeeOutlet"]);
+      let mainIds = result.nodes.filter((n) => mainTypes.has(n.type)).map((n) => n.id);
+      if (!mainIds.length) mainIds = result.nodes.filter((n) => n.type === "milkPump" || n.type === "milkOutlet" || n.type === "tank").map((n) => n.id);
+      if (!mainIds.length) mainIds = result.nodes.filter((n) => n.type === "steamBoiler" || n.type === "steamWand").map((n) => n.id);
+      if (mainIds.length) fitToNodeIds(mainIds, svg?.clientWidth || 1200, svg?.clientHeight || 800, 1);
+      else fitToScreen(svg?.clientWidth || 1200, svg?.clientHeight || 800);
+    }, 120);
+  }
+
+  function focusSmartGroup(kind: "main" | "accessories") {
+    const svg = svgRef.current;
+    const nodes = appState.diagram.nodes;
+    const mainTypes = new Set(["inlet", "pump", "milkPump", "hotWaterBoiler", "steamBoiler", "thermoblock", "brewChamber", "coffeeOutlet", "milkOutlet", "steamWand", "tank"]);
+    const accessoryTypes = new Set(["pressureGauge", "safetyValve", "opv", "checkValve"]);
+    const ids = nodes
+      .filter((n) => kind === "main" ? mainTypes.has(n.type) : accessoryTypes.has(n.type) || (/排废|清洗|drain|clean/i.test(n.label) && n.type === "outlet"))
+      .map((n) => n.id);
+    if (!ids.length) return;
+    fitToNodeIds(ids, svg?.clientWidth || 1200, svg?.clientHeight || 800, 1);
   }
 
   function handleAddBlock(block: SmartBlock) {
@@ -443,6 +464,10 @@ export default function App() {
       onAddBlock={handleAddBlock}
       onOpenWizard={openSmartWizard}
       onOpenAdvanced={() => { setShowSmartPanel(false); setShowAi(true); }}
+      onFocusMain={() => focusSmartGroup("main")}
+      onFocusAccessories={() => focusSmartGroup("accessories")}
+      smartView={smartView}
+      onToggleSmartView={() => setSmartView((v) => v === "main" ? "all" : "main")}
     />
   ) : showAi ? (
     <AiDrawingPanel onClose={() => setShowAi(false)} />
@@ -472,7 +497,7 @@ export default function App() {
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <div className="canvas-anchor">
-          <CanvasView svgRefOut={svgRef} />
+          <CanvasView svgRefOut={svgRef} smartView={smartView} />
           {mode === "edit" && appState.diagram.nodes.length === 0 && appState.diagram.pipes.length === 0 && !showHelp && (
             <div className="canvas-empty-overlay" data-ui="1">
               <div className="canvas-empty-card">
@@ -510,7 +535,7 @@ export default function App() {
           const f = e.target.files?.[0];
           if (f) {
             f.text().then((text) => {
-              try { loadDiagram(parseDiagramJSON(text)); } catch (err) { toast(`${t("打开失败")}：${(err as Error).message}`, "error"); }
+              try { setSmartView("all"); loadDiagram(parseDiagramJSON(text)); } catch (err) { toast(`${t("打开失败")}：${(err as Error).message}`, "error"); }
               setSourceFilePath((f as File & { path?: string }).path ?? null);
             });
           }

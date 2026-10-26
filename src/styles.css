@@ -2707,3 +2707,6 @@ button.smart-eng-item:hover { border-color: var(--accent); }
 .smart-chip-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
 .smart-anchor.recommended { border-color: var(--accent); background: var(--accent-soft); }
+
+.smart-view-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 10px; }
+.smart-view-row .btn.mini { font-size: 11px; padding: 4px 8px; }

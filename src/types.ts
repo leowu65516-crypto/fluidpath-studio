@@ -266,6 +266,8 @@ export interface DiagramSettings {
   appVersion?: string;
   /** 工况快照：命名的工程/教学显示状态；以保存时的当前设置为准，随图纸保存/分享。 */
   workConditions?: WorkCondition[];
+  /** 智能绘图分区提示；只影响画布辅助标注，不影响工程判定。 */
+  smartZones?: SmartZone[];
   /** 图纸验收工况：预设泵阀状态 + 必须流动/停止的管路，用于回归验证。 */
   validationCases?: ValidationCase[];
   /** 从哪张原图创建的编辑副本；仅用于标识，原图内容不会被覆盖。 */
@@ -341,6 +343,18 @@ export interface ValidationCase {
   state: Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>;
   mustFlowPipeIds: string[];
   mustStopPipeIds: string[];
+}
+
+/** 智能绘图模板的分区提示（仅画布背景标注，不参与工程拓扑）。 */
+export interface SmartZone {
+  id: string;
+  labelZh: string;
+  labelEn: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color?: string;
 }
 
 export interface Diagram {

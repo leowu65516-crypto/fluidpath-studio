@@ -168,7 +168,7 @@ export function SmartDrawingWizard({
                       onClick={() => pickTemplate(tpl)}
                     >
                       <div className="smart-template-preview">
-                        <DiagramPreview nodes={preview.nodes} pipes={preview.pipes} />
+                        <DiagramPreview nodes={preview.nodes} pipes={preview.pipes} compact />
                       </div>
                       <div className="smart-template-title">{t(tpl.titleZh)}</div>
                       <div className="smart-template-desc">{t(tpl.descZh)}</div>

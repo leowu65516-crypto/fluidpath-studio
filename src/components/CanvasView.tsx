@@ -88,11 +88,17 @@ export interface CanvasHandle {
   svg: () => SVGSVGElement | null;
 }
 
-export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SVGSVGElement | null> }) {
+export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.MutableRefObject<SVGSVGElement | null>; smartView?: "all" | "main" }) {
   const app = useAppState();
   const diagnosticView = useDiagnosticView();
   const { t, lang } = useT();
   const { diagram, ui } = app;
+  const smartHiddenNodeIds = useMemo(() => {
+    if (smartView !== "main") return new Set<string>();
+    const accessory = new Set(["pressureGauge", "safetyValve", "opv", "checkValve"]);
+    return new Set(diagram.nodes.filter((n) => accessory.has(n.type) || (n.type === "outlet" && /排废|清洗|relief|drain|clean|safety/i.test(n.label))).map((n) => n.id));
+  }, [diagram.nodes, smartView]);
+  const smartHiddenPortIds = useMemo(() => new Set(diagram.nodes.filter((n) => smartHiddenNodeIds.has(n.id)).flatMap((n) => n.ports.map((p) => p.id))), [diagram.nodes, smartHiddenNodeIds]);
   const blinkIds = new Set(ui.blink?.ids ?? []);
   const blinkStamp = ui.blink?.stamp ?? 0;
   // 元件→整机功能链（单选时高亮；演示/多选时不叠加）
@@ -1279,7 +1285,7 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
   // ===== 图层可见性过滤 =====
   const layers = diagram.settings.layers ?? [];
   const visibleLayers = new Set(layers.filter((l) => l.visible).map((l) => l.id));
-  const visibleNodeIds = new Set(diagram.nodes.filter((n) => !n.layerId || visibleLayers.has(n.layerId)).map((n) => n.id));
+  const visibleNodeIds = new Set(diagram.nodes.filter((n) => (!n.layerId || visibleLayers.has(n.layerId)) && !smartHiddenNodeIds.has(n.id)).map((n) => n.id));
   if (diagnosticView.revealHidden && diagram.settings.diagnosticProfile) {
     const profile = diagram.settings.diagnosticProfile;
     for (const fault of profile.diagnostics.filter(f => diagnosticView.ids.includes(f.id))) {
@@ -1331,7 +1337,16 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
             if (bt === "solid") return null;
             return <rect data-ui="1" x={viewRect.x} y={viewRect.y} width={viewRect.w} height={viewRect.h} fill="url(#dotgrid)" pointerEvents="none" />;
           })()}
-          <g>{diagram.pipes.filter((p) => visiblePipeIds.has(p.id)).map((p, i) => {
+          {/* 智能绘图的系统分区提示：只做背景引导，不参与命中/工程判定 */}
+          {(diagram.settings.smartZones ?? []).map((zone) => (
+            <g key={zone.id} pointerEvents="none">
+              <rect x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={16} fill={zone.color ?? "#2f7fd6"} fillOpacity={0.025} stroke={zone.color ?? "#2f7fd6"} strokeOpacity={0.26} strokeWidth={1.2} strokeDasharray="8 7" />
+              <text x={zone.x + 14} y={zone.y + 22} fontSize={13} fontWeight={700} fill={zone.color ?? "#2f7fd6"} fillOpacity={0.72} fontFamily="system-ui, sans-serif">
+                {lang === "en" ? zone.labelEn : zone.labelZh}
+              </text>
+            </g>
+          ))}
+          <g>{diagram.pipes.filter((p) => visiblePipeIds.has(p.id) && !(p.fromPortId && smartHiddenPortIds.has(p.fromPortId)) && !(p.toPortId && smartHiddenPortIds.has(p.toPortId))).map((p, i) => {
             const scenario = ui.scenario;
             // 演示高亮固定「跟随流动」：场景种子管 + 实际流动的管都发光
             const inScenario = scenario
@@ -1359,8 +1374,8 @@ export function CanvasView({ svgRefOut }: { svgRefOut: React.MutableRefObject<SV
                 lintMsg={structLint.pipeMsg.get(p.id)}
                 onLintClick={(pp) => openAdviceAndFocus(pp.id)}
                 funcChain={funcPipeSet.has(p.id)}
-                showFluidLabels={diagram.settings.showFluidLabels !== false}
-                showPipeLabels={diagram.settings.showPipeLabels !== false}
+                showFluidLabels={diagram.settings.showFluidLabels !== false && ui.zoom >= 0.7}
+                showPipeLabels={diagram.settings.showPipeLabels !== false && ui.zoom >= 0.62}
                 showFluidColors={diagram.settings.showFluidColors !== false}
                 animationPlaying={!!diagram.settings.globalAnimationPlaying}
                 flowRefMap={flowRefs.current}

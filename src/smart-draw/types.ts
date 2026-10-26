@@ -1,4 +1,4 @@
-import type { DiagramNode, FluidType, Pipe, WorkCondition } from "../types";
+import type { DiagramNode, FluidType, Pipe, SmartZone, WorkCondition } from "../types";
 
 export type SmartOptionValue = boolean | string | number;
 
@@ -16,6 +16,8 @@ export interface SmartBuildResult {
   pipes: Pipe[];
   /** 生成图自带的推荐工况（待机/萃取/奶路/清洗等） */
   conditions?: WorkCondition[];
+  /** 画布分区提示（供水/咖啡/奶路/排废） */
+  zones?: SmartZone[];
   /** 供引导连接使用的入口端口（块级） */
   inletPortId?: string;
   /** 供后续连接使用的出口端口 */

@@ -14,11 +14,19 @@ export function SmartDrawingPanel({
   onAddBlock,
   onOpenWizard,
   onOpenAdvanced,
+  onFocusMain,
+  onFocusAccessories,
+  smartView = "all",
+  onToggleSmartView,
 }: {
   onClose: () => void;
   onAddBlock: (block: SmartBlock) => void;
   onOpenWizard: () => void;
   onOpenAdvanced?: () => void;
+  onFocusMain?: () => void;
+  onFocusAccessories?: () => void;
+  smartView?: "all" | "main";
+  onToggleSmartView?: () => void;
 }) {
   const { diagram, ui } = useAppState();
   const { t } = useT();
@@ -91,6 +99,14 @@ export function SmartDrawingPanel({
           {warnings > 0 ? <span className="smart-warn">⚠ {warnings} {t("处可改进")}</span> : <span className="smart-ok">✓ {t("结构正常")}</span>}
           {engCount > 0 ? <span className="smart-warn">⚠ {t("工程建议")} {engCount}</span> : <span className="smart-ok">✓ {t("工程检查通过")}</span>}
         </div>
+
+        {(onFocusMain || onFocusAccessories || onToggleSmartView) && (
+          <div className="smart-view-row">
+            {onToggleSmartView && <button type="button" className={`btn mini ${smartView === "main" ? "primary" : ""}`} onClick={onToggleSmartView}>{smartView === "main" ? `👁 ${t("显示全部")}` : `🎯 ${t("只看主链")}`}</button>}
+            {onFocusMain && <button type="button" className="btn mini" onClick={onFocusMain}>🎯 {t("定位主链")}</button>}
+            {onFocusAccessories && <button type="button" className="btn mini" onClick={onFocusAccessories}>🔧 {t("定位安全附件")}</button>}
+          </div>
+        )}
 
         {eng.issues.length > 0 && (
           <div className="smart-panel-section smart-eng-panel">

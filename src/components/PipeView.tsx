@@ -115,10 +115,13 @@ function PipeViewImpl({
   if (!pts || pts.length < 2) return null;
   const disabled = pipeEffectiveDisabled(pipe, nodes);
   const engineeringStopped = pipeTeachingOverride(pipe) ? pipeEngineeringDisabled(pipe, nodes) : disabled;
-  const endpointTypes = [pipe.fromPortId, pipe.toPortId].map((pid) => {
-    for (const n of nodes) if (pid && n.ports.some((p) => p.id === pid)) return n.type;
-    return undefined;
-  });
+  const endpointNodes = [pipe.fromPortId, pipe.toPortId]
+    .map((pid) => nodes.find((n) => pid && n.ports.some((p) => p.id === pid)))
+    .filter((n): n is DiagramNode => !!n);
+  const endpointTypes = endpointNodes.map((n) => n.type);
+  // 智能绘图视觉分层：主链 > 奶路/蒸汽等二级系统 > 安全附件；只改绘制，不改工程。
+  const smartSecondaryPipe = endpointNodes.some((n) => !!n.smartSecondary);
+  const smartAccessoryPipe = endpointTypes.some((t) => t === "pressureGauge" || t === "safetyValve" || t === "opv");
   // 压力表是死端仪表：管路工程上必须停流，但这不是“没接好”，用专门的静态标注区分。
   const gaugeDeadEnd = disabled && endpointTypes.includes("pressureGauge");
   const displayDimmed = !!pipe.displayDisabled;
@@ -126,7 +129,7 @@ function PipeViewImpl({
   const displayFluidType = steamDrain ? "steam" : pipe.fluidType;
   const displayFluidColor = steamDrain ? "#ef8aa0" : pipe.fluidColor;
   const visibleFluidColor = showFluidColors ? displayFluidColor : "#aab4bf";
-  const wallW = pipe.visualDiameter + 5;
+  const wallW = pipe.visualDiameter + (smartAccessoryPipe ? 1 : smartSecondaryPipe ? 3 : 5);
   const lowers: HopObstacle[] = [];
   if (crossHop) {
     for (let i = 0; i < index; i++) {
@@ -145,7 +148,7 @@ function PipeViewImpl({
   } else {
     d = pathD(pts);
   }
-  const fluidW = Math.max(2, pipe.visualDiameter);
+  const fluidW = Math.max(2, pipe.visualDiameter * (smartAccessoryPipe ? 0.62 : smartSecondaryPipe ? 0.82 : 1));
   const dashLen = Math.max(6, pipe.visualDiameter * 1.5);
   // 粒子间隔：按管路自身「粒子密度」属性（量为不再级联降档）
   const gapMul = pipe.particleDensity === "high" ? 1.1 : pipe.particleDensity === "medium" ? 2.1 : 3.6;
@@ -153,8 +156,9 @@ function PipeViewImpl({
   const len = polylineLength(pts);
   const mid = pointAtLength(pts, len / 2);
   const arrowAngle = pipe.direction === "forward" ? mid.angle : mid.angle + 180;
-  const wallOpacity = pipe.wallOpacity ?? 1;
-  const dimOpacity = scenarioDim ? 0.12 : (displayDimmed || disabled) ? 0.42 : 1;
+  const wallOpacity = (pipe.wallOpacity ?? 1) * (smartAccessoryPipe ? 0.8 : smartSecondaryPipe ? 0.9 : 1);
+  const smartOpacity = smartAccessoryPipe ? 0.58 : smartSecondaryPipe ? 0.82 : 1;
+  const dimOpacity = scenarioDim ? 0.12 : (displayDimmed || disabled) ? 0.42 : smartOpacity;
   // 停流时保留管材与介质标识，但不再绘制白色流动粒子/箭头，避免静态虚线被误读为仍在流动。
   const fluidOpacity = disabled ? Math.min(pipe.fluidOpacity, 0.16) : pipe.fluidOpacity;
   const labelY = mid.pt.y + (disabled ? 0 : -wallW * 0.7 - 4);
@@ -191,7 +195,7 @@ function PipeViewImpl({
       <g opacity={dimOpacity}>
         <path d={d} fill="none" stroke="#7d8b99" strokeOpacity={0.55} strokeWidth={wallW + 2.4} strokeLinejoin="round" strokeLinecap="round" />
         <path d={d} fill="none" stroke={pipe.wallColor} strokeOpacity={wallOpacity} strokeWidth={wallW} strokeLinejoin="round" strokeLinecap="round" />
-        <path d={d} fill="none" stroke={gaugeDeadEnd ? "#6f8fa8" : visibleFluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" strokeDasharray={gaugeDeadEnd ? "3 4" : undefined} />
+        <path d={d} fill="none" stroke={gaugeDeadEnd ? "#6f8fa8" : visibleFluidColor} strokeOpacity={fluidOpacity} strokeWidth={fluidW} strokeLinejoin="round" strokeLinecap="round" strokeDasharray={gaugeDeadEnd ? "3 4" : smartAccessoryPipe ? "5 5" : undefined} />
         {gaugeDeadEnd && showPipeLabels && (
           <text x={mid.pt.x} y={mid.pt.y - wallW * 0.7 - 18} textAnchor="middle" fontSize={10} fill="#54758d" fontFamily="system-ui, sans-serif" fontWeight={600} stroke="var(--canvas-label-halo)" strokeWidth={3} paintOrder="stroke">
             {en ? "Pressure only · no flow" : "传压不流过"}

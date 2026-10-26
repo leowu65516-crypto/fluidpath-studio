@@ -959,7 +959,20 @@ const EN: Record<string, string> = {
   "定位主链": "Focus main chain",
   "定位安全附件": "Focus safety accessories",
   "只看主链": "Main chain only",
-  "显示全部": "Show all"
+  "显示全部": "Show all",
+  "视图与分区": "View & zones",
+  "隐藏分区": "Hide zones",
+  "显示分区": "Show zones",
+  "隐藏安全附件": "Hide safety accessories",
+  "显示安全附件": "Show safety accessories",
+  "整理管路": "Tidy pipes",
+  "处管路视觉重合": "visually overlapping pipes",
+  "显示/隐藏分区": "Show/hide zone",
+  "分区颜色": "Zone color",
+  "双击重命名": "Double-click to rename",
+  "重命名分区": "Rename zone",
+  "输入新的分区名称": "Enter a new zone name",
+  "已更新分区名称": "Zone renamed to {name}"
 
 };
 

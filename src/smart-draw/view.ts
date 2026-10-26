@@ -21,7 +21,7 @@ export interface SmartViewProjection {
  * - 串联件（单向阀、流量计、分配三通）保留，主链不断开。
  * - 非咖啡机模板（水路/咖啡/奶路/蒸汽/即热）不因 smartSecondary 隐藏自身主链。
  */
-export function smartViewProjection(nodes: DiagramNode[], pipes: Pipe[], mode: SmartViewMode): SmartViewProjection {
+export function smartViewProjection(nodes: DiagramNode[], pipes: Pipe[], mode: SmartViewMode, showAccessories = true): SmartViewProjection {
   const hiddenNodeIds = new Set<string>();
   if (mode === "main") {
     const accessory = new Set(["pressureGauge", "safetyValve", "opv"]);
@@ -31,6 +31,10 @@ export function smartViewProjection(nodes: DiagramNode[], pipes: Pipe[], mode: S
       else if (hasCoffee && n.smartSecondary) hiddenNodeIds.add(n.id);
       else if (n.type === "outlet" && /排废|清洗|relief|drain|clean|safety/i.test(n.label)) hiddenNodeIds.add(n.id);
     }
+  }
+
+  if (!showAccessories) {
+    for (const n of nodes) if (["pressureGauge", "safetyValve", "opv"].includes(n.type)) hiddenNodeIds.add(n.id);
   }
 
   const hiddenPortIds = new Set<string>();

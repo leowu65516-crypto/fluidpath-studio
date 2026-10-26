@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.35.4";
+export const APP_VERSION = "1.36.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.36.0",
+    date: "2026-10-26",
+    highlights: [
+      "视图分层：管路按主链/二级系统/安全附件三级视觉权重绘制（附件细虚线、二级低透明），hover/定位不受影响，工程语义不变",
+      "分区提示中性化降噪并可管理：右栏新增「视图与分区」——隐藏/显示分区与安全附件、逐区显隐/改色/双击或按钮重命名；分区随图纸保存、工程导出剔除",
+      "管路视觉重合检测：共线/平行过近自动提示并可点击定位，「整理管路」一键重新布线；模板已全部调至 0 交叉、0 重叠、0 视觉重合",
+      "全量 74 文件 / 497 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.35.4",
     date: "2026-10-26",

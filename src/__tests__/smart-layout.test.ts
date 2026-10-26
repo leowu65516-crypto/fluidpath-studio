@@ -2,12 +2,17 @@ import { describe, it, expect } from "vitest";
 import { SMART_TEMPLATES, buildSmartTemplate } from "../smart-draw/templates";
 import { nodeBBox, pipePolyline } from "../geometry";
 import { smartViewProjection } from "../smart-draw/view";
+import { findPipeOverlaps } from "../smart-draw/overlap";
 import type { Pt } from "../types";
 
 function segCross(a: Pt, b: Pt, c: Pt, d: Pt): boolean {
   const o = (p: Pt, q: Pt, r: Pt) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
   const o1 = o(a, b, c), o2 = o(a, b, d), o3 = o(c, d, a), o4 = o(c, d, b);
   return (o1 > 0) !== (o2 > 0) && (o3 > 0) !== (o4 > 0);
+}
+
+function asDiagram(result: { nodes: any[]; pipes: any[]; conditions?: any[] }): any {
+  return { id: "t", name: "t", nodes: result.nodes, pipes: result.pipes, settings: { showGrid: true, background: "#fff", globalAnimationPlaying: false, workConditions: result.conditions } };
 }
 
 describe("智能绘图模板布局", () => {
@@ -68,6 +73,30 @@ describe("智能绘图模板布局", () => {
         }
       }
     }
+  });
+
+  it("模板默认无管路视觉重合；构造的平行近距管会被检测", () => {
+    for (const template of SMART_TEMPLATES) {
+      const result = buildSmartTemplate(template, {});
+      const overlaps = findPipeOverlaps(asDiagram(result));
+      expect(overlaps).toEqual([]);
+    }
+    // 构造两根平行近距管：连接不同元件、不在同一节点上，应被检测为视觉重合。
+    const water = buildSmartTemplate(SMART_TEMPLATES.find((t) => t.id === "water")!, {});
+    const a = water.nodes[0], b = water.nodes[1];
+    const synthetic = asDiagram({
+      nodes: [
+        { ...a, id: "sa1", x: 0, y: 0, ports: a.ports.map((p) => ({ ...p, id: `sp-${p.id}` })) },
+        { ...b, id: "sb1", x: 300, y: 0, ports: b.ports.map((p) => ({ ...p, id: `sq-${p.id}` })) },
+        { ...a, id: "sa2", x: 0, y: 4, ports: a.ports.map((p) => ({ ...p, id: `sr-${p.id}` })) },
+        { ...b, id: "sb2", x: 300, y: 4, ports: b.ports.map((p) => ({ ...p, id: `ss-${p.id}` })) },
+      ],
+      pipes: [
+        { ...water.pipes[0], id: "spp1", label: "A", fromPortId: `sp-${a.ports[0].id}`, toPortId: `sq-${b.ports[0].id}`, points: [] },
+        { ...water.pipes[0], id: "spp2", label: "B", fromPortId: `sr-${a.ports[0].id}`, toPortId: `ss-${b.ports[0].id}`, points: [] },
+      ],
+    });
+    expect(findPipeOverlaps(synthetic).length).toBeGreaterThan(0);
   });
 
   it("整机 / 双锅炉骨架带四个分区提示，且只有一个进水口", () => {

@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { useAppState, batchReroutePipes, blinkElements } from "../store";
+import { updateDiagram, useAppState, batchReroutePipes, blinkElements } from "../store";
 import { useT } from "../i18n";
+import { PromptDialog } from "./PromptDialog";
+import { findPipeOverlaps } from "../smart-draw/overlap";
 import { diagnosisSummary } from "../diagnostics";
 import { engineeringSummary, engineeringIssueLabel } from "../smart-draw/engineering";
 import { parseBlockText } from "../smart-draw/intent";
@@ -29,7 +31,8 @@ export function SmartDrawingPanel({
   onToggleSmartView?: () => void;
 }) {
   const { diagram, ui } = useAppState();
-  const { t } = useT();
+  const { t, lang } = useT();
+  const [renamingZone, setRenamingZone] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [showTip, setShowTip] = useState(() => {
     try { return localStorage.getItem("fluidpath.smart.panelTip") !== "1"; } catch { return true; }
@@ -38,6 +41,10 @@ export function SmartDrawingPanel({
   const [showMoreActions, setShowMoreActions] = useState(false);
   const diag = useMemo(() => diagnosisSummary(diagram), [diagram]);
   const eng = useMemo(() => engineeringSummary(diagram), [diagram]);
+  const overlaps = useMemo(() => findPipeOverlaps(diagram), [diagram]);
+  const zones = diagram.settings.smartZones ?? [];
+  const zonesVisible = diagram.settings.smartZonesVisible !== false;
+  const accessoriesVisible = diagram.settings.smartAccessoriesVisible !== false;
   const warnings = diag.errors + diag.warnings;
   const engCount = eng.errors + eng.warnings + eng.infos;
 
@@ -69,6 +76,36 @@ export function SmartDrawingPanel({
   function reroute() {
     batchReroutePipes(diagram.pipes.map((p) => p.id));
     toast(t("已重新自动布线；手动折点已清除"));
+  }
+
+  function toggleZones() {
+    updateDiagram((d) => { d.settings.smartZonesVisible = !zonesVisible; }, false);
+  }
+
+  function toggleZone(id: string) {
+    updateDiagram((d) => {
+      const zone = d.settings.smartZones?.find((z) => z.id === id);
+      if (zone) zone.visible = zone.visible === false;
+    }, false);
+  }
+
+  function toggleAccessories() {
+    updateDiagram((d) => { d.settings.smartAccessoriesVisible = !accessoriesVisible; }, false);
+  }
+
+  function setZoneColor(id: string, color: string) {
+    updateDiagram((d) => {
+      const zone = d.settings.smartZones?.find((z) => z.id === id);
+      if (zone) zone.color = color;
+    }, false);
+  }
+
+  function renameZone(id: string, name: string) {
+    updateDiagram((d) => {
+      const zone = d.settings.smartZones?.find((z) => z.id === id);
+      if (zone) { zone.labelZh = name; zone.labelEn = name; }
+    }, false);
+    toast(t("已更新分区名称").replace("{name}", name));
   }
 
   return (
@@ -107,6 +144,39 @@ export function SmartDrawingPanel({
             {onFocusAccessories && <button type="button" className="btn mini" onClick={onFocusAccessories}>🔧 {t("定位安全附件")}</button>}
           </div>
         )}
+
+        <div className="smart-panel-section">
+          <div className="smart-panel-title">{t("视图与分区")}</div>
+          <div className="smart-view-row">
+            {onToggleSmartView && <button type="button" className={`btn mini ${smartView === "main" ? "primary" : ""}`} onClick={onToggleSmartView}>{smartView === "main" ? `👁 ${t("显示全部")}` : `🎯 ${t("只看主链")}`}</button>}
+            <button type="button" className={`btn mini ${zonesVisible ? "" : "ghost"}`} onClick={toggleZones}>{zonesVisible ? `🗺 ${t("隐藏分区")}` : `🗺 ${t("显示分区")}`}</button>
+            <button type="button" className={`btn mini ${accessoriesVisible ? "" : "ghost"}`} onClick={toggleAccessories}>{accessoriesVisible ? `🔧 ${t("隐藏安全附件")}` : `🔧 ${t("显示安全附件")}`}</button>
+          </div>
+          {zonesVisible && zones.length > 0 && (
+            <div className="smart-zone-list">
+              {zones.map((zone) => (
+                <div key={zone.id} className={`smart-zone-row ${zone.visible === false ? "off" : ""}`}>
+                  <button type="button" className="btn ghost sq" aria-label={t("显示/隐藏分区")} onClick={() => toggleZone(zone.id)}>{zone.visible === false ? "○" : "👁"}</button>
+                  <input type="color" value={zone.color ?? "#7b8794"} aria-label={t("分区颜色")} onChange={(e) => setZoneColor(zone.id, e.target.value)} />
+                  <span className="smart-zone-name" title={t("双击重命名")} onDoubleClick={() => setRenamingZone(zone.id)}>{lang === "en" ? zone.labelEn : zone.labelZh}</span>
+                  <button type="button" className="btn ghost sq" title={t("重命名")} onClick={() => setRenamingZone(zone.id)}>✏️</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {overlaps.length > 0 && (
+            <div className="smart-overlap-list">
+              <div className="smart-panel-title">⚠ {overlaps.length} {t("处管路视觉重合")}</div>
+              {overlaps.slice(0, 4).map((o) => (
+                <button key={o.id} type="button" className="smart-eng-item warning" onClick={() => blinkElements(o.pipeIds)}>
+                  <span>⚠</span>
+                  <span><b>{lang === "en" ? o.titleEn : o.titleZh}</b>：{lang === "en" ? o.messageEn : o.messageZh}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <button className="btn wide" onClick={reroute}>🧹 {t("整理管路")}</button>
+        </div>
 
         {eng.issues.length > 0 && (
           <div className="smart-panel-section smart-eng-panel">
@@ -181,7 +251,6 @@ export function SmartDrawingPanel({
           </button>
           {showMoreActions && (
             <>
-              <button className="btn wide" onClick={reroute}>🔄 {t("自动布线全部管路")}</button>
               <button className="btn wide" onClick={onOpenWizard}>✨ {t("换一个模板")}</button>
               {onOpenAdvanced && (
                 <button className="btn wide ghost" onClick={onOpenAdvanced}>🧩 {t("高级：结构化指令")}</button>
@@ -192,6 +261,16 @@ export function SmartDrawingPanel({
 
         <p className="fault-hint">{t("插入、修复和布线都会自动保存在本机；要分享或换电脑，请保存文件。")}</p>
       </div>
+      {renamingZone && (
+        <PromptDialog
+          title={t("重命名分区")}
+          label={t("输入新的分区名称")}
+          defaultValue={zones.find((z) => z.id === renamingZone) ? (lang === "en" ? zones.find((z) => z.id === renamingZone)!.labelEn : zones.find((z) => z.id === renamingZone)!.labelZh) : ""}
+          submitLabel={t("保存")}
+          onSubmit={(v) => renameZone(renamingZone, v)}
+          onClose={() => setRenamingZone(null)}
+        />
+      )}
     </aside>
   );
 }

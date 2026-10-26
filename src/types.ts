@@ -270,6 +270,10 @@ export interface DiagramSettings {
   workConditions?: WorkCondition[];
   /** 智能绘图分区提示；只影响画布辅助标注，不影响工程判定。 */
   smartZones?: SmartZone[];
+  /** 是否显示智能绘图系统分区提示（默认显示）。 */
+  smartZonesVisible?: boolean;
+  /** 是否显示压力表/安全阀/OPV 等安全附件（默认显示）。 */
+  smartAccessoriesVisible?: boolean;
   /** 图纸验收工况：预设泵阀状态 + 必须流动/停止的管路，用于回归验证。 */
   validationCases?: ValidationCase[];
   /** 从哪张原图创建的编辑副本；仅用于标识，原图内容不会被覆盖。 */
@@ -357,6 +361,8 @@ export interface SmartZone {
   w: number;
   h: number;
   color?: string;
+  /** 分区显隐；只影响背景提示，不影响工程。 */
+  visible?: boolean;
 }
 
 export interface Diagram {

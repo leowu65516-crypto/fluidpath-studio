@@ -95,8 +95,8 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
   const { t, lang } = useT();
   const { diagram, ui } = app;
   const smartProjection = useMemo(
-    () => smartViewProjection(diagram.nodes, diagram.pipes, smartView),
-    [diagram.nodes, diagram.pipes, smartView],
+    () => smartViewProjection(diagram.nodes, diagram.pipes, smartView, diagram.settings.smartAccessoriesVisible !== false),
+    [diagram.nodes, diagram.pipes, smartView, diagram.settings.smartAccessoriesVisible],
   );
   const smartHiddenNodeIds = smartProjection.hiddenNodeIds;
   const smartHiddenPortIds = smartProjection.hiddenPortIds;
@@ -1339,14 +1339,17 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
             return <rect data-ui="1" x={viewRect.x} y={viewRect.y} width={viewRect.w} height={viewRect.h} fill="url(#dotgrid)" pointerEvents="none" />;
           })()}
           {/* 智能绘图的系统分区提示：只做背景引导，不参与命中/工程判定 */}
-          {(diagram.settings.smartZones ?? []).filter((zone) => smartView !== "main" || zone.id === "supply" || zone.id === "coffee").map((zone) => (
-            <g key={zone.id} pointerEvents="none">
-              <rect x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={16} fill={zone.color ?? "#2f7fd6"} fillOpacity={0.025} stroke={zone.color ?? "#2f7fd6"} strokeOpacity={0.26} strokeWidth={1.2} strokeDasharray="8 7" />
-              <text x={zone.x + 14} y={zone.y + 22} fontSize={13} fontWeight={700} fill={zone.color ?? "#2f7fd6"} fillOpacity={0.72} fontFamily="system-ui, sans-serif">
-                {lang === "en" ? zone.labelEn : zone.labelZh}
-              </text>
-            </g>
-          ))}
+          {(diagram.settings.smartZones ?? [])
+            .filter((zone) => zone.visible !== false && diagram.settings.smartZonesVisible !== false)
+            .filter((zone) => smartView !== "main" || zone.id === "supply" || zone.id === "coffee")
+            .map((zone) => (
+              <g key={zone.id} pointerEvents="none">
+                <rect x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={16} fill="#7b8794" fillOpacity={0.018} stroke={zone.color ?? "#7b8794"} strokeOpacity={0.18} strokeWidth={1} strokeDasharray="6 8" />
+                <text x={zone.x + 14} y={zone.y + 21} fontSize={12} fontWeight={600} fill={zone.color ?? "#7b8794"} fillOpacity={0.62} fontFamily="system-ui, sans-serif" paintOrder="stroke" stroke="var(--canvas-label-halo)" strokeWidth={3}>
+                  {lang === "en" ? zone.labelEn : zone.labelZh}
+                </text>
+              </g>
+            ))}
           <g>{diagram.pipes.filter((p) => visiblePipeIds.has(p.id) && !(p.fromPortId && smartHiddenPortIds.has(p.fromPortId)) && !(p.toPortId && smartHiddenPortIds.has(p.toPortId))).map((p, i) => {
             const scenario = ui.scenario;
             // 演示高亮固定「跟随流动」：场景种子管 + 实际流动的管都发光

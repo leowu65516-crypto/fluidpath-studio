@@ -17,6 +17,21 @@ function stopTeaching(pipe: Pipe): Pipe {
   return pipe;
 }
 
+/** 咖啡/即热的冲泡排废：先向左下绕开冲泡进水竖管，再进入排废口。 */
+function routeBrewDrain(pipes: Pipe[], valve: DiagramNode, drain: DiagramNode): void {
+  const fromId = portOf(valve, "bottom").id;
+  const toId = portOf(drain, "left").id;
+  const pipe = pipes.find((p) => p.fromPortId === fromId && p.toPortId === toId);
+  if (!pipe) return;
+  const laneX = valve.x - 400;
+  const downY = valve.y + valve.height + 240;
+  pipe.points = [
+    { x: valve.x + valve.width / 2, y: downY },
+    { x: laneX, y: downY },
+    { x: laneX, y: drain.y + drain.height / 2 },
+  ];
+}
+
 /** 将一组节点标记为二级系统（主链视图折叠时隐藏）。 */
 function markSecondary(nodes: DiagramNode[]): void {
   for (const n of nodes) n.smartSecondary = true;
@@ -123,6 +138,7 @@ function buildCoffee(options: Record<string, SmartOptionValue> = {}): SmartBuild
   addPumpCheck({ nodes, pipes, pump, next: boiler, nextPort: "bottom", fluid: "coldWater", x: 310, y: 260 });
   const safety = addBoilerSafety({ nodes, pipes, boiler, boilerPort: "top", next: brewValve, nextPort: "left", fluid: "hotWater", kind: "opv", cross: { x: 520, y: 230 }, waste: { x: 270, y: 380 } });
   let steamValve: DiagramNode | undefined;
+  routeBrewDrain(pipes, brewValve, drain);
   if (options.steam === true) {
     // 单锅炉：同一锅炉在“萃取/蒸汽”之间切换，蒸汽支路从锅炉出口三通分出
     const steamTee = makeNode("teeF", 460, 230, L("蒸汽分支三通", "Steam branch tee"));
@@ -167,6 +183,7 @@ function buildThermoblock(): SmartBuildResult {
   ];
   addPumpCheck({ nodes, pipes, pump, next: heater, nextPort: "left", fluid: "coldWater", x: 310, y: 260 });
   addBoilerSafety({ nodes, pipes, boiler: heater, boilerPort: "right", next: brewValve, nextPort: "left", fluid: "hotWater", kind: "opv", cross: { x: 520, y: 230 }, waste: { x: 270, y: 380 } });
+  routeBrewDrain(pipes, brewValve, drain);
   applyIdleStates(nodes);
   return {
     nodes,
@@ -365,9 +382,24 @@ function buildFull(options: Record<string, SmartOptionValue>): SmartBuildResult 
   pipes.push(connect(meter, "right", supplyTee, "left", "coldWater", L("计量后供水", "Metered supply")));
   pipes.push(connect(supplyTee, "right", coffeeBoiler, "bottom", "coldWater", L("咖啡锅炉补水", "Coffee boiler feed")));
   const steamFeed = connect(supplyTee, "bottom", fillCheck, "left", "coldWater", L("蒸汽锅炉补水", "Steam boiler feed"));
-  // 预填走线：沿共用供水左侧通道直下到蒸汽补水单向阀，避免穿过奶泵/加热块。
-  steamFeed.points = [{ x: 340, y: 454 }, { x: 340, y: 1004 }];
+  // 预填走线：从供水三通底部沿最左侧通道直下，避开奶泵/选择阀与安全排废横管。
+  const steamLaneX = fillCheck.x - 450;
+  steamFeed.points = [
+    { x: steamLaneX, y: supplyTee.y + supplyTee.height },
+    { x: steamLaneX, y: fillCheck.y + fillCheck.height / 2 },
+  ];
   pipes.push(steamFeed);
+
+  // 咖啡锅炉泄压排废移到右侧，让共用供水左侧的蒸汽补水通道保持干净。
+  const coffeeReliefDrain = all.find((n) => n.type === "outlet" && /relief|泄压/i.test(n.label) && !/safety|安全/i.test(n.label));
+  if (coffeeReliefDrain) {
+    coffeeReliefDrain.x = 500;
+    coffeeReliefDrain.y = 500;
+    for (const p of pipes) {
+      if (p.fromPortId && coffeeReliefDrain.ports.some((port) => port.id === p.fromPortId)) p.points = [];
+      if (p.toPortId && coffeeReliefDrain.ports.some((port) => port.id === p.toPortId)) p.points = [];
+    }
+  }
 
   // 排废总网：咖啡排废 + 奶路排废 + 加热排废汇入总排废阀，避免三路直接散落。
   const drainOutlets = all.filter((n) => n.type === "outlet"
@@ -579,10 +611,42 @@ export function smartTemplateById(id: string): SmartTemplate | undefined {
   return SMART_TEMPLATES.find((t) => t.id === id);
 }
 
+/**
+ * 模板间距扩展：参考真机图纸的疏密，只放大节点坐标与管路折点，不放大节点尺寸。
+ * 这样元件之间的“留白”变大，但拓扑、端口、工程语义完全不变。
+ */
+const TEMPLATE_SPACING = 1.65;
+
+function expandTemplateLayout(result: SmartBuildResult): SmartBuildResult {
+  const xs = result.nodes.map((n) => n.x);
+  const ys = result.nodes.map((n) => n.y);
+  const minX = xs.length ? Math.min(...xs) : 0;
+  const minY = ys.length ? Math.min(...ys) : 0;
+  const sx = (x: number) => minX + (x - minX) * TEMPLATE_SPACING;
+  const sy = (y: number) => minY + (y - minY) * TEMPLATE_SPACING;
+  for (const n of result.nodes) {
+    n.x = sx(n.x);
+    n.y = sy(n.y);
+  }
+  for (const p of result.pipes) {
+    p.points = p.points.map((pt) => ({ x: sx(pt.x), y: sy(pt.y) }));
+  }
+  if (result.zones) {
+    result.zones = result.zones.map((z) => ({
+      ...z,
+      x: sx(z.x),
+      y: sy(z.y),
+      w: z.w * TEMPLATE_SPACING,
+      h: z.h * TEMPLATE_SPACING,
+    }));
+  }
+  return result;
+}
+
 export function buildSmartTemplate(template: SmartTemplate, options: Record<string, SmartOptionValue>): SmartBuildResult {
   const merged: Record<string, SmartOptionValue> = {};
   for (const opt of template.options) merged[opt.key] = options[opt.key] ?? opt.default;
-  return template.build(merged);
+  return expandTemplateLayout(template.build(merged));
 }
 
 /** 供预览/卡片使用的元件/管路计数 */

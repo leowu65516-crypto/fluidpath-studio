@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.35.3";
+export const APP_VERSION = "1.35.4";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.35.4",
+    date: "2026-10-26",
+    highlights: [
+      "按真机参考图重调模板密度：所有模板坐标与管路折点统一扩展到 1.65 倍间距，元件尺寸不变，最近中心距从约 109px 提升到约 181px（参考图约 176px）",
+      "扩展后重新调通关键通道：咖啡/即热排废绕开泵与安全件，full/双锅炉共用供水、蒸汽补水、咖啡泄压排废走独立通道，全部模板保持 0 交叉、0 元件重叠",
+      "缩略图与插入图继续共用完整投影；全量 74 文件 / 496 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.35.3",
     date: "2026-10-26",

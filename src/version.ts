@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.36.2";
+export const APP_VERSION = "1.37.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,17 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.37.0",
+    date: "2026-10-27",
+    highlights: [
+      "动效令牌落地：新增 --motion-fast/base/slow 与两条缓动曲线，toast、模式横幅、保存状态、面板折叠统一改用令牌；全局支持「减弱动效」即时降级",
+      "管路流光 2.0：拖尾本体（介质色对比派生）+ 头部高光 + 介质颗粒三层叠加，停流管不再有任何动画；缩放低于 40% 只留颗粒，减弱动效时保留静态拖尾",
+      "导出链路去重：GIF / 场景 GIF / 逐帧渲染统一走 src/flow.ts，三处虚线数学不再各自漂移",
+      "智能绘图向导视觉升级：20px 圆角 + 多层柔和阴影、标题双色饰线、选中卡对勾徽标与 2px 描边、步骤柔和脉冲、意图 chips 60ms 交错；遮罩仅在入场 260ms 内背景模糊",
+      "全量 76 文件 / 509 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.36.2",
     date: "2026-10-26",

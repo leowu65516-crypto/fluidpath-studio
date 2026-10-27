@@ -33,6 +33,7 @@ import { useT } from "./i18n";
 import type { SmartBlock, SmartBuildResult } from "./smart-draw/types";
 import { engineeringIssueLabel, engineeringSummary } from "./smart-draw/engineering";
 import { trackSmart } from "./smart-draw/telemetry";
+import { BANNER_LEAVE_MS } from "./motion";
 
 const ARROW_DELTA: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0],
@@ -157,14 +158,23 @@ export default function App() {
     }
   }, [mode]);
   const [modeNotice, setModeNotice] = useState<"edit" | "present" | "verify" | "fault" | null>(null);
+  // 横幅先淡出再卸载：卸载是瞬时的，没有 leaving 窗口就没有退场过渡。
+  const [modeNoticeLeaving, setModeNoticeLeaving] = useState(false);
   const modeNoticeTimer = useRef<number | undefined>();
+  const modeLeaveTimer = useRef<number | undefined>();
   useEffect(() => {
     const m = mode;
     if (modeRef.current === m) return;
     modeRef.current = m;
     // 模式状态已持续显示在工具栏与状态栏；横幅仅在切换后用于确认权限变化。
     setModeNotice(m);
+    setModeNoticeLeaving(false);
     if (modeNoticeTimer.current !== undefined) window.clearTimeout(modeNoticeTimer.current);
+    if (modeLeaveTimer.current !== undefined) window.clearTimeout(modeLeaveTimer.current);
+    const reduce = typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduce) {
+      modeLeaveTimer.current = window.setTimeout(() => setModeNoticeLeaving(true), 4200 - BANNER_LEAVE_MS);
+    }
     modeNoticeTimer.current = window.setTimeout(() => setModeNotice(null), 4200);
     if (m === "present") {
       setCollapsed((c) => ({ ...c, library: true, inspector: true, toolbar: false }));
@@ -189,6 +199,7 @@ export default function App() {
   }, [mode]);
   useEffect(() => () => {
     if (modeNoticeTimer.current !== undefined) window.clearTimeout(modeNoticeTimer.current);
+    if (modeLeaveTimer.current !== undefined) window.clearTimeout(modeLeaveTimer.current);
   }, []);
   const togglePanel = (key: keyof typeof collapsed) => () =>
     setCollapsed((c) => {
@@ -492,7 +503,7 @@ export default function App() {
     <ErrorBoundary>
       <div className="app" data-mode={mode}>
         {modeNotice && (
-          <div className={`mode-banner mode-${modeNotice}`} data-ui="1" data-testid="mode-banner" role="status" aria-live="polite">
+          <div className={`mode-banner mode-${modeNotice}${modeNoticeLeaving ? " leaving" : ""}`} data-ui="1" data-testid="mode-banner" role="status" aria-live="polite">
             <span className="mode-banner-main"><b>{modeInfo.icon} {modeInfo.title}</b><span>{modeInfo.summary}</span></span>
             <span className="mode-banner-lock">{modeInfo.lock}</span>
           </div>

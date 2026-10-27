@@ -23,6 +23,8 @@ import { NodeSymbol, spoutTips, defOf, nodeCanvasLabel } from "../symbols";
 import { diaphragmRouteLabel } from "../diaphragmValve";
 import { MiniMap } from "./MiniMap";
 import { PipeView } from "./PipeView";
+import type { FlowRefs } from "./PipeView";
+import { flowHeadOffsetDelta, flowSpeedPx, isDarkColor, prefersReducedMotion } from "../flow";
 import { FaultHighlightOverlay } from "./FaultHighlightOverlay";
 import { useDiagnosticView } from "../fault-codes/session";
 import { resolveFaultTargets } from "../fault-codes/profile";
@@ -94,6 +96,17 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
   const diagnosticView = useDiagnosticView();
   const { t, lang } = useT();
   const { diagram, ui } = app;
+  // 主题只存在 body.dataset 上（不经 store），拖尾配色要跟着切换，所以单独订阅一次事件。
+  const [isDark, setIsDark] = useState(() => {
+    try { return document.body.dataset.theme === "dark"; } catch { return false; }
+  });
+  useEffect(() => {
+    const sync = () => {
+      try { setIsDark(document.body.dataset.theme === "dark"); } catch { /* ignore */ }
+    };
+    window.addEventListener("fp-theme", sync);
+    return () => window.removeEventListener("fp-theme", sync);
+  }, []);
   const smartProjection = useMemo(
     () => smartViewProjection(diagram.nodes, diagram.pipes, smartView, diagram.settings.smartAccessoriesVisible !== false),
     [diagram.nodes, diagram.pipes, smartView, diagram.settings.smartAccessoriesVisible],
@@ -148,7 +161,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
     return { nodeMsg, pipeMsg };
   }, [diagram, lang]);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const flowRefs = useRef(new Map<string, SVGPathElement>());
+  const flowRefs = useRef(new Map<string, FlowRefs>());
   const flowingPipeIds = useRef(new Set<string>());
   const offsets = useRef(new Map<string, number>());
   const dragRef = useRef<DragState | null>(null);
@@ -181,18 +194,21 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const st = store.get();
-      if (st.diagram.settings.globalAnimationPlaying) {
+      // 系统要求减弱动效时不推进偏移：只保留静态拖尾，避免「关掉动画」变成「关掉语义」。
+      if (st.diagram.settings.globalAnimationPlaying && !prefersReducedMotion()) {
         const flowScale = st.diagram.settings.flowScale ?? 1;
         for (const pipe of st.diagram.pipes) {
           if (!pipe.animated) continue;
           if (!flowingPipeIds.current.has(pipe.id)) continue; // 图纸变化时已算好工程/教学显示状态
-          const el = flowRefs.current.get(pipe.id);
-          if (!el) continue;
-          const speedPx = (26 + pipe.flowSpeed * 58) * flowScale; // 流速 → 像素速度
+          const refs = flowRefs.current.get(pipe.id);
+          if (!refs) continue;
           const dir = pipe.direction === "forward" ? 1 : -1;
-          const off = (offsets.current.get(pipe.id) ?? 0) - dir * speedPx * dt;
+          const off = (offsets.current.get(pipe.id) ?? 0) - dir * flowSpeedPx(pipe, flowScale) * dt;
           offsets.current.set(pipe.id, off);
-          el.setAttribute("stroke-dashoffset", off.toFixed(2));
+          const headOff = off + flowHeadOffsetDelta(pipe, dir);
+          refs.body?.setAttribute("stroke-dashoffset", off.toFixed(2));
+          refs.particle?.setAttribute("stroke-dashoffset", off.toFixed(2));
+          refs.head?.setAttribute("stroke-dashoffset", headOff.toFixed(2));
         }
       }
       raf = requestAnimationFrame(tick);
@@ -1383,6 +1399,8 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
                 showPipeLabels={diagram.settings.showPipeLabels !== false && ui.zoom >= 0.62}
                 showFluidColors={diagram.settings.showFluidColors !== false}
                 animationPlaying={!!diagram.settings.globalAnimationPlaying}
+                dark={isDarkColor(diagram.settings.background, isDark)}
+                flowTrail={ui.zoom >= 0.4}
                 flowRefMap={flowRefs.current}
                 onPipeBodyMouseDown={onPipeBodyMouseDown}
                 onVertexMouseDown={onVertexMouseDown}

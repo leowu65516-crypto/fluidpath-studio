@@ -13,6 +13,7 @@ function pdfBlockedMessage(): string {
   return "Allow pop-ups to export the PDF";
 }
 import { parseDiagnosticProfile } from "./fault-codes/profile";
+import { flowExportEntry } from "./flow";
 
 /** Current diagram JSON schema. Keep this single source of truth for exports, migration and reports. */
 export const CURRENT_DIAGRAM_SCHEMA_VERSION = 3;
@@ -589,6 +590,17 @@ function rasterize(svgText: string, w: number, h: number): Promise<HTMLImageElem
 }
 
 /**
+ * 把管路的每一层流动元素（拖尾本体 / 头部高光 / 介质颗粒）换算成「整数个周期」的循环位移，
+ * 保证 GIF 首尾帧衔接。周期与画布共用 src/flow.ts，视觉改动不会再只改到画布、漏掉导出。
+ */
+function flowSceneEntries(pipe: Diagram["pipes"][number], el: Element, seconds: number): Array<{ el: Element; cyclePx: number; dir: number; lag: number }> {
+  if (!pipe.animated) return [];
+  const layerAttr = el.getAttribute("data-flow-layer");
+  const layer = layerAttr === "body" || layerAttr === "head" ? layerAttr : "particle";
+  return [{ el, ...flowExportEntry(pipe, layer, seconds) }];
+}
+
+/**
  * 真实 GIF 导出：逐帧推进各管路流动层的 stroke-dashoffset，
  * 序列化 SVG → 位图 → gifenc 调色板编码。
  * 每条管路的位移量取整数个虚线周期，保证 GIF 无缝循环。
@@ -607,17 +619,12 @@ export async function exportGIF(
   const outH = Math.round(h * scale);
 
   // 预计算每条管路的循环参数
-  const flows: Array<{ el: Element; cyclePx: number; dir: number }> = [];
+  const flows: Array<{ el: Element; cyclePx: number; dir: number; lag: number }> = [];
   for (const pipe of diagram.pipes) {
-    const el = clone.querySelector(`[data-flow="${pipe.id}"]`);
-    if (!el) continue;
     if (!pipe.animated) continue;
-    const dashLen = Math.max(6, pipe.visualDiameter * 1.5);
-    const gapMul = pipe.particleDensity === "high" ? 1.1 : pipe.particleDensity === "medium" ? 2.1 : 3.6;
-    const period = dashLen + Math.round(dashLen * gapMul);
-    const speedPx = 26 + pipe.flowSpeed * 58;
-    const cycles = Math.max(1, Math.round((speedPx * DURATION) / period));
-    flows.push({ el, cyclePx: cycles * period, dir: pipe.direction === "forward" ? 1 : -1 });
+    for (const el of Array.from(clone.querySelectorAll(`[data-flow="${pipe.id}"]`))) {
+      flows.push(...flowSceneEntries(pipe, el, DURATION));
+    }
   }
 
   const canvas = document.createElement("canvas");
@@ -639,7 +646,7 @@ export async function exportGIF(
   for (let i = 0; i < FRAMES; i++) {
     const t = i / FRAMES;
     for (const f of flows) {
-      f.el.setAttribute("stroke-dashoffset", (-f.dir * f.cyclePx * t).toFixed(2));
+      f.el.setAttribute("stroke-dashoffset", (f.lag - f.dir * f.cyclePx * t).toFixed(2));
     }
     for (const d of drips) {
       const p = (t * dripCycles + d.phase) % 1;
@@ -812,17 +819,12 @@ export async function exportGifWithOptions(
   const delay = Math.max(20, Math.round(opts.gifFrameDelay || 66));
   const FRAMES = Math.max(8, Math.round((DURATION * 1000) / delay));
 
-  const flows: Array<{ el: Element; cyclePx: number; dir: number }> = [];
+  const flows: Array<{ el: Element; cyclePx: number; dir: number; lag: number }> = [];
   for (const pipe of exDiagram.pipes) {
-    const el = clone.querySelector(`[data-flow="${pipe.id}"]`);
-    if (!el) continue;
     if (!pipe.animated) continue;
-    const dashLen = Math.max(6, pipe.visualDiameter * 1.5);
-    const gapMul = pipe.particleDensity === "high" ? 1.1 : pipe.particleDensity === "medium" ? 2.1 : 3.6;
-    const period = dashLen + Math.round(dashLen * gapMul);
-    const speedPx = 26 + pipe.flowSpeed * 58;
-    const cycles = Math.max(1, Math.round((speedPx * DURATION) / period));
-    flows.push({ el, cyclePx: cycles * period, dir: pipe.direction === "forward" ? 1 : -1 });
+    for (const el of Array.from(clone.querySelectorAll(`[data-flow="${pipe.id}"]`))) {
+      flows.push(...flowSceneEntries(pipe, el, DURATION));
+    }
   }
 
   const canvas = document.createElement("canvas");
@@ -842,7 +844,7 @@ export async function exportGifWithOptions(
   for (let i = 0; i < FRAMES; i++) {
     const t = i / FRAMES;
     for (const f of flows) {
-      f.el.setAttribute("stroke-dashoffset", (-f.dir * f.cyclePx * t).toFixed(2));
+      f.el.setAttribute("stroke-dashoffset", (f.lag - f.dir * f.cyclePx * t).toFixed(2));
     }
     for (const dp of drips) {
       const p = (t * dripCycles + dp.phase) % 1;
@@ -908,7 +910,7 @@ export async function exportGifSequenceWithOptions(
   type PreparedScene = {
     clone: SVGSVGElement;
     diagram: Diagram;
-    flows: Array<{ el: Element; cyclePx: number; dir: number }>;
+    flows: Array<{ el: Element; cyclePx: number; dir: number; lag: number }>;
     drips: Array<{ el: Element; phase: number }>;
     cycles: number;
     durationMs: number;
@@ -936,15 +938,9 @@ export async function exportGifSequenceWithOptions(
     applySvgOverrides(clone, opts);
     resolveSvgTheme(clone, opts.darkMode ? "dark" : "light");
     const seconds = Math.max(delay, source.durationMs) / 1000;
-    const flows = source.diagram.pipes.flatMap((pipe) => {
-      const el = clone.querySelector(`[data-flow="${pipe.id}"]`);
-      if (!el || !pipe.animated) return [];
-      const dashLen = Math.max(6, pipe.visualDiameter * 1.5);
-      const gapMul = pipe.particleDensity === "high" ? 1.1 : pipe.particleDensity === "medium" ? 2.1 : 3.6;
-      const period = dashLen + Math.round(dashLen * gapMul);
-      const cycles = Math.max(1, Math.round(((26 + pipe.flowSpeed * 58) * seconds) / period));
-      return [{ el, cyclePx: cycles * period, dir: pipe.direction === "forward" ? 1 : -1 }];
-    });
+    const flows = source.diagram.pipes.flatMap((pipe) =>
+      Array.from(clone.querySelectorAll(`[data-flow="${pipe.id}"]`)).flatMap((el) => flowSceneEntries(pipe, el, seconds))
+    );
     return {
       clone, diagram: source.diagram, flows,
       drips: Array.from(clone.querySelectorAll('[data-drip="1"]')).map((el) => ({ el, phase: Number(el.getAttribute("data-drip-phase") || 0) })),
@@ -957,7 +953,7 @@ export async function exportGifSequenceWithOptions(
   ctx.canvas.width = outW;
   ctx.canvas.height = outH;
   const render = async (scene: PreparedScene, progress: number) => {
-    for (const flow of scene.flows) flow.el.setAttribute("stroke-dashoffset", (-flow.dir * flow.cyclePx * progress).toFixed(2));
+    for (const flow of scene.flows) flow.el.setAttribute("stroke-dashoffset", (flow.lag - flow.dir * flow.cyclePx * progress).toFixed(2));
     for (const drip of scene.drips) {
       const p = (progress * scene.cycles + drip.phase) % 1;
       const opacity = p < 0.12 ? (p / 0.12) * 0.9 : p > 0.8 ? ((1 - p) / 0.2) * 0.9 : 0.9;

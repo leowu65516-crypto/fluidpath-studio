@@ -15,6 +15,14 @@ import {
 } from "../geometry";
 import type { HopObstacle } from "../geometry";
 import { FLUID_PRESETS } from "../types";
+import { flowComet, headColor, trailColor } from "../flow";
+
+/** 流动层引用：拖尾本体、头部高光与原有介质颗粒，画布 rAF 逐帧写同一个 base 偏移 */
+export interface FlowRefs {
+  body?: SVGPathElement;
+  head?: SVGPathElement;
+  particle?: SVGPathElement;
+}
 /** 管路标签显示名：英文界面下默认名「管路 N」显示为 Pipe N（数据保持不变） */
 function pipeDisplayLabel(label: string, lang: "zh" | "en"): string {
   if (lang !== "en") return label;
@@ -54,7 +62,11 @@ interface PipeViewProps {
   showPipeDiameters: boolean;
   showFluidColors: boolean;
   animationPlaying?: boolean;
-  flowRefMap: Map<string, SVGPathElement>;
+  flowRefMap: Map<string, FlowRefs>;
+  /** 深色主题下拖尾要提亮，浅色主题下压深浅色介质 */
+  dark?: boolean;
+  /** 缩放低于阈值时只留粒子，不画拖尾（那时拖尾只有几像素，纯浪费重绘） */
+  flowTrail?: boolean;
   onPipeBodyMouseDown: (e: React.MouseEvent, pipe: Pipe, pts: Pt[], selected: boolean) => void;
   onVertexMouseDown: (e: React.MouseEvent, pipe: Pipe, pts: Pt[], vIndex: number) => void;
   onContextMenu: (e: React.MouseEvent, kind: "pipe", id: string) => void;
@@ -106,6 +118,7 @@ function PipeViewImpl({
   pipe, index, nodes, allPipes, selected, crossHop, allPolys,
   scenarioActive, scenarioDim, blink, blinkStamp, showFluidLabels, showPipeLabels, showPipeDiameters, showFluidColors,
   animationPlaying = true,
+  dark = false, flowTrail = true,
   chainGlow, chainStamp, lintMsg, onLintClick, funcChain,
   flowRefMap, onPipeBodyMouseDown, onVertexMouseDown, onContextMenu, onRemoveVertex, onLabelDoubleClick,
   issues, onFluidIssueClick,
@@ -149,10 +162,11 @@ function PipeViewImpl({
     d = pathD(pts);
   }
   const fluidW = Math.max(2, pipe.visualDiameter * (smartAccessoryPipe ? 0.62 : smartSecondaryPipe ? 0.82 : 1));
-  const dashLen = Math.max(6, pipe.visualDiameter * 1.5);
-  // 粒子间隔：按管路自身「粒子密度」属性（量为不再级联降档）
-  const gapMul = pipe.particleDensity === "high" ? 1.1 : pipe.particleDensity === "medium" ? 2.1 : 3.6;
-  const dash = `${dashLen} ${Math.round(dashLen * gapMul)}`;
+  // 流动视觉参数统一来自 src/flow.ts（画布与三条导出链路共用同一套节距）
+  const comet = flowComet(pipe);
+  const dash = comet.particleDash;
+  const trail = trailColor(visibleFluidColor, dark);
+  const headTint = headColor(visibleFluidColor, dark);
   const len = polylineLength(pts);
   const mid = pointAtLength(pts, len / 2);
   const arrowAngle = pipe.direction === "forward" ? mid.angle : mid.angle + 180;
@@ -201,7 +215,68 @@ function PipeViewImpl({
             {en ? "Pressure only · no flow" : "传压不流过"}
           </text>
         )}
-        {!disabled && animationPlaying && pipe.animated && <path ref={(el) => { if (el) flowRefMap.set(pipe.id, el); else flowRefMap.delete(pipe.id); }} data-flow={pipe.id} d={d} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={Math.max(2, fluidW * 0.42)} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />}
+        {!disabled && pipe.animated && animationPlaying && (
+          <g pointerEvents="none">
+            {/* 拖尾本体：介质色对比派生，形成「一段有厚度的流光」而不是匀散步点 */}
+            {flowTrail && (
+              <path
+                ref={(el) => {
+                  const refs = flowRefMap.get(pipe.id) ?? {};
+                  if (el) refs.body = el; else delete refs.body;
+                  if (refs.body || refs.head || refs.particle) flowRefMap.set(pipe.id, refs); else flowRefMap.delete(pipe.id);
+                }}
+                data-flow={pipe.id}
+                data-flow-layer="body"
+                d={d}
+                fill="none"
+                stroke={trail}
+                strokeOpacity={disabled ? 0 : 0.7}
+                strokeWidth={Math.max(2, fluidW * 0.74)}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={comet.bodyDash}
+              />
+            )}
+            {/* 头部高光：贴在本体的前端，读作流动方向 */}
+            <path
+              ref={(el) => {
+                const refs = flowRefMap.get(pipe.id) ?? {};
+                if (el) refs.head = el; else delete refs.head;
+                if (refs.body || refs.head || refs.particle) flowRefMap.set(pipe.id, refs); else flowRefMap.delete(pipe.id);
+              }}
+              data-flow={pipe.id}
+              data-flow-layer="head"
+              d={d}
+              fill="none"
+              stroke={headTint}
+              strokeOpacity={0.92}
+              strokeWidth={Math.max(1.6, fluidW * 0.36)}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={comet.headDash}
+            />
+            {/* 介质颗粒：保留原有白色短虚线，密度仍由管路属性决定 */}
+            {(
+              <path
+                ref={(el) => {
+                  const refs = flowRefMap.get(pipe.id) ?? {};
+                  if (el) refs.particle = el; else delete refs.particle;
+                  if (refs.body || refs.head || refs.particle) flowRefMap.set(pipe.id, refs); else flowRefMap.delete(pipe.id);
+                }}
+                data-flow={pipe.id}
+                data-flow-layer="particle"
+                d={d}
+                fill="none"
+                stroke="#ffffff"
+                strokeOpacity={0.38}
+                strokeWidth={Math.max(1.4, fluidW * 0.26)}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={dash}
+              />
+            )}
+          </g>
+        )}
         {!disabled && pipe.showArrow && (
           <g transform={`translate(${mid.pt.x} ${mid.pt.y}) rotate(${arrowAngle})`}>
             <path d={`M ${wallW * 0.9 + 4} 0 L ${-wallW * 0.25} ${-wallW * 0.62 - 3} L ${-wallW * 0.25} ${wallW * 0.62 + 3} Z`} fill={visibleFluidColor} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />

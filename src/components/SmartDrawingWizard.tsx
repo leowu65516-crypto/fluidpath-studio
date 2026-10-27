@@ -8,6 +8,7 @@ import { SMART_TEMPLATES, buildSmartTemplate, smartTemplateCounts } from "../sma
 import { parseSmartText } from "../smart-draw/intent";
 import { trackSmart } from "../smart-draw/telemetry";
 import type { SmartBuildResult, SmartOptionValue, SmartTemplate } from "../smart-draw/types";
+import { prefersReducedMotion } from "../flow";
 import { DiagramPreview } from "./DiagramPreview";
 import type { Diagram } from "../types";
 
@@ -41,6 +42,14 @@ export function SmartDrawingWizard({
   const [mode, setMode] = useState<"replace" | "append">(hasContent ? "append" : "replace");
   const modalRef = useRef<HTMLDivElement>(null);
   const lastAutoText = useRef("");
+  // 遮罩只在入场时做背景模糊，随后退回静态 scrim：底下是每帧重绘的画布，
+  // 全程 backdrop-filter 会持续重采样，在集显机器上是可感知的掉帧来源。
+  const [overlayBlur, setOverlayBlur] = useState(() => !prefersReducedMotion());
+  useEffect(() => {
+    if (!overlayBlur) return;
+    const timer = window.setTimeout(() => setOverlayBlur(false), 260);
+    return () => window.clearTimeout(timer);
+  }, [overlayBlur]);
 
   const template = SMART_TEMPLATES.find((tpl) => tpl.id === templateId) ?? SMART_TEMPLATES[0];
   const result = useMemo(() => buildSmartTemplate(template, options), [template, options]);
@@ -116,12 +125,13 @@ export function SmartDrawingWizard({
   }, [freeText, step]);
 
   return (
-    <div className="smart-modal-overlay" data-ui="1" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className={`smart-modal-overlay${overlayBlur ? " blurring" : ""}`} data-ui="1" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="smart-modal" role="dialog" aria-modal="true" aria-label={t("智能绘图")} ref={modalRef}>
         <header className="smart-modal-head">
           <div>
             <div className="smart-modal-title">✨ {t("智能绘图")}</div>
             <div className="smart-modal-sub">{t("描述或选择模板，快速得到可编辑液路图")}</div>
+            <div className="smart-head-rule" aria-hidden="true" />
           </div>
           <button className="btn ghost sq" onClick={onClose} aria-label={t("关闭")}>×</button>
         </header>
@@ -151,7 +161,7 @@ export function SmartDrawingWizard({
               {freeText.trim() && (
                 <div className="smart-intent">
                   <span className="smart-intent-label">{t("我理解到：")}</span>
-                  {intent.understood.length ? intent.understood.map((x) => <span key={x} className="smart-chip">{x}</span>) : <span className="smart-muted">{t("还没有识别到场景，先从下面选一个")}</span>}
+                  {intent.understood.length ? intent.understood.map((x, i) => <span key={x} className="smart-chip" style={{ ["--i" as string]: i }}>{x}</span>) : <span className="smart-muted">{t("还没有识别到场景，先从下面选一个")}</span>}
                   {intent.unknown.length > 0 && <span className="smart-muted">{t("未完全识别：")}{intent.unknown.join("、")}</span>}
                 </div>
               )}
@@ -167,6 +177,7 @@ export function SmartDrawingWizard({
                       aria-pressed={templateId === tpl.id}
                       onClick={() => pickTemplate(tpl)}
                     >
+                      {templateId === tpl.id && <span className="smart-card-check" aria-hidden="true">✓</span>}
                       <div className="smart-template-preview">
                         <DiagramPreview nodes={preview.nodes} pipes={preview.pipes} compact />
                       </div>

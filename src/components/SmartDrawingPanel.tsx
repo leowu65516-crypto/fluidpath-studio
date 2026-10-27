@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { updateDiagram, useAppState, batchReroutePipes, blinkElements } from "../store";
+import { updateDiagram, useAppState, blinkElements, smartTidyPipes, previewRerouteAll, setRoutePreview } from "../store";
 import { useT } from "../i18n";
 import { PromptDialog } from "./PromptDialog";
 import { findPipeOverlaps } from "../smart-draw/overlap";
@@ -73,9 +73,24 @@ export function SmartDrawingPanel({
     setText("");
   }
 
-  function reroute() {
-    batchReroutePipes(diagram.pipes.map((p) => p.id));
-    toast(t("已重新自动布线；手动折点已清除"));
+  function smartTidy() {
+    const r = smartTidyPipes();
+    if (!r.fixed && !r.unresolved) {
+      toast(t("未发现管路重合，无需整理"));
+      return;
+    }
+    toast(`${t("已修复 {n} 处管路重合").replace("{n}", String(r.fixed))} · ${t("保留 {n} 条手工布线").replace("{n}", String(r.untouchedManual))}`);
+  }
+
+  function rerouteAll() {
+    const preview = previewRerouteAll();
+    if (!preview.rerouted) {
+      toast(t("没有可重排的管路"));
+      return;
+    }
+    // 与画布右键一致：先幽灵预览，确认后才写回
+    setRoutePreview(preview);
+    onClose?.();
   }
 
   function toggleZones() {
@@ -168,14 +183,15 @@ export function SmartDrawingPanel({
             <div className="smart-overlap-list">
               <div className="smart-panel-title">⚠ {overlaps.length} {t("处管路视觉重合")}</div>
               {overlaps.slice(0, 4).map((o) => (
-                <button key={o.id} type="button" className="smart-eng-item warning" onClick={() => blinkElements(o.pipeIds)}>
+                <button key={o.id} type="button" className="smart-eng-item warning" onClick={() => { blinkElements(o.pipeIds); smartTidy(); }}>
                   <span>⚠</span>
                   <span><b>{lang === "en" ? o.titleEn : o.titleZh}</b>：{lang === "en" ? o.messageEn : o.messageZh}</span>
                 </button>
               ))}
             </div>
           )}
-          <button className="btn wide" onClick={reroute}>🧹 {t("整理管路")}</button>
+          <button className="btn wide" onClick={smartTidy}>🧹 {t("智能整理：只修复重合，保留手工布线")}</button>
+          <button className="btn wide ghost" onClick={rerouteAll}>↯ {t("重排全部管路（将清空手工折点）")}</button>
         </div>
 
         {eng.issues.length > 0 && (

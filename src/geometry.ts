@@ -120,6 +120,49 @@ function autoMids(s0: Pt, s1: Pt, na: Pt): Pt[] {
 /** 管路与节点之间保持的净空 */
 export const ROUTE_CLEARANCE = 18;
 
+/**
+ * 走廊占用表：key = `h:${round(y)}` / `v:${round(x)}`，value = 已被占用的次数。
+ *
+ * 只在「批量整理」这类一次性会话里创建并透传，**绝不能挂在模块级**——
+ * pipePolyline 同时服务于渲染、导出与诊断，全局可变状态会让折线结果依赖调用顺序。
+ */
+export type RouteOccupancy = Map<string, number>;
+
+/** 只有长于该值的线段才算「占用一条走廊」，避免拐角小段互相挤到 */
+const OCCUPANCY_MIN_SEG = 24;
+/** 占用惩罚：必须明显高于拐点代价（60），又远低于穿模（1e6） */
+const OCCUPANCY_PENALTY = 520;
+
+/**
+ * 走廊键按「一个净空」量化：444 / 450 / 452 这种肉眼叠线必须落进同一个桶，
+ * 否则占用表会以为它们是不同走廊，错层就永远不起作用（实测差 6px 仍重合）。
+ */
+const OCCUPANCY_BUCKET = ROUTE_CLEARANCE / 2;
+const bucket = (v: number) => Math.round(v / OCCUPANCY_BUCKET);
+
+function occupancyKeys(pts: Pt[]): string[] {
+  const keys: string[] = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    if (Math.abs(a.y - b.y) < 1.5 && Math.abs(a.x - b.x) > OCCUPANCY_MIN_SEG) keys.push(`h:${bucket(a.y)}`);
+    else if (Math.abs(a.x - b.x) < 1.5 && Math.abs(a.y - b.y) > OCCUPANCY_MIN_SEG) keys.push(`v:${bucket(a.x)}`);
+  }
+  return keys;
+}
+
+function occupancyPenalty(pts: Pt[], occ: RouteOccupancy | undefined): number {
+  if (!occ || occ.size === 0) return 0;
+  let penalty = 0;
+  for (const key of occupancyKeys(pts)) penalty += (occ.get(key) ?? 0) * OCCUPANCY_PENALTY;
+  return penalty;
+}
+
+function recordOccupancy(pts: Pt[], occ: RouteOccupancy | undefined): void {
+  if (!occ) return;
+  for (const key of occupancyKeys(pts)) occ.set(key, (occ.get(key) ?? 0) + 1);
+}
+
 /** 轴向线段与矩形是否相交（线段均为水平/垂直，包围盒判定即精确判定） */
 function segHitsRect(a: Pt, b: Pt, r: Rect): boolean {
   return (
@@ -130,30 +173,62 @@ function segHitsRect(a: Pt, b: Pt, r: Rect): boolean {
   );
 }
 
-function routeCost(pts: Pt[], obstacles: Rect[]): number {
+export function routeHits(pts: Pt[], obstacles: Rect[]): number {
   let hits = 0;
+  for (let i = 1; i < pts.length; i++) {
+    for (const r of obstacles) if (segHitsRect(pts[i - 1], pts[i], r)) hits++;
+  }
+  return hits;
+}
+
+/** 穿过元件的条数（测试与 A* 兜底判定用） */
+export function routeCost(pts: Pt[], obstacles: Rect[], occ?: RouteOccupancy): number {
   let len = 0;
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1];
     const b = pts[i];
     len += Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
-    for (const r of obstacles) if (segHitsRect(a, b, r)) hits++;
   }
+  const hits = routeHits(pts, obstacles);
   const bends = Math.max(0, pts.length - 2);
-  // 穿越节点重罚 > 拐点数 > 总长度
-  return hits * 1e6 + bends * 60 + len;
+  // 穿越节点重罚 > 走廊占用 > 拐点数 > 总长度
+  return hits * 1e6 + occupancyPenalty(pts, occ) + bends * 60 + len;
 }
+
+/** 网格 A* 的规模上限：超过就放弃兜底，宁可回到原候选也不要把整理卡住 */
+const ASTAR_MAX_CELLS = 20000;
 
 /**
  * 在 s0 → s1 之间生成若干正交候选路径，按「不穿节点 → 拐点少 → 路径短」择优。
  * 候选包含：中线折返、L 形、以及沿各障碍外侧 ±净空的绕行线。
  */
-function autoRoute(s0: Pt, s1: Pt, na: Pt, obstacles: Rect[]): Pt[] {
+export interface RouteOptions {
+  /** 仅在批量整理会话内传入：走廊占用表（含写入） */
+  occupancy?: RouteOccupancy;
+  /** 允许生成 ±1/±2 净空的错层候选；只有批量整理才需要，拖动时关掉以免候选爆炸 */
+  layered?: boolean;
+}
+
+/** 候选总数上限：障碍多的大图（74 管 / 20+ 障碍）也必须在毫秒级结束 */
+const MAX_CANDIDATES = 90;
+
+/**
+ * 在 s0 → s1 之间生成若干正交候选路径，按「不穿节点 → 少占走廊 → 拐点少 → 路径短」择优。
+ * 候选包含：中线折返、L 形、沿各障碍外侧绕行线，以及（批量整理时）同一走廊的 ±k 错层档。
+ */
+export function autoRoute(s0: Pt, s1: Pt, na: Pt, obstacles: Rect[], opts: RouteOptions = {}): Pt[] {
   const fallback = autoMids(s0, s1, na);
-  if (!obstacles.length) return fallback;
+  const occ = opts.occupancy;
+  if (!obstacles.length) {
+    recordOccupancy([s0, ...fallback, s1], occ);
+    return fallback;
+  }
 
   const cands: Pt[][] = [];
-  const push = (mids: Pt[]) => cands.push(simplify(orthogonalize([s0, ...mids, s1])));
+  const push = (mids: Pt[]) => {
+    if (cands.length >= MAX_CANDIDATES) return;
+    cands.push(simplify(orthogonalize([s0, ...mids, s1])));
+  };
   const midX = (s0.x + s1.x) / 2;
   const midY = (s0.y + s1.y) / 2;
   push(fallback);
@@ -161,27 +236,166 @@ function autoRoute(s0: Pt, s1: Pt, na: Pt, obstacles: Rect[]): Pt[] {
   push([{ x: s0.x, y: midY }, { x: s1.x, y: midY }]);
   push([{ x: s1.x, y: s0.y }]);
   push([{ x: s0.x, y: s1.y }]);
-  // obstacles 已按净空外扩，直接贴其边界绕行即可
+  // obstacles 已按净空外扩，贴其边界绕行；批量整理时再加 ±1/±2 档错层，避免多管抢同一走廊
+  const offsets = opts.layered && occ ? [0, ROUTE_CLEARANCE, -ROUTE_CLEARANCE, ROUTE_CLEARANCE * 2, -ROUTE_CLEARANCE * 2] : [0];
   for (const r of obstacles) {
-    for (const y of [r.y, r.y + r.h]) {
-      push([{ x: s0.x, y }, { x: s1.x, y }]);
+    for (const dy of offsets) {
+      for (const y of [r.y, r.y + r.h]) {
+        push([{ x: s0.x, y: y + dy }, { x: s1.x, y: y + dy }]);
+      }
     }
-    for (const x of [r.x, r.x + r.w]) {
-      push([{ x, y: s0.y }, { x, y: s1.y }]);
+    for (const dx of offsets) {
+      for (const x of [r.x, r.x + r.w]) {
+        push([{ x: x + dx, y: s0.y }, { x: x + dx, y: s1.y }]);
+      }
     }
   }
 
   let best = cands[0];
   let bestCost = Infinity;
+  let bestHits = 0;
   for (const c of cands) {
     if (c.length < 2) continue;
-    const cost = routeCost(c, obstacles);
+    const cost = routeCost(c, obstacles, occ);
     if (cost < bestCost) {
       bestCost = cost;
       best = c;
+      bestHits = routeHits(c, obstacles);
     }
   }
+
+  // 所有候选都在穿元件：密集死角里用网格 A* 兜底一次，找不到再退回原最优。
+  if (bestHits > 0) {
+    const astar = astarRoute(s0, s1, obstacles);
+    if (astar && routeHits(astar, obstacles) < bestHits) {
+      best = astar;
+      bestCost = routeCost(astar, obstacles, occ);
+    }
+  }
+
+  recordOccupancy(best, occ);
   return best.slice(1, -1);
+}
+
+/**
+ * 网格 A* 兜底：以 ROUTE_CLEARANCE 为格距，障碍外扩盒内为禁行格，
+ * 代价 = 曼哈顿步数 + 60×转弯。只在候选全穿模时触发，常规路径零开销。
+ */
+function astarRoute(s0: Pt, s1: Pt, obstacles: Rect[]): Pt[] | null {
+  const G = ROUTE_CLEARANCE;
+  const pad = G * 4;
+  const minX = Math.min(s0.x, s1.x) - pad;
+  const minY = Math.min(s0.y, s1.y) - pad;
+  const maxX = Math.max(s0.x, s1.x) + pad;
+  const maxY = Math.max(s0.y, s1.y) + pad;
+  const cols = Math.ceil((maxX - minX) / G) + 1;
+  const rows = Math.ceil((maxY - minY) / G) + 1;
+  if (cols * rows > ASTAR_MAX_CELLS) return null;
+
+  const blocked = new Uint8Array(cols * rows);
+  for (const r of obstacles) {
+    const c0 = Math.max(0, Math.floor((r.x - minX) / G));
+    const c1 = Math.min(cols - 1, Math.ceil((r.x + r.w - minX) / G));
+    const r0 = Math.max(0, Math.floor((r.y - minY) / G));
+    const r1 = Math.min(rows - 1, Math.ceil((r.y + r.h - minY) / G));
+    for (let ry = r0; ry <= r1; ry++) for (let cx = c0; cx <= c1; cx++) blocked[ry * cols + cx] = 1;
+  }
+
+  const clampCell = (value: number, origin: number, max: number) => Math.max(0, Math.min(max, Math.round((value - origin) / G)));
+  const startC = clampCell(s0.x, minX, cols - 1);
+  const startR = clampCell(s0.y, minY, rows - 1);
+  const goalC = clampCell(s1.x, minX, cols - 1);
+  const goalR = clampCell(s1.y, minY, rows - 1);
+  const idx = (c: number, r: number) => r * cols + c;
+  blocked[idx(startC, startR)] = 0;
+  blocked[idx(goalC, goalR)] = 0;
+
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+  const size = cols * rows * 4;
+  const dist = new Float64Array(size).fill(Infinity);
+  const prev = new Int32Array(size).fill(-1);
+  const visited = new Uint8Array(size);
+  // 简单二叉堆
+  const heap: Array<{ k: number; f: number }> = [];
+  const heapPush = (k: number, f: number) => {
+    heap.push({ k, f });
+    let i = heap.length - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (heap[parent].f <= heap[i].f) break;
+      [heap[parent], heap[i]] = [heap[i], heap[parent]];
+      i = parent;
+    }
+  };
+  const heapPop = () => {
+    const top = heap[0];
+    const last = heap.pop()!;
+    if (heap.length) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = i * 2 + 1;
+        const r = l + 1;
+        let small = i;
+        if (l < heap.length && heap[l].f < heap[small].f) small = l;
+        if (r < heap.length && heap[r].f < heap[small].f) small = r;
+        if (small === i) break;
+        [heap[small], heap[i]] = [heap[i], heap[small]];
+        i = small;
+      }
+    }
+    return top;
+  };
+
+  // 方向按 (dx, dy) 编码成 0..3；起点无方向，用 4 个方向都入堆
+  for (let d = 0; d < 4; d++) {
+    const k = idx(startC, startR) * 4 + d;
+    dist[k] = 0;
+    heapPush(k, Math.abs(startC - goalC) + Math.abs(startR - goalR));
+  }
+
+  let goalState = -1;
+  let guard = 0;
+  while (heap.length && guard++ < size) {
+    const { k } = heapPop();
+    if (visited[k]) continue;
+    visited[k] = 1;
+    const cell = k >> 2;
+    const d = k & 3;
+    const c = cell % cols;
+    const r = (cell - c) / cols;
+    if (c === goalC && r === goalR) { goalState = k; break; }
+    for (let nd = 0; nd < 4; nd++) {
+      const nc = c + DIRS[nd][0];
+      const nr = r + DIRS[nd][1];
+      if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
+      const ncell = idx(nc, nr);
+      if (blocked[ncell]) continue;
+      const nk = ncell * 4 + nd;
+      if (visited[nk]) continue;
+      const step = 1 + (nd === d ? 0 : 60 / G);
+      const nd2 = dist[k] + step;
+      if (nd2 < dist[nk]) {
+        dist[nk] = nd2;
+        prev[nk] = k;
+        const h = Math.abs(nc - goalC) + Math.abs(nr - goalR);
+        heapPush(nk, nd2 + h);
+      }
+    }
+  }
+  if (goalState < 0) return null;
+
+  const cells: Pt[] = [];
+  for (let k = goalState; k >= 0; k = prev[k]) {
+    const cell = k >> 2;
+    const c = cell % cols;
+    const r = (cell - c) / cols;
+    cells.push({ x: minX + c * G, y: minY + r * G });
+    if (k === prev[k]) break;
+  }
+  cells.reverse();
+  const out = simplify(orthogonalize([s0, ...cells, s1]));
+  return out.length >= 2 ? out : null;
 }
 
 export interface PortRef {
@@ -975,24 +1189,29 @@ function pipeEffectiveDisabledRecursive(
 }
 
 /** 计算管路完整折线（含两端端口点）。任一端可为「连端口」或「游离端点」 */
-export function pipePolyline(pipe: Pipe, nodes: DiagramNode[]): Pt[] | null {
+export function pipePolyline(pipe: Pipe, nodes: DiagramNode[], routeOpts?: RouteOptions): Pt[] | null {
   const fromPort = pipe.fromPortId ? findPort(nodes, pipe.fromPortId) : null;
   const toPort = pipe.toPortId ? findPort(nodes, pipe.toPortId) : null;
   const a = fromPort ? portWorldPos(fromPort.node, fromPort.port) : pipe.fromPoint;
   const b = toPort ? portWorldPos(toPort.node, toPort.port) : pipe.toPoint;
   if (!a || !b) return null;
-  const na = fromPort ? portWorldNormal(fromPort.node, fromPort.port) : { x: 0, y: 0 };
-  const nb = toPort ? portWorldNormal(toPort.node, toPort.port) : { x: 0, y: 0 };
+  // 游离端没有端口法线：用两点连线的主方向当伪法线，让折返方向仍可预期。
+  const pseudoNormal = (from: Pt, to: Pt): Pt => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return { x: 0, y: 0 };
+    return Math.abs(dx) >= Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) };
+  };
+  const na = fromPort ? portWorldNormal(fromPort.node, fromPort.port) : pseudoNormal(a, b);
+  const nb = toPort ? portWorldNormal(toPort.node, toPort.port) : pseudoNormal(b, a);
   const s0 = fromPort ? { x: a.x + na.x * PORT_STUB, y: a.y + na.y * PORT_STUB } : a;
   const s1 = toPort ? { x: b.x + nb.x * PORT_STUB, y: b.y + nb.y * PORT_STUB } : b;
   let mids: Pt[];
   if (pipe.points.length) {
     mids = pipe.points;
-  } else if (!fromPort || !toPort) {
-    // 任一端游离：不做节点避让，走简单折返
-    mids = autoMids(s0, s1, na);
   } else {
-    // 障碍 = 除两端设备外、且落在走线活动范围内的节点（外扩净空）
+    // 障碍 = 除两端设备外、且落在走线活动范围内的节点（外扩净空）。
+    // 游离端同样走避障：否则拖了一半的管会直接穿过元件。
     const span = {
       x: Math.min(s0.x, s1.x) - ROUTE_CLEARANCE * 6,
       y: Math.min(s0.y, s1.y) - ROUTE_CLEARANCE * 6,
@@ -1001,7 +1220,8 @@ export function pipePolyline(pipe: Pipe, nodes: DiagramNode[]): Pt[] | null {
     };
     const obstacles: Rect[] = [];
     for (const n of nodes) {
-      if (n.id === fromPort.node.id || n.id === toPort.node.id) continue;
+      if (fromPort && n.id === fromPort.node.id) continue;
+      if (toPort && n.id === toPort.node.id) continue;
       if (n.type === "label" || n.type === "arrow") continue;
       const bb = nodeBBox(n);
       const infl = {
@@ -1012,7 +1232,7 @@ export function pipePolyline(pipe: Pipe, nodes: DiagramNode[]): Pt[] | null {
       };
       if (rectsIntersect(span, infl)) obstacles.push(infl);
     }
-    mids = autoRoute(s0, s1, na, obstacles);
+    mids = autoRoute(s0, s1, na, obstacles, routeOpts);
   }
   const raw = pipe.points.length ? [a, ...mids, b] : [a, s0, ...mids, s1, b];
   // 曲线模式：保留折点原貌，不强制正交

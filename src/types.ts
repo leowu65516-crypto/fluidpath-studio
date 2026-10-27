@@ -153,6 +153,11 @@ export interface Pipe {
   toPoint?: { x: number; y: number };
   /** 手动调整后的中间路径点（世界坐标）。为空表示自动走线 */
   points: Array<{ x: number; y: number }>;
+  /**
+   * 走线来源：用户拖过折点 = manual，其余（模板/整理/新建）= auto。
+   * 缺省按「有折点视为 manual」推断，避免旧图纸的手工布线被智能整理误清。
+   */
+  routeMode?: "manual" | "auto";
   nominalDiameter: string; // e.g. DN25
   visualDiameter: number; // px
   wallColor: string;
@@ -385,6 +390,8 @@ export interface Selection {
 
 export interface UIState {
   zoom: number;
+  /** 重排全部的幽灵预览（存在即表示正在预览；结构定义在 store，避免 types 反向依赖） */
+  routePreview?: { routes: Array<{ id: string; pts: Pt[] }>; rerouted: number; skippedCurved: number; manualCleared: number } | null;
   panX: number;
   panY: number;
   selection: Selection;

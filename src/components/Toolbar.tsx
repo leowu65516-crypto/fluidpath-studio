@@ -16,13 +16,14 @@ import {
   undo,
   updateDiagram,
   useAppState,
-  batchReroutePipes
+  smartTidyPipes
 } from "../store";
 import { exportEngineeringJSON, exportGIF, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram, saveJSONFile } from "../export";
 import { exportMachinePack, parseMachinePack } from "../machinePack";
 import { ExportDialog } from "./ExportDialog";
 import { ConditionPanel } from "./ConditionPanel";
 import { PromptDialog } from "./PromptDialog";
+import { ActionBar } from "./ActionBar";
 import { useT } from "../i18n";
 import { LayerPanel } from "./LayerPanel";
 import { toast } from "../toast";
@@ -55,6 +56,21 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
   const [shareFallback, setShareFallback] = useState<string | null>(null);
   const [confirmNew, setConfirmNew] = useState(false);
   const [isDark, setIsDark] = useState(() => { try { return document.body.dataset.theme === "dark"; } catch { return false; } });
+  const [tidyBar, setTidyBar] = useState<{ fixed: number; unresolved: number; manual: number; nudged: number; skipped: number } | null>(null);
+  function runSmartTidy() {
+    const r = smartTidyPipes();
+    if (r.fixed === 0 && r.unresolved === 0) {
+      toast(t("未发现管路重合，无需整理"));
+      return;
+    }
+    setTidyBar({
+      fixed: r.fixed,
+      unresolved: r.unresolved,
+      manual: r.untouchedManual,
+      nudged: r.nudgedManual,
+      skipped: r.skippedCurved
+    });
+  }
   function toggleTheme() {
     const next = document.body.dataset.theme === "dark" ? "light" : "dark";
     document.body.dataset.theme = next;
@@ -306,8 +322,33 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
     return { w: el?.clientWidth ?? 1200, h: el?.clientHeight ?? 800 };
   }
 
+  const tidyMessage = tidyBar
+    ? tidyBar.fixed > 0
+      ? t("已修复 {n} 处管路重合").replace("{n}", String(tidyBar.fixed))
+      : t("未能自动消除重合")
+    : "";
+  const tidyDetail = tidyBar
+    ? [
+        t("保留 {n} 条手工布线").replace("{n}", String(tidyBar.manual)),
+        tidyBar.nudged > 0 ? t("平移 {n} 条").replace("{n}", String(tidyBar.nudged)) : "",
+        tidyBar.unresolved > 0 ? t("仍有 {n} 处需手动调整").replace("{n}", String(tidyBar.unresolved)) : "",
+        tidyBar.skipped > 0 ? t("跳过 {n} 条曲线管").replace("{n}", String(tidyBar.skipped)) : ""
+      ].filter(Boolean).join(" · ")
+    : "";
+
   return (
     <div className={`toolbar${collapsed ? " collapsed" : ""}`}>
+      {tidyBar && (
+        <ActionBar
+          message={tidyMessage}
+          detail={tidyDetail}
+          actionLabel={t("撤销整理")}
+          onAction={() => { undo(); setTidyBar(null); }}
+          onClose={() => setTidyBar(null)}
+          tone={tidyBar.unresolved > 0 ? "warn" : "info"}
+          testId="tidy-bar"
+        />
+      )}
       <div className="tb-row">
       <div className="brand">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2f7fd6" strokeWidth="2.2" strokeLinecap="round">
@@ -439,8 +480,8 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
           <Icon d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9L18 15z" />{t("智能绘图")}
         </button>
       )}
-      <button className="tb-btn" data-testid="tidy-pipes" onClick={() => { batchReroutePipes(diagram.pipes.map((x) => x.id)); toast(t("已重新自动布线；手动折点已清除")); }} title={t("整理管路：一键重排所有管路，绕开元件、消除交叉（可撤销）")}>
-        <Icon d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08M7.07 14.94a3 3 0 0 1 3 3.02c0 2.24-1.8 4.04-4 4.04-1.51 0-2.92-.92-4-2.02-.5-.5 2-.69 2-2.02a3 3 0 0 1 3-3.02z" />{t("整理管路")}
+      <button className="tb-btn" data-testid="tidy-pipes" onClick={() => runSmartTidy()} title={t("智能整理：只修复管路重合，保留手工布线（可撤销）")}>
+        <Icon d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08M7.07 14.94a3 3 0 0 1 3 3.02c0 2.24-1.8 4.04-4 4.04-1.51 0-2.92-.92-4-2.02-.5-.5 2-.69 2-2.02a3 3 0 0 1 3-3.02z" />{t("智能整理")}
       </button>
       <button className={`tb-btn${condOpen ? " active" : ""}`} onClick={() => setCondOpen((v) => !v)} title={t("工况：把当前阀位/泵开关存成方案，一键切换对比")}>
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M8 12h8" />{t("工况")}

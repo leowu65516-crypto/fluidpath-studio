@@ -20,7 +20,8 @@ import type {
 } from "./types";
 import { createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagram, createMilkFoamDiagram, createCommercialMachineDiagram, createDemoMachineDiagram, createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "./sample";
 import { createNode } from "./symbols";
-import { findPort, nodeBBox, pipePolyline, polylineBBox } from "./geometry";
+import { findPort, nodeBBox, pipePolyline, polylineBBox, type RouteOccupancy } from "./geometry";
+import { findPipeOverlaps, polylinesOverlap } from "./smart-draw/overlap";
 import { connectionErrorMessage, validatePipeConnection } from "./connection";
 import { getScenario, collectScenarioState, resolveScenarioRoles, valveActionsToPreset, type ValveAction } from "./scenarios";
 import {
@@ -116,7 +117,7 @@ export {
   clearAutosave,
   lastEditedDiagramId
 } from "./store-autosave";
-import { initAutosave, setSourceFilePath as _setSourceFilePath, type ElectronBridge } from "./store-autosave";
+import { initAutosave, setSourceFilePath as _setSourceFilePath, lastEditedDiagramId as autosaveLastDiagramId, type ElectronBridge } from "./store-autosave";
 
 initAutosave({
   getDiagram: () => state.diagram,
@@ -266,6 +267,16 @@ export function loadDiagram(diagram: Diagram) {
   scenarioSnapshot = null;
   // 克隆入参，避免直接改动调用方持有的对象
   const d = structuredClone(diagram);
+  // 旧图纸没有 routeMode：按「有折点即手工」回填，否则智能整理会误清历史手工布线。
+  for (const p of d.pipes) if (!p.routeMode) p.routeMode = p.points?.length ? "manual" : "auto";
+  // 三份样例共用 diagram_optimized：若该 id 已被别的图纸占用（autosave 槽位存在但不是"上次编辑的图"），
+  // 换一个新 id，避免两图互相覆盖草稿。自己的草稿恢复不受影响。
+  if (d.id && typeof localStorage !== "undefined") {
+    try {
+      const occupied = localStorage.getItem(`fluidpath.autosave.v1.${d.id}`) !== null;
+      if (occupied && autosaveLastDiagramId() !== d.id) d.id = uid("diagram");
+    } catch { /* ignore */ }
+  }
   // 确保旧文件有图层（默认层名按当前语言）
   if (!d.settings.layers || !d.settings.layers.length) {
     const en = (() => { try { return typeof document !== "undefined" && document.documentElement.lang === "en"; } catch { return false; } })();
@@ -1244,8 +1255,30 @@ export function patchPort(
 export function patchNode(id: string, patch: Partial<DiagramNode>, history = true) {
   updateDiagram((d) => {
     const n = d.nodes.find((nn) => nn.id === id);
-    if (n) Object.assign(n, patch);
+    if (!n) return;
+    const geometryChanged = ["x", "y", "width", "height", "rotation"].some((k) => k in patch);
+    Object.assign(n, patch);
+    // 节点几何变了，之前「整理」写死进 points 的自动布线就不再贴合，清空让它重新自动走线。
+    if (geometryChanged) invalidateAutoRoutes(d, new Set([id]));
   }, history);
+}
+
+/** 让经过指定元件的自动布线重新参与动态走线（手工布线保持不动） */
+export function invalidateAutoRoutes(d: Diagram, nodeIds: Set<string>) {
+  if (!nodeIds.size) return;
+  const portIds = new Set<string>();
+  for (const n of d.nodes) if (nodeIds.has(n.id)) for (const port of n.ports) portIds.add(port.id);
+  for (const p of d.pipes) {
+    if (routeModeOf(p) !== "auto") continue;
+    if (!p.points?.length) continue;
+    if (portIds.has(p.fromPortId ?? "") || portIds.has(p.toPortId ?? "")) p.points = [];
+  }
+}
+
+/** 走线来源：显式标记优先，旧数据按「有折点即手工」推断 */
+export function routeModeOf(pipe: Pipe): "manual" | "auto" {
+  if (pipe.routeMode === "manual" || pipe.routeMode === "auto") return pipe.routeMode;
+  return pipe.points?.length ? "manual" : "auto";
 }
 
 export function patchPipe(id: string, patch: Partial<Pipe>, history = true) {
@@ -1422,6 +1455,243 @@ export function batchReroutePipes(ids: string[]) {
   });
 }
 
+/** 整理会话：带走廊占用表重排一批管路，结果写回 points（routeMode 保持 auto） */
+function rerouteWithOccupancy(d: Diagram, ids: Set<string>): number {
+  const occupancy: RouteOccupancy = new Map();
+  const byLength = [...d.pipes]
+    .filter((p) => ids.has(p.id) && p.routing !== "curved")
+    .sort((a, b) => pipeRoughLength(b, d.nodes) - pipeRoughLength(a, d.nodes));
+  let done = 0;
+  for (const p of byLength) {
+    p.points = [];
+    const pts = pipePolyline(p, d.nodes, { occupancy, layered: true });
+    if (!pts || pts.length < 2) continue;
+    p.points = pts.slice(1, -1);
+    p.routeMode = "auto";
+    done++;
+  }
+  return done;
+}
+
+function pipeRoughLength(pipe: Pipe, nodes: DiagramNode[]): number {
+  const pts = pipePolyline(pipe, nodes);
+  if (!pts || pts.length < 2) return 0;
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) len += Math.abs(pts[i].x - pts[i - 1].x) + Math.abs(pts[i].y - pts[i - 1].y);
+  return len;
+}
+
+export interface TidyResult {
+  /** 本次修好的重合对数量 */
+  fixed: number;
+  /** 仍无法自动消除的重合对（都涉及手工布线） */
+  unresolved: number;
+  /** 保留未动的手工布线数量 */
+  untouchedManual: number;
+  /** 平移处理过的手工布线数量 */
+  nudgedManual: number;
+  /** 跳过的曲线模式管 */
+  skippedCurved: number;
+}
+
+/**
+ * 智能整理：只修「视觉重合」，不动无辜的手工布线。
+ * 三档火力：①清空并重排涉及重合的自动管 → ②仍有重合时把手工管整体平移一个净空（折点不变形）。
+ * 返回统计供 toast 使用；一次调用只产生一条 undo 记录。
+ */
+export function smartTidyPipes(): TidyResult {
+  const before = state.diagram;
+  const overlaps = findPipeOverlaps(before);
+  const curved = new Set(before.pipes.filter((p) => p.routing === "curved").map((p) => p.id));
+  const involved = new Set(overlaps.flatMap((o) => o.pipeIds).filter((id) => !curved.has(id)));
+  const manualTotal = before.pipes.filter((p) => routeModeOf(p) === "manual").length;
+  const result: TidyResult = {
+    fixed: overlaps.length,
+    unresolved: 0,
+    untouchedManual: manualTotal,
+    nudgedManual: 0,
+    skippedCurved: before.pipes.filter((p) => curved.has(p.id)).length,
+  };
+  if (!overlaps.length) {
+    result.fixed = 0;
+    return result;
+  }
+
+  // 档 ①：只重排其中的自动管
+  const autoIds = new Set([...involved].filter((id) => {
+    const p = before.pipes.find((pp) => pp.id === id);
+    return !!p && routeModeOf(p) === "auto";
+  }));
+  // 档 ②：手工管整体平移（先算方向，写回时同时更新 points 与 routeMode 保持不变）
+  const manualIds = new Set([...involved].filter((id) => {
+    const p = before.pipes.find((pp) => pp.id === id);
+    return !!p && routeModeOf(p) === "manual";
+  }));
+
+  updateDiagram((d) => {
+    if (autoIds.size) rerouteWithOccupancy(d, autoIds);
+    if (manualIds.size) {
+      let shifted = 0;
+      let targets = manualIds;
+      for (let round = 0; round < 2 && targets.size; round++) {
+        const moved = nudgeOverlappingManual(d, targets);
+        shifted += moved;
+        if (!moved) break;
+        targets = new Set(findPipeOverlaps(d).flatMap((o) => o.pipeIds));
+      }
+      result.nudgedManual = shifted;
+    }
+    result.untouchedManual = d.pipes.filter((p) => routeModeOf(p) === "manual").length - result.nudgedManual;
+    result.unresolved = findPipeOverlaps(d).length;
+  });
+  result.fixed = Math.max(0, overlaps.length - result.unresolved);
+  return result;
+}
+
+/**
+ * 把手工艺折点整体平移，尽量消除平行叠线。
+ *
+ * 关键点：只看「该管与其它管的重合数是否真的下降」才接受平移，
+ * 并且幅度从 8px 起逐档试——很多重合是「端口拐角小段」引起的，
+ * 一次 18px 的整段平移既可能撞元件又可能不解决问题。
+ */
+function nudgeOverlappingManual(d: Diagram, ids: Set<string>): number {
+  let shifted = 0;
+  const others = d.pipes;
+  for (const pipe of d.pipes) {
+    if (!ids.has(pipe.id)) continue;
+    if (!pipe.points.length) continue;
+    const pts = pipePolyline(pipe, d.nodes);
+    if (!pts || pts.length < 3) continue;
+    const originalHits = countSegmentHits(pts, d.nodes, pipe);
+    const before = overlapCountFor(pipe, pts, others, d.nodes);
+    if (!before) continue;
+    const tryShift = (dx: number, dy: number): boolean => {
+      const candidate = { ...pipe, points: pipe.points.map((p) => ({ x: p.x + dx, y: p.y + dy })) };
+      const candPts = pipePolyline(candidate, d.nodes);
+      if (!candPts) return false;
+      if (countSegmentHits(candPts, d.nodes, candidate) > originalHits) return false;
+      if (overlapCountFor(candidate, candPts, others, d.nodes) >= before) return false;
+      pipe.points = candidate.points;
+      return true;
+    };
+    let done = false;
+    for (const amp of [8, 10, 12, 16, 20, 26]) {
+      for (const sign of [1, -1]) {
+        if (tryShift(0, sign * amp) || tryShift(sign * amp, 0)) { done = true; break; }
+      }
+      if (done) break;
+    }
+    if (done) shifted++;
+  }
+  return shifted;
+}
+
+/** 该管与其它管的重合对数量（逐管局部判定，避免每次都 O(n²) 全图扫描） */
+function overlapCountFor(pipe: Pipe, pts: Pt[], others: Pipe[], nodes: DiagramNode[]): number {
+  const portNode = new Map<string, string>();
+  for (const n of nodes) for (const p of n.ports) portNode.set(p.id, n.id);
+  const nodesOf = (p: Pipe) => [p.fromPortId, p.toPortId].map((id) => (id ? portNode.get(id) : undefined)).filter(Boolean);
+  const mine = nodesOf(pipe);
+  const sharedEndpoints = new Set([pipe.fromPortId, pipe.toPortId].filter(Boolean) as string[]);
+  let count = 0;
+  for (const other of others) {
+    if (other.id === pipe.id) continue;
+    if ([other.fromPortId, other.toPortId].some((p) => p && sharedEndpoints.has(p))) continue;
+    if (nodesOf(other).some((id) => mine.includes(id))) continue;
+    const otherPts = pipePolyline(other, nodes);
+    if (polylinesOverlap(pts, otherPts)) count++;
+  }
+  return count;
+}
+
+function countSegmentHits(pts: Pt[], nodes: DiagramNode[], pipe: Pipe): number {
+  const portNodeIds = new Set<string>();
+  for (const pid of [pipe.fromPortId, pipe.toPortId]) {
+    if (!pid) continue;
+    for (const n of nodes) if (n.ports.some((port) => port.id === pid)) portNodeIds.add(n.id);
+  }
+  let hits = 0;
+  for (const n of nodes) {
+    if (portNodeIds.has(n.id)) continue;
+    if (n.type === "label" || n.type === "arrow") continue;
+    const bb = nodeBBox(n);
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      if (Math.min(a.x, b.x) < bb.x + bb.w && Math.max(a.x, b.x) > bb.x && Math.min(a.y, b.y) < bb.y + bb.h && Math.max(a.y, b.y) > bb.y) hits++;
+    }
+  }
+  return hits;
+}
+
+export interface ReroutePreview {
+  /** 预览用：每条管的新折线（含两端端口点），用于幽灵层渲染 */
+  routes: Array<{ id: string; pts: Pt[] }>;
+  rerouted: number;
+  skippedCurved: number;
+  manualCleared: number;
+}
+
+/**
+ * 只计算、不写回：把「重排全部」的结果算出来供预览。
+ * 计算在画布数据的一次深拷贝上完成，避免污染当前图纸与撤销栈。
+ */
+export function previewRerouteAll(): ReroutePreview {
+  const d = structuredClone(state.diagram);
+  const curved = d.pipes.filter((p) => p.routing === "curved").length;
+  const manualCleared = d.pipes.filter((p) => p.routing !== "curved" && routeModeOf(p) === "manual").length;
+  const ids = new Set(d.pipes.filter((p) => p.routing !== "curved").map((p) => p.id));
+  const rerouted = rerouteWithOccupancy(d, ids);
+  const routes: Array<{ id: string; pts: Pt[] }> = [];
+  for (const p of d.pipes) {
+    if (!ids.has(p.id)) continue;
+    const pts = pipePolyline(p, d.nodes);
+    if (pts && pts.length >= 2) routes.push({ id: p.id, pts });
+  }
+  return { routes, rerouted, skippedCurved: curved, manualCleared };
+}
+
+/** 采纳预览结果：把已算好的折线写回（一次 undo） */
+/** 打开/关闭重排预览（画布与右栏共用同一份状态） */
+export function setRoutePreview(preview: ReroutePreview | null) {
+  setState({ ...state, ui: { ...state.ui, routePreview: preview } });
+}
+
+export function applyReroutePreview(preview: ReroutePreview) {
+  if (!preview.routes.length) return;
+  setState({ ...state, ui: { ...state.ui, routePreview: null } });
+  const byId = new Map(preview.routes.map((r) => [r.id, r.pts]));
+  updateDiagram((d) => {
+    for (const p of d.pipes) {
+      const pts = byId.get(p.id);
+      if (!pts) continue;
+      p.points = pts.slice(1, -1);
+      p.routeMode = "auto";
+    }
+  });
+}
+
+/** 重排全部管路（高危）：清空所有非曲线管的折点并带占用表重排 */
+export function rerouteAllPipes(): { rerouted: number; skippedCurved: number; manualCleared: number } {
+  const before = state.diagram;
+  const curved = before.pipes.filter((p) => p.routing === "curved").length;
+  const manualCleared = before.pipes.filter((p) => p.routing !== "curved" && routeModeOf(p) === "manual").length;
+  let rerouted = 0;
+  updateDiagram((d) => {
+    const ids = new Set(d.pipes.filter((p) => p.routing !== "curved").map((p) => p.id));
+    rerouted = rerouteWithOccupancy(d, ids);
+    // 收尾：重排后仍贴得过近的（端点约束造成的），用最小幅度再错开一轮。
+    for (let round = 0; round < 2; round++) {
+      const still = new Set(findPipeOverlaps(d).flatMap((o) => o.pipeIds));
+      const targets = new Set([...still].filter((id) => routeModeOf(d.pipes.find((p) => p.id === id) ?? ({ routeMode: "auto", points: [] } as unknown as Pipe)) === "auto"));
+      if (!targets.size) break;
+      const moved = nudgeOverlappingManual(d, targets);
+      if (!moved) break;
+    }
+  });
+  return { rerouted, skippedCurved: curved, manualCleared };
+}
+
 // ===== 等距排列选中管路 =====
 /**
  * 对选中管路中「平行同向」的一组做等距排列：
@@ -1499,6 +1769,9 @@ export function distributePipes(ids: string[]) {
       });
     }
   });
+  updateDiagram((d) => {
+    for (const p of d.pipes) if (sel.includes(p.id) && p.points.length) p.routeMode = "manual";
+  }, false);
 }
 
 export function deleteSelection() {

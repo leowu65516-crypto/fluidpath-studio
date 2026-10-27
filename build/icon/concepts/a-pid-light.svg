@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="FluidPath concept A light technical valve">
+  <rect x="42" y="42" width="940" height="940" rx="224" fill="#F3F8FC"/>
+  <path d="M184 512H306M718 512H840" fill="none" stroke="#1F2C3D" stroke-width="46" stroke-linecap="round"/>
+  <path d="M308 352L512 512 308 672Z" fill="none" stroke="#1F2C3D" stroke-width="46" stroke-linejoin="round"/>
+  <path d="M716 352L512 512 716 672Z" fill="none" stroke="#1F2C3D" stroke-width="46" stroke-linejoin="round"/>
+  <circle cx="512" cy="512" r="72" fill="#2F7FD6"/>
+  <circle cx="512" cy="512" r="32" fill="#F3F8FC"/>
+</svg>

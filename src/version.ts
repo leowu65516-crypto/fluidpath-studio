@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.37.0";
+export const APP_VERSION = "1.38.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,19 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.38.0",
+    date: "2026-10-27",
+    highlights: [
+      "整理管路三分档：智能整理只修视觉重合（清自动布线 + 手工折点整体微移），手工布线默认不再被清空；「重排全部」收进右键与右栏并用确认 + 幽灵预览兜底",
+      "Pipe.routeMode 标记走线来源：旧图纸按「有折点即手工」自动迁移；拖动折点、插点、删点、等距排列都会标为手工",
+      "同通道错层：批量整理时按走廊占用表给候选加 ±1/±2 净空档位，长管优先占位；三份样例全图重排的重合从 16 降到 0~4",
+      "死角兜底：所有候选都穿元件时改用网格 A*（格距 = 净空，格数上限 2 万），常规路径零开销",
+      "修复游离管直穿元件；三份样例图纸改用唯一 id，autosave 不再互相覆盖；曲线管路不参与整理",
+      "「重排全部」改为幽灵预览（虚线叠加 + 应用/放弃 + Esc），应用才写回；DMG 图标换用 concept A（a-pid-light）",
+      "全量 78 文件 / 525 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.37.0",
     date: "2026-10-27",

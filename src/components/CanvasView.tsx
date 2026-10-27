@@ -31,7 +31,9 @@ import { resolveFaultTargets } from "../fault-codes/profile";
 import { useT } from "../i18n";
 import { smartViewProjection } from "../smart-draw/view";
 import { ContextMenu } from "./ContextMenu";
-import { focusElement, blinkElements, showChainPath, overrideScenarioNode, batchReroutePipes } from "../store";
+import { RoutePreviewOverlay } from "./RoutePreviewOverlay";
+import { ActionBar } from "./ActionBar";
+import { focusElement, blinkElements, showChainPath, overrideScenarioNode, invalidateAutoRoutes, smartTidyPipes, applyReroutePreview, previewRerouteAll, setRoutePreview } from "../store";
 import { collectAdvice, traceStopCause } from "../advice";
 import { traceFunctionalChain } from "../functionalChain";
 import {
@@ -96,6 +98,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
   const diagnosticView = useDiagnosticView();
   const { t, lang } = useT();
   const { diagram, ui } = app;
+  const routePreview = ui.routePreview ?? null;
   // 主题只存在 body.dataset 上（不经 store），拖尾配色要跟着切换，所以单独订阅一次事件。
   const [isDark, setIsDark] = useState(() => {
     try { return document.body.dataset.theme === "dark"; } catch { return false; }
@@ -220,13 +223,17 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
   // ===== 样式刷模式：Esc 退出 =====
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && routePreview) {
+        setRoutePreview(null);
+        return;
+      }
       if (e.key === "Escape" && store.get().ui.styleBrush) {
         setUI({ styleBrush: false });
       }
     };
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
-  }, []);
+  }, [routePreview]);
 
   // ===== 空格平移 =====
   useEffect(() => {
@@ -427,6 +434,12 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
         return;
       },
       () => {
+        // 松手时让「整理」写死的自动布线失效，重新贴合元件位置（手工布线不动）
+        const d = dragRef.current;
+        if (d?.type === "node" && d.moved) {
+          const moved = d.ids;
+          updateDiagram((draft) => invalidateAutoRoutes(draft, new Set(moved)), false);
+        }
         dragRef.current = null;
         setGuides({ v: [], h: [] });
       }
@@ -663,7 +676,17 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
           if (p) p.points = simplify(next).slice(1, -1);
         }, false);
       },
-      () => (dragRef.current = null)
+      () => {
+        // 手工拖过折点：标记 manual，智能整理以后不再清掉它
+        const d = dragRef.current;
+        if (d?.type === "vertex" && d.moved) {
+          updateDiagram((draft) => {
+            const p = draft.pipes.find((pp) => pp.id === d.pipeId);
+            if (p) p.routeMode = "manual";
+          }, false);
+        }
+        dragRef.current = null;
+      }
     );
   }
 
@@ -710,7 +733,16 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
           if (p) p.points = simplify(next).slice(1, -1);
         }, false);
       },
-      () => (dragRef.current = null)
+      () => {
+        const d = dragRef.current;
+        if (d?.type === "vertex" && d.moved) {
+          updateDiagram((draft) => {
+            const p = draft.pipes.find((pp) => pp.id === d.pipeId);
+            if (p) p.routeMode = "manual";
+          }, false);
+        }
+        dragRef.current = null;
+      }
     );
   }
 
@@ -725,6 +757,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
       const arr = next.slice(1, -1);
       arr.splice(vIndex - 1, 1);
       p.points = arr;
+      p.routeMode = "manual";
     });
   }
 
@@ -868,6 +901,19 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
     setStopCause({ x, y, pipeId, reason: cause.reason, ids: cause.ids });
   }
 
+  /**
+   * 重排全部：唯一的高危整理入口。
+   * 先算幽灵预览（虚线叠加 + 底部确认条），点「应用」才真正写回 points。
+   */
+  function rerouteAllWithConfirm() {
+    const preview = previewRerouteAll();
+    if (!preview.rerouted) {
+      toast(t("没有可重排的管路"));
+      return;
+    }
+    setRoutePreview(preview);
+  }
+
   // ===== 画布右键菜单 =====
   function openContextMenu(e: React.MouseEvent, kind: "canvas" | "node" | "pipe", id?: string) {
     e.preventDefault();
@@ -909,7 +955,8 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
       items.push({ label: `📋 ${t("粘贴 (Ctrl+V)")}`, onClick: () => pasteFromClipboard(), disabled: !store.get().ui.clipboard });
       items.push({ label: "---", divider: true });
       items.push({ label: `⊡ ${t("适应画布")}`, onClick: () => { const el = document.querySelector(".main-canvas"); fitToScreen((el as HTMLElement)?.clientWidth ?? 1200, (el as HTMLElement)?.clientHeight ?? 800); } });
-      items.push({ label: `🧹 ${t("整理管路")}`, onClick: () => { batchReroutePipes(store.get().diagram.pipes.map((x) => x.id)); toast(t("已重新自动布线；手动折点已清除")); } });
+      items.push({ label: `🧹 ${t("智能整理")}`, onClick: () => { const r = smartTidyPipes(); if (!r.fixed && !r.unresolved) toast(t("未发现管路重合，无需整理")); else toast(`${t("已修复 {n} 处管路重合").replace("{n}", String(r.fixed))} · ${t("保留 {n} 条手工布线").replace("{n}", String(r.untouchedManual))}`); } });
+      items.push({ label: `↯ ${t("重排全部管路")}`, onClick: () => rerouteAllWithConfirm(), danger: true });
       items.push({ label: `📊 ${t("生成图例")}`, onClick: () => { const svg = document.querySelector(".main-canvas") as SVGSVGElement | null; if (!svg) return; const bb = svg.getBoundingClientRect(); const wx = (-store.get().ui.panX) / store.get().ui.zoom + bb.width / 2 / store.get().ui.zoom - 180; const wy = (-store.get().ui.panY) / store.get().ui.zoom + bb.height / 2 / store.get().ui.zoom; generateLegend(wx, wy, lang); } });
       items.push({ label: "---", divider: true });
       items.push({ label: `🗑️ ${t("全部清除")}`, onClick: () => { if (confirm(t("确定清空整个画布？"))) newDiagram(); }, danger: true });
@@ -1416,6 +1463,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
           })}</g>
           <g>{diagram.nodes.filter((n) => visibleNodeIds.has(n.id)).map(renderNode)}</g>
           <FaultHighlightOverlay diagram={diagram} visibleNodes={visibleNodeIds} visiblePipes={visiblePipeIds} />
+          {routePreview && <RoutePreviewOverlay routes={routePreview.routes} zoom={ui.zoom} />}
           {/* 标注节点引线 + 目标点手柄（与节点分开渲染以避免 transform 干扰） */}
           {diagram.nodes.filter((n) => visibleNodeIds.has(n.id) && n.type === "annotation" && n.pointerTarget).map((n) => {
             const t = n.pointerTarget!;
@@ -1549,6 +1597,28 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
         <div className="brush-tip" data-ui="1">
           🖌️ {t("样式刷已开启：")}<b>{t("点击元件吸取样式")}</b>{t("再点击其他元件应用 · Esc 退出")}
         </div>
+      )}
+      {/* 重排预览确认条：应用后才写回 points */}
+      {routePreview && (
+        <ActionBar
+          message={t("预览新的自动布线")}
+          detail={[
+            t("将重排 {n} 条管路").replace("{n}", String(routePreview.rerouted)),
+            t("清空 {n} 条手工布线").replace("{n}", String(routePreview.manualCleared)),
+            routePreview.skippedCurved > 0 ? t("跳过 {n} 条曲线管").replace("{n}", String(routePreview.skippedCurved)) : "",
+            t("按 Esc 放弃")
+          ].filter(Boolean).join(" · ")}
+          actionLabel={t("应用")}
+          onAction={() => {
+            applyReroutePreview(routePreview);
+            setRoutePreview(null);
+            toast(t("已应用新的自动布线"));
+          }}
+          onClose={() => setRoutePreview(null)}
+          timeout={0}
+          tone="warn"
+          testId="route-preview-bar"
+        />
       )}
       {/* 右键菜单 */}
       {ctxMenu && (

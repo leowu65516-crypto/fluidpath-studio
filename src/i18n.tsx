@@ -973,7 +973,29 @@ const EN: Record<string, string> = {
   "重命名分区": "Rename zone",
   "输入新的分区名称": "Enter a new zone name",
   "已更新分区名称": "Zone renamed to {name}",
-  "整理管路：一键重排所有管路，绕开元件、消除交叉（可撤销）": "Tidy pipes: reroute everything around components and clear crossings (undoable)"
+  "整理管路：一键重排所有管路，绕开元件、消除交叉（可撤销）": "Tidy pipes: reroute everything around components and clear crossings (undoable)",
+  "智能整理": "Smart tidy",
+  "智能整理：只修复管路重合，保留手工布线（可撤销）": "Smart tidy fixes only visual overlaps and keeps manual routing (undoable)",
+  "未发现管路重合，无需整理": "No pipe overlaps found",
+  "已修复 {n} 处管路重合": "Fixed {n} overlapping pipe pair(s)",
+  "未能自动消除重合": "Could not clear the overlaps automatically",
+  "保留 {n} 条手工布线": "kept {n} manual route(s)",
+  "平移 {n} 条": "nudged {n}",
+  "仍有 {n} 处需手动调整": "{n} still need manual adjustment",
+  "跳过 {n} 条曲线管": "skipped {n} curved pipe(s)",
+  "撤销整理": "Undo tidy",
+  "重排全部管路（将清空手工折点）": "Reroute all pipes (clears manual waypoints)",
+  "将清空 {n} 条手工布线，是否继续？": "This will clear {n} manual route(s). Continue?",
+  "已重排 {n} 条管路": "Rerouted {n} pipe(s)",
+  "智能整理：只修复重合，保留手工布线": "Smart tidy: fix overlaps only, keep manual routes",
+  "重排全部管路": "Reroute all pipes",
+  "修复这 {n} 处重合": "Fix these {n} overlap(s)",
+  "预览新的自动布线": "Previewing new auto-routing",
+  "将重排 {n} 条管路": "Will reroute {n} pipe(s)",
+  "清空 {n} 条手工布线": "clears {n} manual route(s)",
+  "按 Esc 放弃": "press Esc to discard",
+  "已应用新的自动布线": "Applied the new auto-routing",
+  "没有可重排的管路": "No pipes to reroute"
 
 };
 

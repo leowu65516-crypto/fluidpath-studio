@@ -1,5 +1,5 @@
 {
-  "id": "diagram_optimized",
+  "id": "bcmts-sample",
   "name": "锅炉循环液路示例（优化）·逻辑修复",
   "nodes": [
     {
@@ -3656,8 +3656,12 @@
         "id": "validation_water_supply_off",
         "name": "断水停泵：锅炉补水链停流",
         "state": {
-          "n_ms7jr4mj2wu7sw": { "pumpOn": false },
-          "n_ms7jsb6764ggp8": { "valveState": "closed" }
+          "n_ms7jr4mj2wu7sw": {
+            "pumpOn": false
+          },
+          "n_ms7jsb6764ggp8": {
+            "valveState": "closed"
+          }
         },
         "mustFlowPipeIds": [],
         "mustStopPipeIds": [

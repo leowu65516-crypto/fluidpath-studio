@@ -25,6 +25,25 @@ function overlap1d(a1: number, a2: number, b1: number, b2: number): number {
   return Math.max(0, Math.min(Math.max(a1, a2), Math.max(b1, b2)) - Math.max(Math.min(a1, a2), Math.min(b1, b2)));
 }
 
+/** 两段折线之间是否存在「共线重合 / 平行过近」（不做同元件豁免，供整理算法逐管判定） */
+export function polylinesOverlap(a: Pt[] | null, b: Pt[] | null): boolean {
+  if (!a || !b || a.length < 2 || b.length < 2) return false;
+  for (let i = 1; i < a.length; i++) {
+    const a1 = a[i - 1], a2 = a[i];
+    const aHorizontal = Math.abs(a2.y - a1.y) < 1.5;
+    for (let j = 1; j < b.length; j++) {
+      const b1 = b[j - 1], b2 = b[j];
+      const bHorizontal = Math.abs(b2.y - b1.y) < 1.5;
+      if (aHorizontal && bHorizontal) {
+        if (Math.abs(a1.y - b1.y) < 7 && overlap1d(a1.x, a2.x, b1.x, b2.x) > 12) return true;
+      } else if (!aHorizontal && !bHorizontal) {
+        if (Math.abs(a1.x - b1.x) < 7 && overlap1d(a1.y, a2.y, b1.y, b2.y) > 12) return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** 找出共线重合、以及平行但间距过近的管路；只做视觉提示，不改工程。 */
 export function findPipeOverlaps(diagram: Diagram): PipeOverlap[] {
   const out: PipeOverlap[] = [];

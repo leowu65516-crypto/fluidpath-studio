@@ -13,3 +13,6 @@ screenshot-after.png
 .claude/
 tee-*.svg
 02-33-38-tshirt-prompt.txt
+
+# 用户提供的第三方评估，不入库
+docs/FluidPath-评估报告-*.md

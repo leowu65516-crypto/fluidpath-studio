@@ -151,6 +151,11 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         {!collapsed && <div className="scenario-picker-body">
+          {ui.mode === "present" && (
+            <div className="scenario-symbol-note" data-testid="present-symbol-note">
+              🎓 {t("演示使用教学符号：讲解用语与画布符号保持一致")}
+            </div>
+          )}
           {availableScenarios.length === 0 && <div className="scenario-empty">{t("当前图纸没有可用的演示场景")}</div>}
           {availableScenarios.map((s) => (
             <button

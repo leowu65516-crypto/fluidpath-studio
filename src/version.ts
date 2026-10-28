@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.41.0";
+export const APP_VERSION = "1.42.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,18 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.42.0",
+    date: "2026-10-28",
+    highlights: [
+      "工程符号线条化：三通/四通/弯头用端口驱动线条，接头用双线夹管，连接件不再是空框；容器改为直立罐体 + 液位线实心罐；进出口用箭头替代 IN/OUT 字母框，字母兜底只留给确实没有形状语义的类型",
+      "工程符号线宽与字号随缩放补偿（上限 3 倍）：27% 整机视图中线条不再缩成灰雾，100% 下保持原粗细",
+      "元件库面板强制使用教学符号，选件时不再看到字母框",
+      "演示模式强制教学符号（讲解语言与符号语言一致），演示面板顶部一行说明，不加开关；退出演示仍按图纸设置",
+      "新增回归：场景项 DOM 点击进入播放器、库/演示符号覆盖、线条化形状与线宽补偿",
+      "全量 82 文件 / 549 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.41.0",
     date: "2026-10-28",

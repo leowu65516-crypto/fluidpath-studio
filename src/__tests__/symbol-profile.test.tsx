@@ -65,3 +65,55 @@ describe("symbol profiles", () => {
     expect(loaded.nodes[0].valveState).toEqual(original.nodes[0].valveState);
   });
 });
+
+describe("engineering symbols v2：管路件与容器线条化", () => {
+  const eng = (type: typeof NODE_DEFS[number]["type"], zoom = 1) =>
+    renderToStaticMarkup(<svg><NodeSymbol node={createNode(type, 0, 0)} profile="engineering" surface="canvas" zoom={zoom} /></svg>);
+
+  it("三通/四通/弯头用端口线条，不再出现 TE/CR 字母框", () => {
+    for (const type of ["tee", "teeY", "teeF", "cross", "elbow"] as const) {
+      const markup = eng(type);
+      expect(markup, type).toContain("data-symbol-feature=\"junction-");
+      expect(markup, type).not.toContain(">TE<");
+      expect(markup, type).not.toContain(">CR<");
+    }
+  });
+
+  it("接头与连接件有形状，connector 不再是空框", () => {
+    expect(eng("coupling")).toContain("data-symbol-feature=\"coupling\"");
+    expect(eng("metalCoupling")).toContain("coupling-metal");
+    expect(eng("connector")).toContain("data-symbol-feature=\"connector\"");
+    expect(eng("connector")).toContain("<circle");
+  });
+
+  it("容器族改用罐体 + 液位线，不再是 TA/SYR/BR 字母框", () => {
+    expect(eng("tank")).toContain("vessel-tank");
+    expect(eng("pressureTank")).toContain("vessel-pressureTank");
+    expect(eng("syrupBottle")).toContain("vessel-syrupBottle");
+    expect(eng("brewChamber")).toContain("vessel-brewChamber");
+    for (const m of [eng("tank"), eng("syrupBottle")]) {
+      expect(m).not.toMatch(/>TA</);
+      expect(m).not.toMatch(/>SYR</);
+    }
+  });
+
+  it("进出口用箭头表达，不再是 IN/OUT 字母框", () => {
+    expect(eng("inlet")).toContain("port-in");
+    expect(eng("outlet")).toContain("port-out");
+    expect(eng("inlet")).not.toContain(">IN<");
+    expect(eng("outlet")).not.toContain(">OUT<");
+  });
+
+  it("线宽随缩放补偿：27% 时描边明显加粗，100% 时保持原值", () => {
+    const widthAt = (markup: string) => {
+      const m = markup.match(/stroke-width="([0-9.]+)"/);
+      return m ? Number(m[1]) : 0;
+    };
+    const base = widthAt(eng("tee", 1));
+    const small = widthAt(eng("tee", 0.27));
+    expect(base).toBeGreaterThan(0);
+    expect(small).toBeGreaterThan(base * 2.5);
+    // 上限 3 倍，避免 100% 时线变得过粗
+    expect(widthAt(eng("tee", 0.1))).toBeLessThanOrEqual(base * 3 + 0.001);
+  });
+});

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { NODE_DEFS, NODE_GROUPS, NodeSymbol, createNode, nodeDisplayLabel } from "../symbols";
-import { addNodeAt, patchNode, useAppState } from "../store";
+import { addNodeAt, patchNode } from "../store";
 import { useT } from "../i18n";
 import type { NodeDef } from "../symbols";
 
@@ -39,7 +39,6 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
   const [quickFontSize, setQuickFontSize] = useState(16);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const { t, lang } = useT();
-  const { diagram } = useAppState();
   const [closedGroups, setClosedGroups] = useState<Set<string>>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("fluidpath.libraryGroups") ?? "[]");
@@ -165,7 +164,7 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
                 {!closed && (
                   <div className="lib-grid">
                     {group.items.map((def) => (
-                      <LibraryItem key={`${def.type}_${def.variant ?? ""}`} def={def} lang={lang} profile={diagram.settings.symbolProfile} />
+                      <LibraryItem key={`${def.type}_${def.variant ?? ""}`} def={def} lang={lang} profile="teaching" />
                     ))}
                   </div>
                 )}

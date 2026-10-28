@@ -590,11 +590,11 @@ export default function App() {
             <span className="mode-banner-lock">{modeInfo.lock}</span>
           </div>
         )}
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenSmart={openSmartWizard} onOpenConditions={openConditions} conditionsOpen={showConditions} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => { if (mode === "present") setShowScenario((v) => !v); else setWorkMode("present"); }} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenSmart={openSmartWizard} onOpenConditions={openConditions} conditionsOpen={showConditions} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <div className="canvas-anchor">
-          <CanvasView svgRefOut={svgRef} smartView={smartView} viewFading={viewFading} />
+          <CanvasView svgRefOut={svgRef} smartView={smartView} viewFading={viewFading} symbolProfileOverride={mode === "present" ? "teaching" : undefined} />
           {mode === "edit" && appState.diagram.nodes.length === 0 && appState.diagram.pipes.length === 0 && !showHelp && (
             <div className="canvas-empty-overlay" data-ui="1">
               <div className="canvas-empty-card">

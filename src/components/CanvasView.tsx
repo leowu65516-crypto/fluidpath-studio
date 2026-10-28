@@ -96,7 +96,7 @@ export interface CanvasHandle {
   svg: () => SVGSVGElement | null;
 }
 
-export function CanvasView({ svgRefOut, smartView = "all", viewFading = false }: { svgRefOut: React.MutableRefObject<SVGSVGElement | null>; smartView?: "all" | "main"; viewFading?: boolean }) {
+export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, symbolProfileOverride }: { svgRefOut: React.MutableRefObject<SVGSVGElement | null>; smartView?: "all" | "main"; viewFading?: boolean; symbolProfileOverride?: "teaching" | "engineering" }) {
   const app = useAppState();
   const diagnosticView = useDiagnosticView();
   const { t, lang } = useT();
@@ -113,6 +113,8 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false }:
     window.addEventListener("fp-theme", sync);
     return () => window.removeEventListener("fp-theme", sync);
   }, []);
+  // 演示模式强制教学符号：讲解语言与符号语言必须一致；只影响显示，不改图纸设置
+  const symbolProfileForCanvas = symbolProfileOverride ?? diagram.settings.symbolProfile;
   // 画布底色：跟随主题时用主题画布色（显示派生，不改图纸数据）
   const canvasBg = resolveCanvasBackground(diagram.settings.background, diagram.settings.backgroundFollowTheme, isDark ? "dark" : "light");
   const smartProjection = useMemo(
@@ -1145,7 +1147,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false }:
                 <path d="M -1.2 -1.4 h 3.4 v 4 h -3.4 z M 3.8 0.6 h 3.4 v 4 h -3.4 z" fill="#ffffff" opacity={0.95} />
               </g>
             )}
-            <NodeSymbol node={node} profile={diagram.settings.symbolProfile} />
+            <NodeSymbol node={node} profile={symbolProfileForCanvas} zoom={ui.zoom} />
             {(node.type === "coffeeOutlet" || node.type === "milkOutlet" || node.type === "hotWaterOutlet" || node.type === "groupHead") && node.dispensing !== false && diagram.settings.globalAnimationPlaying && (
               <g pointerEvents="none">
                 {spoutTips(node).map((tip, i) => {

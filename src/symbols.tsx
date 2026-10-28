@@ -236,8 +236,9 @@ function CenterText({ node, w, h }: { node: DiagramNode; w: number; h: number })
 }
 
 /** 各设备的 2D 工业符号（在 0..w × 0..h 局部坐标系内绘制） */
-export function NodeSymbol({ node, profile = "teaching", surface = "canvas" }: { node: DiagramNode; profile?: SymbolProfile; surface?: SymbolSurface }) {
-  if (resolveSymbolProfile(profile) === "engineering") return <EngineeringNodeSymbol node={node} surface={surface} />;
+export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoom = 1 }: { node: DiagramNode; profile?: SymbolProfile; surface?: SymbolSurface; zoom?: number }) {
+  // zoom 只服务工程符号的线宽/字号补偿：小缩放下线条会被缩成灰雾，必须把线宽换算成屏幕像素。
+  if (resolveSymbolProfile(profile) === "engineering") return <EngineeringNodeSymbol node={node} surface={surface} zoom={zoom} />;
   const { width: w, height: h, fill, stroke } = node;
   const sw = 2;
   const common = { fill, stroke, strokeWidth: sw } as const;

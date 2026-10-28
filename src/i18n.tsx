@@ -1029,7 +1029,8 @@ const EN: Record<string, string> = {
   "符号风格": "Symbol style",
   "跟随图纸": "Follow drawing",
   "已插入 {n} 个元件、{m} 条管路": "Inserted {n} components and {m} pipes",
-  "已插入「{name}」": "Inserted \"{name}\""
+  "已插入「{name}」": "Inserted \"{name}\"",
+  "演示使用教学符号：讲解用语与画布符号保持一致": "Presentations use teaching symbols so narration and canvas stay consistent"
 
 };
 

@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from "react";
 import { NODE_DEFS, NODE_GROUPS, NodeSymbol, createNode, nodeDisplayLabel } from "../symbols";
-import { addNodeAt, patchNode } from "../store";
+import { addNodeAt, patchNode, useAppState } from "../store";
 import { useT } from "../i18n";
 import type { NodeDef } from "../symbols";
 
-function LibraryItem({ def, lang }: { def: NodeDef; lang: "zh" | "en" }) {
+function LibraryItem({ def, lang, profile }: { def: NodeDef; lang: "zh" | "en"; profile?: "teaching" | "engineering" }) {
   // 避免每次渲染都重新生成随机 ID 的预览节点
   const preview = useMemo(() => createNode(def.type, 0, 0, undefined, def.variant), [def.type, def.variant]);
   const scale = Math.min(34 / def.width, 34 / def.height);
@@ -24,7 +24,7 @@ function LibraryItem({ def, lang }: { def: NodeDef; lang: "zh" | "en" }) {
     >
       <svg width={40} height={40} viewBox="0 0 40 40">
         <g transform={`translate(${20 - (def.width * scale) / 2} ${20 - (def.height * scale) / 2}) scale(${scale})`}>
-          <NodeSymbol node={{ ...preview, label: previewLabel, fontSize: def.type === "shape" ? 26 : preview.fontSize }} />
+          <NodeSymbol node={{ ...preview, label: previewLabel, fontSize: def.type === "shape" ? 26 : preview.fontSize }} profile={profile} surface="library" />
         </g>
       </svg>
       <span>{nodeDisplayLabel(def, lang)}</span>
@@ -39,6 +39,7 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
   const [quickFontSize, setQuickFontSize] = useState(16);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const { t, lang } = useT();
+  const { diagram } = useAppState();
   const [closedGroups, setClosedGroups] = useState<Set<string>>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("fluidpath.libraryGroups") ?? "[]");
@@ -164,7 +165,7 @@ export function Library({ collapsed = false, onToggle }: { collapsed?: boolean; 
                 {!closed && (
                   <div className="lib-grid">
                     {group.items.map((def) => (
-                      <LibraryItem key={`${def.type}_${def.variant ?? ""}`} def={def} lang={lang} />
+                      <LibraryItem key={`${def.type}_${def.variant ?? ""}`} def={def} lang={lang} profile={diagram.settings.symbolProfile} />
                     ))}
                   </div>
                 )}

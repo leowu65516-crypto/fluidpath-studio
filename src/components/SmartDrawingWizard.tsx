@@ -179,7 +179,7 @@ export function SmartDrawingWizard({
                     >
                       {templateId === tpl.id && <span className="smart-card-check" aria-hidden="true">✓</span>}
                       <div className="smart-template-preview">
-                        <DiagramPreview nodes={preview.nodes} pipes={preview.pipes} compact />
+                        <DiagramPreview nodes={preview.nodes} pipes={preview.pipes} compact symbolProfile={diagram.settings.symbolProfile} />
                       </div>
                       <div className="smart-template-title">{t(tpl.titleZh)}</div>
                       <div className="smart-template-desc">{t(tpl.descZh)}</div>
@@ -233,7 +233,7 @@ export function SmartDrawingWizard({
           {step === 3 && (
             <div className="smart-step-pane">
               <div className="smart-preview-wrap">
-                <DiagramPreview nodes={result.nodes} pipes={result.pipes} className="smart-preview" showLabels />
+                <DiagramPreview nodes={result.nodes} pipes={result.pipes} className="smart-preview" showLabels symbolProfile={diagram.settings.symbolProfile} />
               </div>
               <div className="smart-summary">
                 <span>✓ {result.nodes.length} {t("个元件")}</span>

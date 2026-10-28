@@ -8,14 +8,14 @@ import { downloadText } from "../fault-codes/report";
 import { nodeBBox, pathD, pipePolyline } from "../geometry";
 import { NodeSymbol } from "../symbols";
 
-function PlanPreview({ plan }: { plan: AiPlan }) {
+function PlanPreview({ plan, symbolProfile }: { plan: AiPlan; symbolProfile?: "teaching" | "engineering" }) {
   const nodes = plan.diagram.nodes;
   if (!nodes.length) return null;
   const boxes = nodes.map(nodeBBox), x = Math.min(...boxes.map(b => b.x)) - 40, y = Math.min(...boxes.map(b => b.y)) - 40;
   const w = Math.max(...boxes.map(b => b.x + b.w)) - x + 40, h = Math.max(...boxes.map(b => b.y + b.h)) - y + 80;
   return <svg className="ai-plan-preview" viewBox={`${x} ${y} ${w} ${h}`} aria-label="Preview">
     {plan.diagram.pipes.map(p => { const points = pipePolyline(p, nodes); return points ? <path key={p.id} d={pathD(points)} fill="none" stroke={plan.addedPipes.includes(p.id) ? "#d97706" : "#94a3b8"} strokeWidth={6} /> : null; })}
-    {nodes.map(n => <g key={n.id}><g transform={`translate(${n.x} ${n.y}) rotate(${n.rotation} ${n.width / 2} ${n.height / 2})`}><NodeSymbol node={n} /></g><text x={n.x + n.width / 2} y={n.y + n.height + 20} textAnchor="middle" fontSize={14} fill="#334155">{n.label}</text></g>)}
+    {nodes.map(n => <g key={n.id}><g transform={`translate(${n.x} ${n.y}) rotate(${n.rotation} ${n.width / 2} ${n.height / 2})`}><NodeSymbol node={n} profile={symbolProfile} surface="preview" /></g><text x={n.x + n.width / 2} y={n.y + n.height + 20} textAnchor="middle" fontSize={14} fill="#334155">{n.label}</text></g>)}
   </svg>;
 }
 
@@ -47,7 +47,7 @@ export function AiDrawingPanel({ onClose }: { onClose: () => void }) {
       <p className="fault-hint">{t("支持新增/删除元件、连管/断管、重命名、泵阀状态和故障码关联。未知操作会拒绝，不会部分应用。")}</p>
       <button className="btn" disabled={busy || !canEdit || !input.trim()} onClick={() => perform(async () => { setPlan(null); setApplied(false); setPlan(await compileAiOperations(input, diagram)); })}>{t("校验并预览")}</button>
       {error && <div role="alert" className="fault-error">{t("指令未应用")}: {error}</div>}
-      {plan && <section className="fault-card"><strong>{t("变更预览")}</strong><p>{plan.addedNodes.length} {t("元件")} · {plan.addedPipes.length} {t("管段")}</p><PlanPreview plan={plan} /><ol>{plan.changes.map((change, i) => <li key={i}>{change}</li>)}</ol><button className="btn" disabled={busy || applied || !canEdit} onClick={() => perform(async () => { await applyAiPlan(plan); setApplied(true); })}>{t(applied ? "已应用，可撤销" : "应用全部变更")}</button></section>}
+      {plan && <section className="fault-card"><strong>{t("变更预览")}</strong><p>{plan.addedNodes.length} {t("元件")} · {plan.addedPipes.length} {t("管段")}</p><PlanPreview plan={plan} symbolProfile={diagram.settings.symbolProfile} /><ol>{plan.changes.map((change, i) => <li key={i}>{change}</li>)}</ol><button className="btn" disabled={busy || applied || !canEdit} onClick={() => perform(async () => { await applyAiPlan(plan); setApplied(true); })}>{t(applied ? "已应用，可撤销" : "应用全部变更")}</button></section>}
       {!canEdit && <p className="fault-hint">{t("切回编辑模式后应用指令。")}</p>}
       <small className="fault-hint">{lang === "zh" ? "图纸变化后旧预览失效；重复请求会被拦截。示例中的故障码仅用于演示。" : "A changed drawing invalidates old previews. Duplicate requests are rejected. The example fault code is for demonstration only."}</small>
     </div>

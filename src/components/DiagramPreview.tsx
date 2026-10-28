@@ -1,4 +1,4 @@
-import type { DiagramNode, Pipe } from "../types";
+import type { DiagramNode, Pipe, SymbolProfile } from "../types";
 import { nodeBBox, pathD, pipePolyline, smoothPath } from "../geometry";
 import { NodeSymbol } from "../symbols";
 import { smartViewProjection } from "../smart-draw/view";
@@ -10,6 +10,7 @@ export function DiagramPreview({
   showLabels = false,
   highlightNodeIds = [],
   compact = false,
+  symbolProfile,
 }: {
   nodes: DiagramNode[];
   pipes: Pipe[];
@@ -18,6 +19,7 @@ export function DiagramPreview({
   highlightNodeIds?: string[];
   /** 卡片缩略图模式：显示完整模板，二级系统/附件降透明度，不删减元器件。 */
   compact?: boolean;
+  symbolProfile?: SymbolProfile;
 }) {
   const projection = smartViewProjection(nodes, pipes, "all");
   const visibleNodes = projection.visibleNodes;
@@ -56,7 +58,7 @@ export function DiagramPreview({
       {visibleNodes.map((n) => (
         <g key={n.id} opacity={compact && (n.smartSecondary || n.type === "pressureGauge" || n.type === "safetyValve" || n.type === "opv") ? 0.52 : 1}>
           <g transform={`translate(${n.x} ${n.y}) rotate(${n.rotation} ${n.width / 2} ${n.height / 2})`}>
-            <NodeSymbol node={n} />
+            <NodeSymbol node={n} profile={symbolProfile} surface="preview" />
           </g>
           {highlight.has(n.id) && (
             <rect x={n.x - 4} y={n.y - 4} width={n.width + 8} height={n.height + 8} rx={8} fill="none" stroke="#2f7fd6" strokeWidth={2.5} strokeDasharray="5 4" />

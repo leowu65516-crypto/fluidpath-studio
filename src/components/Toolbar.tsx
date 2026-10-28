@@ -16,12 +16,12 @@ import {
   undo,
   updateDiagram,
   useAppState,
-  smartTidyPipes
+  smartTidyPipes,
+  blinkElements
 } from "../store";
 import { exportEngineeringJSON, exportGIF, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram, saveJSONFile } from "../export";
 import { exportMachinePack, parseMachinePack } from "../machinePack";
 import { ExportDialog } from "./ExportDialog";
-import { ConditionPanel } from "./ConditionPanel";
 import { PromptDialog } from "./PromptDialog";
 import { ActionBar } from "./ActionBar";
 import { useT } from "../i18n";
@@ -38,7 +38,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenSmart }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenSmart?: () => void }) {
+export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSettings, onOpenScenario, onOpenHelp, onOpenAdvice, onOpenSmart, onOpenConditions, conditionsOpen = false }: { svgRef: React.MutableRefObject<SVGSVGElement | null>; collapsed?: boolean; onToggle?: () => void; onOpenShortcutSettings?: () => void; onOpenScenario?: () => void; onOpenHelp?: () => void; onOpenAdvice?: () => void; onOpenSmart?: () => void; onOpenConditions?: () => void; conditionsOpen?: boolean }) {
   const { diagram, ui } = useAppState();
   const { t, lang, setLang } = useT();
   const mode = ui.mode ?? "edit";
@@ -51,7 +51,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement | null>(null);
   const [layerOpen, setLayerOpen] = useState(false);
-  const [condOpen, setCondOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
   const [confirmNew, setConfirmNew] = useState(false);
@@ -63,6 +62,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       toast(t("未发现管路重合，无需整理"));
       return;
     }
+    if (r.affected.length) blinkElements(r.affected);
     setTidyBar({
       fixed: r.fixed,
       unresolved: r.unresolved,
@@ -483,10 +483,9 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       <button className="tb-btn" data-testid="tidy-pipes" onClick={() => runSmartTidy()} title={t("智能整理：只修复管路重合，保留手工布线（可撤销）")}>
         <Icon d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08M7.07 14.94a3 3 0 0 1 3 3.02c0 2.24-1.8 4.04-4 4.04-1.51 0-2.92-.92-4-2.02-.5-.5 2-.69 2-2.02a3 3 0 0 1 3-3.02z" />{t("智能整理")}
       </button>
-      <button className={`tb-btn${condOpen ? " active" : ""}`} onClick={() => setCondOpen((v) => !v)} title={t("工况：把当前阀位/泵开关存成方案，一键切换对比")}>
+      <button className={`tb-btn${conditionsOpen ? " active" : ""}`} onClick={onOpenConditions} title={t("工况：把当前阀位/泵开关存成方案，一键切换对比")}>
         <Icon d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M8 12h8" />{t("工况")}
       </button>
-      {condOpen && <ConditionPanel onClose={() => setCondOpen(false)} />}
       <div className="layer-wrap" ref={layerRef}>
         <button className={`tb-btn${layerOpen ? " active" : ""}`} onClick={() => setLayerOpen((v) => !v)} title={t("图层管理")}>
           <Icon d="M3 5h18l-2 6v8H5v-8L3 5zM5 19h14" />{t("图层")}

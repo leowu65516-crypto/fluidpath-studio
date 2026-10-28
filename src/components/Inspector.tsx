@@ -54,6 +54,7 @@ import { checkPipeFluid, fluidLabel, fluidColor } from "../fluidRules";
 import { knowledgeOf } from "../knowledge";
 import { ColorSwatch } from "./ColorSwatch";
 import { downloadBom } from "../bom";
+import { diagnosisSummary } from "../diagnostics";
 
 // 色板预设：管壁色（管材）与液体色（介质）
 const WALL_COLOR_PRESETS = MATERIAL_PRESETS.map((m) => m.wallColor);
@@ -121,6 +122,7 @@ function BatchReplace({ nodeIds, pipeIds }: { nodeIds: string[]; pipeIds: string
 export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle?: () => void }) {
   const { diagram, ui } = useAppState();
   const { t, lang } = useT();
+  const followTheme = diagram.settings.backgroundFollowTheme === true;
   const [savedTemplates, setSavedTemplates] = useState(() => listSavedTemplates());
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const node = ui.selection.nodes.length === 1 ? diagram.nodes.find((n) => n.id === ui.selection.nodes[0]) : undefined;
@@ -132,6 +134,8 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
     if (!pipe || !pipeEngineeringDisabled(pipe, diagram.nodes)) return null;
     return traceStopCause(pipe, diagram, lang);
   }, [pipe, diagram, lang]);
+  const diagnostics = useMemo(() => diagnosisSummary(diagram), [diagram]);
+  const structuralIssueCount = diagnostics.errors + diagnostics.warnings;
   // 元件→整机功能链（单选时展示所在链）
   const funcChain = useMemo(() => {
     if (multi) return null;
@@ -314,7 +318,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             {/* 设备信息卡：图标 + 类型徽章 + 作用 */}
             <div className="node-card">
               <svg className="node-card-icon" viewBox={`0 0 ${node.width} ${node.height}`} preserveAspectRatio="xMidYMid meet">
-                <NodeSymbol node={node} />
+                <NodeSymbol node={node} profile={diagram.settings.symbolProfile} surface="inspector" />
               </svg>
               <div className="node-card-body">
                 <span className="node-card-type">{nodeDisplayLabel(defOf(node.type, node.variant), lang)}</span>
@@ -895,7 +899,22 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
         )}
 
         {!multi && !node && !pipe && (
-          <Section title={t("项目设置")}>
+          <>
+          <Section title={t("下一步")}>
+            {structuralIssueCount > 0 ? (
+              <div className="insp-next-action issue">
+                <strong>{t("发现 {n} 个结构问题").replace("{n}", String(structuralIssueCount))}</strong>
+                <span>{t("先处理结构问题，再导出或验收。")}</span>
+                <button className="btn wide" onClick={() => window.dispatchEvent(new CustomEvent("fluidpath:open-advice", { detail: { view: "list" } }))}>🔍 {t("查看问题并定位")}</button>
+              </div>
+            ) : (
+              <div className="insp-next-action">
+                <strong>✓ {t("图纸结构正常")}</strong>
+                <span>{t("无结构问题，可继续编辑、演示或验收。")}</span>
+              </div>
+            )}
+          </Section>
+          <Section title={t("项目与图面")}>
             <Row label={t("项目名称")}>
               <input
                 value={diagram.name}
@@ -908,10 +927,28 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             </Row>
             <Row label={t("画布背景")}>
               <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-                {["#ffffff", "#f3f7fb", "#eef2f7", "#f5f2eb", "#eff6f0", "#f8f1f4"].map((color, index) => <button key={`${color}-${index}`} title={color} onClick={() => updateDiagram((d) => { d.settings.background = color; }, false)} style={{ width: 19, height: 19, borderRadius: 3, border: `2px solid ${diagram.settings.background === color ? "var(--accent)" : "var(--border)"}`, background: color, cursor: "pointer" }} />)}
-                <input type="color" value={diagram.settings.background} onChange={(e) => updateDiagram((d) => { d.settings.background = e.target.value; }, false)} />
+                <button
+                  type="button"
+                  className={`btn mini ${followTheme ? "primary" : "ghost"}`}
+                  title={t("跟随明暗主题：投影/暗房教学时画布自动变暗，不改图纸底色")}
+                  onClick={() => updateDiagram((d) => { d.settings.backgroundFollowTheme = !followTheme; }, false)}
+                >
+                  {followTheme ? `🌗 ${t("跟随主题")}` : `🌗 ${t("跟随主题")}`}
+                </button>
+                {["#ffffff", "#f3f7fb", "#eef2f7", "#f5f2eb", "#eff6f0", "#f8f1f4"].map((color, index) => <button key={`${color}-${index}`} title={color} onClick={() => updateDiagram((d) => { d.settings.background = color; d.settings.backgroundFollowTheme = false; }, false)} style={{ width: 19, height: 19, borderRadius: 3, border: `2px solid ${!followTheme && diagram.settings.background === color ? "var(--accent)" : "var(--border)"}`, background: color, cursor: "pointer" }} />)}
+                <input type="color" value={diagram.settings.background} onChange={(e) => updateDiagram((d) => { d.settings.background = e.target.value; d.settings.backgroundFollowTheme = false; }, false)} />
               </div>
             </Row>
+            {followTheme && <div className="insp-tip">{t("画布底色跟随主题；导出时按导出对话框的主题决定底色，同一图纸换人打开也一致。")}</div>}
+            <Row label={t("符号表达")}>
+              <div className="seg" role="group" aria-label={t("符号表达")}>
+                <button className={(diagram.settings.symbolProfile ?? "teaching") !== "engineering" ? "on" : ""} onClick={() => updateDiagram((d) => { d.settings.symbolProfile = "teaching"; }, false)}>{t("教学符号")}</button>
+                <button className={diagram.settings.symbolProfile === "engineering" ? "on" : ""} onClick={() => updateDiagram((d) => { d.settings.symbolProfile = "engineering"; }, false)}>{t("工程符号")}</button>
+              </div>
+            </Row>
+            <div className="insp-tip">{t("工程符号采用 ISO/ISA 惯例启发的简化表达，不代表正式标准认证；只改变图面和导出，不改变端口、工况或工程判定。")}</div>
+          </Section>
+          <Section title={t("画布与交互")} defaultOpen={false}>
             <Row label={t("显示网格")}>
               <input
                 type="checkbox"
@@ -958,7 +995,8 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             <Row label={t("对齐辅助线")}>
               <input type="checkbox" checked={diagram.settings.showAlignmentGuides !== false} onChange={(e) => updateDiagram((d) => { d.settings.showAlignmentGuides = e.target.checked; }, false)} />
             </Row>
-            <Section title={t("显示")}>
+          </Section>
+          <Section title={t("显示与截图")} defaultOpen={false}>
               <Row label={t("元器件名称")}>
                 <input type="checkbox" checked={diagram.settings.showNodeLabels !== false} onChange={(e) => updateDiagram((d) => { d.settings.showNodeLabels = e.target.checked; }, false)} />
               </Row>
@@ -974,6 +1012,13 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <Row label={t("介质颜色")}>
                 <input type="checkbox" checked={diagram.settings.showFluidColors !== false} onChange={(e) => updateDiagram((d) => { d.settings.showFluidColors = e.target.checked; }, false)} />
               </Row>
+              <Row label={t("诊断标记")}>
+                <select value={diagram.settings.diagnosticMarkerMode ?? "all"} onChange={(e) => updateDiagram((d) => { d.settings.diagnosticMarkerMode = e.target.value as "all" | "errors" | "hidden"; }, false)}>
+                  <option value="all">{t("全部标记")}</option>
+                  <option value="errors">{t("仅错误")}</option>
+                  <option value="hidden">{t("隐藏（截图）")}</option>
+                </select>
+              </Row>
               <Row label={`${t("元器件文字大小")} ${diagram.settings.nodeLabelFontSize ?? 13}px`}>
                 <input
                   type="range"
@@ -986,9 +1031,10 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               {diagram.nodes.some((n) => n.labelOffset) && (
                 <button className="btn ghost wide" onClick={() => updateDiagram((d) => { for (const n of d.nodes) delete n.labelOffset; }, true)}>{t("重置全部文字位置")}</button>
               )}
+              <div className="insp-tip">{t("诊断标记只影响画布和状态栏显示；不改变工程状态、诊断结果或验收。")}</div>
               <div className="insp-tip">{t("标签可直接在画布上拖动微调位置；双击标签编辑文字。此处开关同样作用于导出（导出面板另有独立选项）。")}</div>
-            </Section>
-            <Section title={t("操作")}>
+          </Section>
+          <Section title={t("项目工具")} defaultOpen={false}>
               <div className="btn-row">
                 <button className="btn wide" onClick={() => generateLegend(100, 100)}>{t("📊 生成图例")}</button>
                 <button className="btn wide" onClick={() => downloadBom(diagram)}>{t("📋 导出 BOM 清单")}</button>
@@ -1007,14 +1053,16 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               </div>
             </div>
               <button className="btn wide" onClick={() => setTemplateDialogOpen(true)}>＋ {t("保存当前图纸为模板")}</button>
-            </Section>
-            <Section title={t("撤销历史")}>
+          </Section>
+          <Section title={t("撤销历史")} defaultOpen={false}>
               <div className="insp-row">
                 <span style={{ color: "var(--text-dim)", fontSize: 12 }}>{t("可撤销 {a} 步 · 可重做 {b} 步").replace("{a}", String(getUndoCount())).replace("{b}", String(getRedoCount()))}</span>
               </div>
-            </Section>
-            <div className="insp-tip">{t("提示：")}<br />{t("· 悬停节点显示端口，从端口拖拽到另一端口生成管路")}<br />{t("· 拖动节点时自动对齐其他节点，出现洋红参考线；按住 Alt 可临时关闭吸附")}<br />{t("· 方向键微调 1px，Shift + 方向键 10px")}<br />{t("· Ctrl+G 成组、Ctrl+Shift+G 解散组")}<br />{t("· Alt + 拖动端口可改变端口位置")}<br />{t("· 选中节点拖四角手柄可调整大小")}<br />{t("· 空格/中键/右键拖拽平移画布，滚轮缩放")}<br />{t("· Delete 删除，Ctrl+Z 撤销，Ctrl+D 复制")}<br />{t("· Ctrl+C/V 复制粘贴")}<br />{t("· ? 键查看全部快捷键")}<br />{t("· 液路问题请用工具栏「回路诊断」一键检查并修复")}</div>
           </Section>
+          <Section title={t("快速提示")} defaultOpen={false}>
+            <div className="insp-tip">{t("先选中对象再修改属性；有红色诊断标记时，点击标记即可定位并查看处理方式。")}</div>
+          </Section>
+          </>
         )}
         {node && (
           <Section title={t("样式预设")}>
@@ -1029,7 +1077,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             </Row>
           </Section>
         )}
-        <Section title={t("图层管理")}>
+        <Section title={t("图层管理")} defaultOpen={!!node}>
           {(diagram.settings.layers ?? []).map((layer) => (
             <div key={layer.id} className="insp-row" style={{ marginBottom: 6, alignItems: "center" }}>
               <span style={{ display: "inline-block", width: 14, height: 14, borderRadius: 3, background: layer.visible ? "#2f7fd6" : "#d7dee7", cursor: "pointer", marginRight: 6, flexShrink: 0 }} onClick={() => toggleLayerVisibility(layer.id)} title={layer.visible ? t("隐藏") : t("显示本层")} />

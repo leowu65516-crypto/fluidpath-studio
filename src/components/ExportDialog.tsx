@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { withSymbolProfile } from "../store";
 import { buildExportSVGWithOptions, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, exportGifSequenceWithOptions, prepareExportDiagram, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance, type GifSequenceFrame } from "../export";
-import { activateScenarioStepForExport, activateWorkConditionForExport, store, updateDiagram, useAppState } from "../store";
+import { activateScenarioStepForExport, activateWorkConditionForExport, setUI, store, updateDiagram, useAppState } from "../store";
 import { availableScenariosForDiagram } from "../scenarios";
 import { useT } from "../i18n";
 import { toast } from "../toast";
@@ -22,6 +23,9 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const [gifConditionName, setGifConditionName] = useState("");
   const [gifScenarioId, setGifScenarioId] = useState("");
   const [gifStepDurations, setGifStepDurations] = useState<Record<number, number>>({});
+  const [gifTimingOpen, setGifTimingOpen] = useState(false);
+  const [gifAdvanced, setGifAdvanced] = useState(false);
+  const [fullRenderReady, setFullRenderReady] = useState(false);
   const [quizSaved, setQuizSaved] = useState(false);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const reqIdRef = useRef(0);
@@ -55,6 +59,24 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const demoScenarios = availableScenariosForDiagram(diagram).filter((scenario) => scenario.steps.length > 0);
   const selectedGifScenario = demoScenarios.find((scenario) => scenario.id === gifScenarioId) ?? null;
   const stepDuration = (index: number) => gifStepDurations[index] ?? 1800;
+
+  // CanvasView normally culls viewport-external elements. Export snapshots must always contain the full diagram.
+  useEffect(() => {
+    let disposed = false;
+    let second = 0;
+    setUI({ exportFullRender: true });
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        if (!disposed) setFullRenderReady(true);
+      });
+    });
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(first);
+      if (second) cancelAnimationFrame(second);
+      setUI({ exportFullRender: false });
+    };
+  }, []);
   /** 画布客户端坐标 → 世界坐标（经 svg 元素尺寸与 data-world 变换反推） */
   const clientToWorld = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const svg = svgRef.current;
@@ -398,7 +420,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
       } catch { /* 预览失败静默（导出时会报错） */ }
     }, immediate ? 16 : 120);
     return () => clearTimeout(timer);
-  }, [opts, diagram, svgRef]);
+  }, [opts, diagram, svgRef, fullRenderReady]);
 
   // 滚轮缩放（原生监听：需要 preventDefault；React 合成 wheel 为 passive）
   useEffect(() => {
@@ -416,7 +438,14 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   }, []);
 
   const run = async () => {
-    if (!svgRef.current) return;
+    if (!svgRef.current || !fullRenderReady) return;
+    // 符号风格：follow 表示沿用图纸设置；否则在导出期间临时切换，导出完成后静默还原。
+    const profile = opts.symbolProfile === "follow" ? undefined : opts.symbolProfile;
+    await withSymbolProfile(profile, () => runWithProfile());
+  };
+
+  const runWithProfile = async () => {
+    if (!svgRef.current || !fullRenderReady) return;
     const finalOpts: ExportOptions = { ...opts, format, filename: (opts.filename || diagram.name || "fluidpath").trim() };
     try { localStorage.setItem("fluidpath.lastExport", format); } catch { /* ignore */ }
     if (format === "gif") {
@@ -449,7 +478,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
             gifDiagram = store.get().diagram;
             finalOpts.filename = `${finalOpts.filename}-${gifConditionName}`;
           }
-          await exportGifWithOptions(svgRef.current, gifDiagram, { ...finalOpts, selection: ui.selection }, (r) => setProgress(r), () => restorePreview?.());
+          await exportGifWithOptions(svgRef.current, gifDiagram, { ...finalOpts, selectionOnly: false, selection: undefined }, (r) => setProgress(r), () => restorePreview?.());
           toast(t("GIF 已生成"));
         }
       } catch (err) {
@@ -507,19 +536,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
             {demoScenarios.map((scenario) => <option key={scenario.id} value={scenario.id}>{scenario.title}</option>)}
           </select>
         </div>
-        {selectedGifScenario ? <div className="gif-step-timing">
-          <div className="gif-step-timing-head"><strong>{t("每步停留")}</strong><span>{t("不显示步骤高亮或画布淡化")}</span></div>
-          {selectedGifScenario.steps.map((step, index) => <div className="gif-step-row" key={`${selectedGifScenario.id}-${index}`}>
-            <label title={step.title}>{index + 1}. {step.title}</label>
-            <input aria-label={`${step.title} ${t("每步停留")}`} type="number" min={200} max={20000} step={100} value={stepDuration(index)} onChange={(event) => setGifStepDurations((all) => ({ ...all, [index]: Math.max(200, Number(event.target.value) || 200) }))} />
-            <span>ms</span>
-          </div>)}
-          <div className="exp-row gif-transition-row">
-            <label>{t("步骤切换")}</label>
-            <input aria-label={t("步骤切换")} type="range" min={0} max={2000} step={100} value={opts.gifStepTransitionMs} onChange={(event) => patch({ gifStepTransitionMs: Number(event.target.value) })} />
-            <span className="exp-val">{opts.gifStepTransitionMs}ms</span>
-          </div>
-        </div> : <div className="exp-tip">{t("请选择演示案例")}</div>}
+        {!selectedGifScenario && <div className="exp-tip">{t("请选择演示案例")}</div>}
         <div className="exp-tip">{t("每一步都会恢复其保存的完整图纸与教学显示覆盖；导出不会修改当前画面。")}</div>
       </> : <>
       <div className="exp-row">
@@ -543,11 +560,27 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
           ))}
         </div>
       </div>
-      <div className="exp-row">
-        <label>{t("逐帧间隔")}</label>
-        <input aria-label={t("逐帧间隔")} type="range" min={30} max={200} step={5} value={opts.gifFrameDelay} onChange={(e) => patch({ gifFrameDelay: Number(e.target.value) })} />
-        <span className="exp-val">{opts.gifFrameDelay}ms</span>
-      </div>
+      <details className="gif-timing-details" open={gifTimingOpen} onToggle={(event) => setGifTimingOpen((event.currentTarget as HTMLDetailsElement).open)}>
+        <summary>{t("高级时间设置")}</summary>
+        {gifSource === "scenario" && selectedGifScenario && <div className="gif-step-timing">
+          <div className="gif-step-timing-head"><strong>{t("每步停留")}</strong><span>{t("不显示步骤高亮或画布淡化")}</span></div>
+          {selectedGifScenario.steps.map((step, index) => <div className="gif-step-row" key={`${selectedGifScenario.id}-${index}`}>
+            <label title={step.title}>{index + 1}. {step.title}</label>
+            <input aria-label={`${step.title} ${t("每步停留")}`} type="number" min={200} max={20000} step={100} value={stepDuration(index)} onChange={(event) => setGifStepDurations((all) => ({ ...all, [index]: Math.max(200, Number(event.target.value) || 200) }))} />
+            <span>ms</span>
+          </div>)}
+          <div className="exp-row gif-transition-row">
+            <label>{t("步骤切换")}</label>
+            <input aria-label={t("步骤切换")} type="range" min={0} max={2000} step={100} value={opts.gifStepTransitionMs} onChange={(event) => patch({ gifStepTransitionMs: Number(event.target.value) })} />
+            <span className="exp-val">{opts.gifStepTransitionMs}ms</span>
+          </div>
+        </div>}
+        <div className="exp-row">
+          <label>{t("逐帧间隔")}</label>
+          <input aria-label={t("逐帧间隔")} type="range" min={30} max={200} step={5} value={opts.gifFrameDelay} onChange={(e) => patch({ gifFrameDelay: Number(e.target.value) })} />
+          <span className="exp-val">{opts.gifFrameDelay}ms</span>
+        </div>
+      </details>
       <div className="exp-tip">{gifSource === "scenario" ? t("导出微调仅作用于 GIF 副本，不影响主图纸。") : t("GIF 固定为 2 秒无缝循环；速度只改变帧数与导出时间，不修改图纸。")}</div>
     </div>
   );
@@ -557,7 +590,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   );
 
   const group = (title: string, children: React.ReactNode, key?: string) => (
-    <div className="exp-group" key={key}>
+    <div className="exp-group" key={key} data-export-group={key}>
       <div className="exp-group-title">{title}</div>
       {children}
     </div>
@@ -579,7 +612,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
 
   return (
     <div className="export-dialog-overlay" data-ui="1" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="export-dialog">
+      <div className={`export-dialog${format === "gif" ? " gif-simple" : ""}${gifAdvanced ? " gif-advanced-open" : ""}`}>
         <div className="export-dialog-head">
           <h3>🖼️ {t("导出预览")}</h3>
           <div className="exp-fmt-tabs">
@@ -677,9 +710,20 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                   <label>{t("暗色主题")}</label>
                   <input type="checkbox" checked={opts.darkMode} onChange={(e) => patch({ darkMode: e.target.checked })} />
                 </div>
+                <div className="exp-row">
+                  <label>{t("符号风格")}</label>
+                  <select value={opts.symbolProfile} onChange={(e) => patch({ symbolProfile: e.target.value as ExportOptions["symbolProfile"] })}>
+                    <option value="follow">{t("跟随图纸")}</option>
+                    <option value="teaching">{t("教学符号")}</option>
+                    <option value="engineering">{t("工程符号")}</option>
+                  </select>
+                </div>
               </>
             ), "canvas")}
-            {format === "gif" && group("GIF", gifControls, "gif")}
+            {format === "gif" && <>
+              {group("GIF", gifControls, "gif")}
+              <button className="btn ghost gif-advanced-toggle" onClick={() => setGifAdvanced((open) => !open)}>{gifAdvanced ? t("收起高级导出设置") : t("高级外观、文字与输出")}</button>
+            </>}
             {group(t("文字与状态"), (
               <>
                 <label className="exp-row"><span>{t("包含故障高亮")}</span><input type="checkbox" checked={!!opts.includeDiagnostics} onChange={e => patch({ includeDiagnostics: e.target.checked })} /></label>
@@ -778,11 +822,13 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                   <label>{t("文件名")}</label>
                   <input value={opts.filename} onChange={(e) => patch({ filename: e.target.value })} />
                 </div>
-                <div className="exp-row">
-                  <label>{t("仅导出选中")}</label>
-                  <input type="checkbox" checked={opts.selectionOnly && hasSelection} disabled={!hasSelection} onChange={(e) => patch({ selectionOnly: e.target.checked })} />
-                  <span className="exp-val">{hasSelection ? "" : t("先在画布选中内容")}</span>
-                </div>
+                {format !== "gif" && (
+                  <div className="exp-row">
+                    <label>{t("仅导出选中")}</label>
+                    <input type="checkbox" checked={opts.selectionOnly && hasSelection} disabled={!hasSelection} onChange={(e) => patch({ selectionOnly: e.target.checked })} />
+                    <span className="exp-val">{hasSelection ? "" : t("先在画布选中内容")}</span>
+                  </div>
+                )}
               </>
             ), "output")}
           </div>
@@ -790,7 +836,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
         <div className="export-dialog-foot">
           <span className="exp-hint">⌘/Ctrl+E {t("快速导出（跳过此界面）")}</span>
           <button className="btn ghost" onClick={onClose}>{t("取消")}</button>
-          <button className="btn" disabled={progress !== null} onClick={() => void run()}>
+          <button className="btn" disabled={progress !== null || !fullRenderReady} onClick={() => void run()}>
             {progress !== null ? `${t("生成中")} ${Math.round(progress * 100)}%…` : `${t("导出")} ${format.toUpperCase()}`}
           </button>
         </div>

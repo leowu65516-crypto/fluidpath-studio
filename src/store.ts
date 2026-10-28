@@ -17,7 +17,7 @@ import type {
   SceneScenario,
   SceneScenarioStep,
   SceneValveAction,
-} from "./types";
+  SymbolProfile } from "./types";
 import { createEmptyDiagram, createCoffeeMachineDiagram, createSteamSystemDiagram, createMilkFoamDiagram, createCommercialMachineDiagram, createDemoMachineDiagram, createSemiAutoMachineDiagram, createFullAutoMachineDiagram } from "./sample";
 import { createNode } from "./symbols";
 import { findPort, nodeBBox, pipePolyline, polylineBBox, type RouteOccupancy } from "./geometry";
@@ -176,6 +176,16 @@ export function blinkElements(ids: string[]) {
     setUI({ blink: null });
   }, 2400);
 }
+/**
+ * 带定位反馈的操作提示：一句结果 + 闪烁涉及的元件/管段。
+ * 批量操作（整理、重排、插入块）统一走这里，用户不用自己找「刚才改了哪里」。
+ */
+export function toastWithFocus(message: string, ids: string[], kind: "info" | "error" = "info") {
+  toast(message, kind);
+  const clean = ids.filter(Boolean);
+  if (clean.length) blinkElements(clean);
+}
+
 let chainTimer: ReturnType<typeof setTimeout> | null = null;
 export function showChainPath(pipeIds: string[]) {
   if (chainTimer) clearTimeout(chainTimer);
@@ -1484,6 +1494,8 @@ function pipeRoughLength(pipe: Pipe, nodes: DiagramNode[]): number {
 export interface TidyResult {
   /** 本次修好的重合对数量 */
   fixed: number;
+  /** 涉及的管路 id（用于定位闪烁） */
+  affected: string[];
   /** 仍无法自动消除的重合对（都涉及手工布线） */
   unresolved: number;
   /** 保留未动的手工布线数量 */
@@ -1507,6 +1519,7 @@ export function smartTidyPipes(): TidyResult {
   const manualTotal = before.pipes.filter((p) => routeModeOf(p) === "manual").length;
   const result: TidyResult = {
     fixed: overlaps.length,
+    affected: [...involved],
     unresolved: 0,
     untouchedManual: manualTotal,
     nudgedManual: 0,
@@ -1653,6 +1666,29 @@ export function previewRerouteAll(): ReroutePreview {
 
 /** 采纳预览结果：把已算好的折线写回（一次 undo） */
 /** 打开/关闭重排预览（画布与右栏共用同一份状态） */
+/**
+ * 在指定符号风格下执行一次操作（导出用）。
+ *
+ * 导出克隆的是「已经渲染好的 SVG」，所以换符号必须先让 React 重渲染。
+ * 这里直接用 setState 改设置（不走 updateDiagram）：不写历史、不置 dirty、不触发 autosave，
+ * 结束后恢复原值 —— 导出不应该在用户图纸上留下任何痕迹。
+ */
+export async function withSymbolProfile<T>(profile: SymbolProfile | undefined, fn: () => Promise<T> | T): Promise<T> {
+  const prev = state.diagram.settings.symbolProfile;
+  if (!profile || profile === prev) return await fn();
+  setState({ ...state, diagram: { ...state.diagram, settings: { ...state.diagram.settings, symbolProfile: profile } } });
+  // 等两帧：一帧提交 React 渲染，一帧确保 DOM 已布局（克隆前必须是最新符号）
+  await new Promise<void>((resolve) => {
+    if (typeof requestAnimationFrame !== "function") return resolve();
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+  try {
+    return await fn();
+  } finally {
+    setState({ ...state, diagram: { ...state.diagram, settings: { ...state.diagram.settings, symbolProfile: prev } } });
+  }
+}
+
 export function setRoutePreview(preview: ReroutePreview | null) {
   setState({ ...state, ui: { ...state.ui, routePreview: preview } });
 }
@@ -1672,7 +1708,7 @@ export function applyReroutePreview(preview: ReroutePreview) {
 }
 
 /** 重排全部管路（高危）：清空所有非曲线管的折点并带占用表重排 */
-export function rerouteAllPipes(): { rerouted: number; skippedCurved: number; manualCleared: number } {
+export function rerouteAllPipes(): { rerouted: number; skippedCurved: number; manualCleared: number; affected: string[] } {
   const before = state.diagram;
   const curved = before.pipes.filter((p) => p.routing === "curved").length;
   const manualCleared = before.pipes.filter((p) => p.routing !== "curved" && routeModeOf(p) === "manual").length;
@@ -1689,7 +1725,7 @@ export function rerouteAllPipes(): { rerouted: number; skippedCurved: number; ma
       if (!moved) break;
     }
   });
-  return { rerouted, skippedCurved: curved, manualCleared };
+  return { rerouted, skippedCurved: curved, manualCleared, affected: state.diagram.pipes.filter((p) => p.routing !== "curved").map((p) => p.id) };
 }
 
 // ===== 等距排列选中管路 =====

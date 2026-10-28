@@ -7,7 +7,9 @@ import {
   nodeBBox,
   pathD,
   pipePolyline,
+  pointAtLength,
   polylineBBox,
+  polylineLength,
   PORT_STUB,
   portWorldNormal,
   portWorldPos,
@@ -30,10 +32,11 @@ import { useDiagnosticView } from "../fault-codes/session";
 import { resolveFaultTargets } from "../fault-codes/profile";
 import { useT } from "../i18n";
 import { smartViewProjection } from "../smart-draw/view";
+import { resolveCanvasBackground } from "../canvasTheme";
 import { ContextMenu } from "./ContextMenu";
 import { RoutePreviewOverlay } from "./RoutePreviewOverlay";
 import { ActionBar } from "./ActionBar";
-import { focusElement, blinkElements, showChainPath, overrideScenarioNode, invalidateAutoRoutes, smartTidyPipes, applyReroutePreview, previewRerouteAll, setRoutePreview } from "../store";
+import { focusElement, blinkElements, showChainPath, overrideScenarioNode, invalidateAutoRoutes, smartTidyPipes, applyReroutePreview, previewRerouteAll, setRoutePreview, toastWithFocus } from "../store";
 import { collectAdvice, traceStopCause } from "../advice";
 import { traceFunctionalChain } from "../functionalChain";
 import {
@@ -93,7 +96,7 @@ export interface CanvasHandle {
   svg: () => SVGSVGElement | null;
 }
 
-export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.MutableRefObject<SVGSVGElement | null>; smartView?: "all" | "main" }) {
+export function CanvasView({ svgRefOut, smartView = "all", viewFading = false }: { svgRefOut: React.MutableRefObject<SVGSVGElement | null>; smartView?: "all" | "main"; viewFading?: boolean }) {
   const app = useAppState();
   const diagnosticView = useDiagnosticView();
   const { t, lang } = useT();
@@ -110,6 +113,8 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
     window.addEventListener("fp-theme", sync);
     return () => window.removeEventListener("fp-theme", sync);
   }, []);
+  // 画布底色：跟随主题时用主题画布色（显示派生，不改图纸数据）
+  const canvasBg = resolveCanvasBackground(diagram.settings.background, diagram.settings.backgroundFollowTheme, isDark ? "dark" : "light");
   const smartProjection = useMemo(
     () => smartViewProjection(diagram.nodes, diagram.pipes, smartView, diagram.settings.smartAccessoriesVisible !== false),
     [diagram.nodes, diagram.pipes, smartView, diagram.settings.smartAccessoriesVisible],
@@ -134,6 +139,10 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
     return { fromPortId: p.fromPortId, toPortId: p.toPortId };
   }, [diagram, ui.selection]);
   const chainPathSet = new Set(ui.chainPath?.pipeIds ?? []);
+  // 截图模式只影响角标的可见性：诊断和验收仍使用完整结果。
+  const diagnosticMarkerMode = diagram.settings.diagnosticMarkerMode ?? "all";
+  const showsDiagnosticMarker = (severity: "error" | "warning" | "info") =>
+    diagnosticMarkerMode === "all" || (diagnosticMarkerMode === "errors" && severity === "error");
   // 介质物理常识校验：实时计算冲突，供画布感叹号与修复菜单使用
   const fluidIssues = useMemo(() => checkDiagramFluid(diagram, lang), [diagram, lang]);
   // 模式权限：仅编辑模式可改拓扑（拖动/连线/删除/标签编辑）；演示/验收保留拨阀与视角
@@ -152,13 +161,17 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
   }, [ui.zoom, ui.panX, ui.panY]);
   // 结构问题即时 lint：接线/介质错误实时红点（不依赖打开诊断面板）
   const structLint = useMemo(() => {
-    const nodeMsg = new Map<string, string>();
-    const pipeMsg = new Map<string, string>();
+    const nodeMsg = new Map<string, { message: string; severity: "error" | "warning" | "info" }>();
+    const pipeMsg = new Map<string, { message: string; severity: "error" | "warning" | "info" }>();
     for (const a of collectAdvice(diagram, undefined, lang)) {
       if (a.category !== "structure") continue;
       for (const id of a.elementIds) {
-        if (diagram.nodes.some((n) => n.id === id)) nodeMsg.set(id, `${a.title}：${a.message}`);
-        else if (diagram.pipes.some((pp) => pp.id === id)) pipeMsg.set(id, `${a.title}：${a.message}`);
+        const item = { message: `${a.title}：${a.message}`, severity: a.severity };
+        const target = diagram.nodes.some((n) => n.id === id) ? nodeMsg : diagram.pipes.some((pp) => pp.id === id) ? pipeMsg : null;
+        if (!target) continue;
+        const previous = target.get(id);
+        const rank = { info: 0, warning: 1, error: 2 } as const;
+        if (!previous || rank[item.severity] >= rank[previous.severity]) target.set(id, item);
       }
     }
     return { nodeMsg, pipeMsg };
@@ -887,7 +900,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
 
   // 结构 lint 红点 → 打开诊断面板并定位
   function openAdviceAndFocus(id: string) {
-    window.dispatchEvent(new CustomEvent("fluidpath:open-advice"));
+    window.dispatchEvent(new CustomEvent("fluidpath:open-advice", { detail: { elementId: id, view: "list" } }));
     focusElement(id);
     blinkElements([id]);
   }
@@ -955,7 +968,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
       items.push({ label: `📋 ${t("粘贴 (Ctrl+V)")}`, onClick: () => pasteFromClipboard(), disabled: !store.get().ui.clipboard });
       items.push({ label: "---", divider: true });
       items.push({ label: `⊡ ${t("适应画布")}`, onClick: () => { const el = document.querySelector(".main-canvas"); fitToScreen((el as HTMLElement)?.clientWidth ?? 1200, (el as HTMLElement)?.clientHeight ?? 800); } });
-      items.push({ label: `🧹 ${t("智能整理")}`, onClick: () => { const r = smartTidyPipes(); if (!r.fixed && !r.unresolved) toast(t("未发现管路重合，无需整理")); else toast(`${t("已修复 {n} 处管路重合").replace("{n}", String(r.fixed))} · ${t("保留 {n} 条手工布线").replace("{n}", String(r.untouchedManual))}`); } });
+      items.push({ label: `🧹 ${t("智能整理")}`, onClick: () => { const r = smartTidyPipes(); if (!r.fixed && !r.unresolved) toast(t("未发现管路重合，无需整理")); else toastWithFocus(`${t("已修复 {n} 处管路重合").replace("{n}", String(r.fixed))} · ${t("保留 {n} 条手工布线").replace("{n}", String(r.untouchedManual))}`, r.affected); } });
       items.push({ label: `↯ ${t("重排全部管路")}`, onClick: () => rerouteAllWithConfirm(), danger: true });
       items.push({ label: `📊 ${t("生成图例")}`, onClick: () => { const svg = document.querySelector(".main-canvas") as SVGSVGElement | null; if (!svg) return; const bb = svg.getBoundingClientRect(); const wx = (-store.get().ui.panX) / store.get().ui.zoom + bb.width / 2 / store.get().ui.zoom - 180; const wy = (-store.get().ui.panY) / store.get().ui.zoom + bb.height / 2 / store.get().ui.zoom; generateLegend(wx, wy, lang); } });
       items.push({ label: "---", divider: true });
@@ -976,6 +989,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
     if (!issues || !issues.length) return;
     const items: Array<{ label: string; onClick?: () => void; danger?: boolean; disabled?: boolean; divider?: boolean }> = [];
     items.push({ label: `⚠️ ${t("介质异常")}（${issues.length}）`, disabled: true });
+    items.push({ label: `🔍 ${t("查看问题并定位")}`, onClick: () => openAdviceAndFocus(pipe.id) });
     items.push({ label: "---", divider: true });
     for (const issue of issues) {
       items.push({ label: `${issue.nodeLabel}：${t("应为")} ${issue.allowed.map((ft) => fluidLabel(ft, lang)).join(" / ")}`, disabled: true });
@@ -1058,7 +1072,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
       if (node.type === "diaphragmValve3") return diaphragmRouteLabel(node, node.valvePath === "B" ? "B" : "A");
       return "";
     })();
-    if (!rectsIntersect(nodeBBox(node), cullRect)) return null;
+    if (!ui.exportFullRender && !rectsIntersect(nodeBBox(node), cullRect)) return null;
     return (
       <g key={node.id}>
         <title>{nodeCanvasLabel(node, lang) || defOf(node.type, node.variant).label}{stateHint ? `（${stateHint}）` : ""}{node.fault ? ` · ${t("故障")}` : ""}</title>
@@ -1067,15 +1081,6 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
           <g pointerEvents="none" transform={`translate(${node.x + node.width} ${node.y})`}>
             <circle cx={0} cy={0} r={9} fill="#d64545" stroke="#ffffff" strokeWidth={1.6} />
             <text x={0} y={4} textAnchor="middle" fontSize={12} fontWeight={800} fill="#ffffff" fontFamily="system-ui, sans-serif">!</text>
-          </g>
-        )}
-        {/* 结构问题即时 lint 红点（编辑时实时提示） */}
-        {structLint.nodeMsg.has(node.id) && (
-          <g data-ui="1" transform={`translate(${node.x - 6} ${node.y + node.height - 2})`} style={{ cursor: "pointer" }}
-            onMouseDown={(e) => { e.stopPropagation(); openAdviceAndFocus(node.id); }}>
-            <circle r={9} fill="#d64545" stroke="#ffffff" strokeWidth={1.6} />
-            <text y={4} textAnchor="middle" fontSize={12} fontWeight={800} fill="#ffffff" fontFamily="system-ui, sans-serif" pointerEvents="none">!</text>
-            <title>{structLint.nodeMsg.get(node.id)}</title>
           </g>
         )}
         {/* 演示高亮光环 */}
@@ -1140,7 +1145,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
                 <path d="M -1.2 -1.4 h 3.4 v 4 h -3.4 z M 3.8 0.6 h 3.4 v 4 h -3.4 z" fill="#ffffff" opacity={0.95} />
               </g>
             )}
-            <NodeSymbol node={node} />
+            <NodeSymbol node={node} profile={diagram.settings.symbolProfile} />
             {(node.type === "coffeeOutlet" || node.type === "milkOutlet" || node.type === "hotWaterOutlet" || node.type === "groupHead") && node.dispensing !== false && diagram.settings.globalAnimationPlaying && (
               <g pointerEvents="none">
                 {spoutTips(node).map((tip, i) => {
@@ -1373,7 +1378,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
   const marquee = drag?.type === "marquee" && marqueeEnd ? { a: drag.start, b: marqueeEnd } : null;
 
   return (
-    <div className={`canvas-wrap${diagram.settings.globalAnimationPlaying ? " fp-animating" : ""}`} style={{ background: diagram.settings.background }}>
+    <div className={`canvas-wrap${diagram.settings.globalAnimationPlaying ? " fp-animating" : ""}${viewFading ? " view-fading" : ""}`} style={{ background: canvasBg }}>
       <svg
         ref={svgRef}
         className="main-canvas"
@@ -1422,7 +1427,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
               : true;
             const scenarioDim = scenario ? !inScenario : false;
             const pipePts = pipePtsById.get(p.id);
-            if (pipePts && !rectsIntersect(polylineBBox(pipePts), cullRect)) return null;
+            if (!ui.exportFullRender && pipePts && !rectsIntersect(polylineBBox(pipePts), cullRect)) return null;
             return (
               <PipeView
                 key={p.id}
@@ -1439,14 +1444,12 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
                 blinkStamp={blinkStamp}
                 chainGlow={chainPathSet.has(p.id)}
                 chainStamp={ui.chainPath?.stamp ?? 0}
-                lintMsg={structLint.pipeMsg.get(p.id)}
-                onLintClick={(pp) => openAdviceAndFocus(pp.id)}
                 funcChain={funcPipeSet.has(p.id)}
                 showFluidLabels={diagram.settings.showFluidLabels !== false && ui.zoom >= 0.7}
                 showPipeLabels={diagram.settings.showPipeLabels !== false && ui.zoom >= 0.62}
                 showFluidColors={diagram.settings.showFluidColors !== false}
                 animationPlaying={!!diagram.settings.globalAnimationPlaying}
-                dark={isDarkColor(diagram.settings.background, isDark)}
+                dark={isDarkColor(canvasBg, isDark)}
                 flowTrail={ui.zoom >= 0.4}
                 flowRefMap={flowRefs.current}
                 onPipeBodyMouseDown={onPipeBodyMouseDown}
@@ -1454,7 +1457,7 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
                 onContextMenu={openContextMenu}
                 onRemoveVertex={removeVertex}
                 onLabelDoubleClick={(pid, x, y, label) => beginLabelEdit("pipe", pid, x, y, label)}
-                issues={fluidIssues.get(p.id)}
+                issues={diagnosticMarkerMode === "all" ? fluidIssues.get(p.id) : undefined}
                 onFluidIssueClick={handleFluidIssueClick}
                 showPipeDiameters={diagram.settings.showPipeDiameters !== false}
                 lang={lang}
@@ -1550,6 +1553,45 @@ export function CanvasView({ svgRefOut, smartView = "all" }: { svgRefOut: React.
               pointerEvents="none"
             />
           )}
+          {/* 结构诊断角标独立置顶：避免被管路的透明命中区覆盖，点击后直达对应建议。 */}
+          <g data-ui="1" className="fp-diagnostic-markers">
+            {diagram.nodes.filter((node) => visibleNodeIds.has(node.id)).map((node) => {
+              const lint = structLint.nodeMsg.get(node.id);
+              if (!lint || !showsDiagnosticMarker(lint.severity)) return null;
+              return (
+                <g
+                  key={`diagnostic-node-${node.id}`}
+                  transform={`translate(${node.x - 6} ${node.y + node.height - 2})`}
+                  style={{ cursor: "pointer" }}
+                  onMouseDown={(e) => { e.stopPropagation(); openAdviceAndFocus(node.id); }}
+                >
+                  <circle r={9} fill="#d64545" stroke="#ffffff" strokeWidth={1.6} />
+                  <text y={4} textAnchor="middle" fontSize={12} fontWeight={800} fill="#ffffff" fontFamily="system-ui, sans-serif" pointerEvents="none">!</text>
+                  <title>{lint.message}</title>
+                </g>
+              );
+            })}
+            {diagram.pipes.filter((pipe) => visiblePipeIds.has(pipe.id)).map((pipe) => {
+              const lint = structLint.pipeMsg.get(pipe.id);
+              const points = pipePtsById.get(pipe.id);
+              if (!lint || !points || !showsDiagnosticMarker(lint.severity)) return null;
+              const mid = pointAtLength(points, polylineLength(points) / 2);
+              const wallW = pipe.visualDiameter + 5;
+              const labelY = pipeEffectiveDisabled(pipe, diagram.nodes) ? mid.pt.y : mid.pt.y - wallW * 0.7 - 4;
+              return (
+                <g
+                  key={`diagnostic-pipe-${pipe.id}`}
+                  transform={`translate(${mid.pt.x + 30} ${labelY})`}
+                  style={{ cursor: "pointer" }}
+                  onMouseDown={(e) => { e.stopPropagation(); openAdviceAndFocus(pipe.id); }}
+                >
+                  <circle r={9} fill="#d64545" stroke="#ffffff" strokeWidth={1.6} />
+                  <text y={4} textAnchor="middle" fontSize={12} fontWeight={800} fill="#ffffff" fontFamily="system-ui, sans-serif" pointerEvents="none">!</text>
+                  <title>{lint.message}</title>
+                </g>
+              );
+            })}
+          </g>
         </g>
       </svg>
       {/* 标签就地编辑输入框（HTML overlay，位置与标签对齐） */}

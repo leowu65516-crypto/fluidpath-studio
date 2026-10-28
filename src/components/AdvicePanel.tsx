@@ -16,7 +16,7 @@ import type { Diagram } from "../types";
  * - 「一键修改 / 确认 / 撤回修改」三步操作；每条建议附「为什么」教学解释
  * - 一键导出 Markdown 诊断报告（含验收结果）
  */
-export function AdvicePanel({ onClose }: { onClose: () => void }) {
+export function AdvicePanel({ onClose, focusRequest }: { onClose: () => void; focusRequest?: { elementId?: string; view?: "overview" | "list"; revision: number } }) {
   const { diagram, ui } = useAppState();
   const { t, lang } = useT();
   const [view, setView] = useState<"overview" | "list">("overview");
@@ -27,6 +27,7 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
   const [filter, setFilter] = useState<"all" | "error" | "warning" | "info">("all");
   const listRef = useRef<HTMLDivElement>(null);
   const undoSnapshots = useRef(new Map<string, Diagram>());
+  const handledFocusRevision = useRef(0);
 
   const inScenario = !!ui.scenario;
 
@@ -132,6 +133,24 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
     }
   }
 
+  // 从画布角标或状态栏进入时，自动展开问题列表并定位到首个关联建议。
+  useEffect(() => {
+    if (!focusRequest?.revision || handledFocusRevision.current === focusRequest.revision) return;
+    handledFocusRevision.current = focusRequest.revision;
+    if (focusRequest.view) setView(focusRequest.view);
+    const elementId = focusRequest.elementId;
+    if (!elementId) return;
+    const target = pending.find((item) => item.elementIds.includes(elementId));
+    if (target) {
+      setFilter("all");
+      setView("list");
+      focus(target);
+      requestAnimationFrame(() => listRef.current?.querySelector(`[data-advice-id="${target.id}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    }
+    // `all` changes only with the drawing; revision makes repeated clicks on one marker intentional.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.revision, all]);
+
   const selectedIds = new Set([...ui.selection.nodes, ...ui.selection.pipes]);
   const activeId = pending.find((a) => a.elementIds.some((id) => selectedIds.has(id)))?.id ?? null;
   useEffect(() => {
@@ -169,7 +188,7 @@ export function AdvicePanel({ onClose }: { onClose: () => void }) {
           <button className="btn" onClick={() => revert(a)}>↩ {t("撤回修改")}</button>
         ) : (
           <>
-            {a.fix && <button className="btn" onClick={() => confirm(a)}>✓ {t("一键修改")}</button>}
+            {a.fix ? <button className="btn" onClick={() => confirm(a)}>✓ {t("一键修改")}</button> : <button className="btn ghost" onClick={() => focus(a)}>⌖ {t("定位画布")}</button>}
             <button className="btn ghost" onClick={() => mark(a.id)}>✓ {t("确认")}</button>
           </>
         )}

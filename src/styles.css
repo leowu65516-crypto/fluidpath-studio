@@ -802,6 +802,18 @@ body {
   gap: 3px;
 }
 
+.insp-next-action {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+.insp-next-action.issue { border-color: var(--danger); background: var(--error-surface); }
+.insp-next-action strong { color: var(--text); font-size: 13px; }
+.insp-next-action span { color: var(--text-dim); font-size: 11.5px; line-height: 1.45; }
+
 .teaching-lock {
   font-size: 11px;
   opacity: 0.86;
@@ -1833,6 +1845,23 @@ body[data-theme="dark"] .welcome-overlay {
   box-shadow: 0 8px 32px rgba(0,0,0,0.22); padding: 14px;
   font-family: system-ui, sans-serif; display: flex; flex-direction: column; gap: 10px;
 }
+/* 右栏内嵌变体：不再浮动，彻底避免盖住检查器/智能绘图面板 */
+.cond-panel-embedded {
+  position: static;
+  top: auto;
+  right: auto;
+  width: 320px;
+  flex-shrink: 0;
+  height: 100%;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--panel);
+  overflow-y: auto;
+  padding: 14px 14px 24px;
+  z-index: auto;
+}
 .cond-panel-head { display: flex; align-items: center; justify-content: space-between; }
 .cond-panel-head h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
 .cond-panel-actions, .scenario-panel-actions { display: flex; align-items: center; gap: 2px; }
@@ -2237,6 +2266,16 @@ body[data-theme="dark"] .welcome-overlay {
 .gif-step-row input { width: 68px; min-width: 0; padding: 4px 5px; font-variant-numeric: tabular-nums; }
 .gif-step-row span { color: var(--text-dim); font-size: 11px; }
 .gif-transition-row { margin-top: 2px; }
+.gif-timing-details { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; background: var(--surface); }
+.gif-timing-details summary { color: var(--text-dim); cursor: pointer; font-size: 11.5px; font-weight: 650; }
+.gif-timing-details[open] summary { margin-bottom: 8px; color: var(--text); }
+.gif-advanced-toggle { align-self: flex-start; font-size: 11.5px; padding: 5px 9px; }
+.export-dialog.gif-simple:not(.gif-advanced-open) [data-export-group="canvas"],
+.export-dialog.gif-simple:not(.gif-advanced-open) [data-export-group="text"],
+.export-dialog.gif-simple:not(.gif-advanced-open) [data-export-group="textcats"],
+.export-dialog.gif-simple:not(.gif-advanced-open) [data-export-group="legend"],
+.export-dialog.gif-simple:not(.gif-advanced-open) [data-export-group="textlayer"],
+.export-dialog.gif-simple:not(.gif-advanced-open) [data-export-group="output"] { display: none; }
 
 @media (max-width: 680px) {
   .export-dialog { width: 100vw; height: 100vh; border-radius: 0; }
@@ -2791,6 +2830,10 @@ button.smart-eng-item:hover { border-color: var(--accent); }
 .smart-zone-name { flex: 1; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .smart-overlap-list { margin: 4px 0; }
 .smart-overlap-list .smart-panel-title { color: #c97a1f; }
+
+/* 视图切换（只看主链 / 显示全部）的交叉淡化：条件渲染没有退场元素，只能整层过渡 */
+.canvas-wrap svg.main-canvas { transition: opacity var(--motion-base) var(--ease-out-soft); }
+.canvas-wrap.view-fading svg.main-canvas { opacity: 0.15; }
 
 /* ===== 底部动作条（可撤销整理 / 重排预览确认） ===== */
 .action-bar {

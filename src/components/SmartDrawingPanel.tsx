@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { updateDiagram, useAppState, blinkElements, smartTidyPipes, previewRerouteAll, setRoutePreview } from "../store";
+import { updateDiagram, useAppState, blinkElements, smartTidyPipes, previewRerouteAll, setRoutePreview, toastWithFocus } from "../store";
 import { useT } from "../i18n";
 import { PromptDialog } from "./PromptDialog";
 import { findPipeOverlaps } from "../smart-draw/overlap";
@@ -79,7 +79,7 @@ export function SmartDrawingPanel({
       toast(t("未发现管路重合，无需整理"));
       return;
     }
-    toast(`${t("已修复 {n} 处管路重合").replace("{n}", String(r.fixed))} · ${t("保留 {n} 条手工布线").replace("{n}", String(r.untouchedManual))}`);
+    toastWithFocus(`${t("已修复 {n} 处管路重合").replace("{n}", String(r.fixed))} · ${t("保留 {n} 条手工布线").replace("{n}", String(r.untouchedManual))}`, r.affected);
   }
 
   function rerouteAll() {

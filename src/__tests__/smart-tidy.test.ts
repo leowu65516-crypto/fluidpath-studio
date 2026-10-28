@@ -113,3 +113,23 @@ describe("重排预览与曲线管跳过", () => {
     expect(kept.points).toEqual([{ x: 10, y: 20 }]);
   });
 });
+
+describe("批量操作反馈（P2）", () => {
+  beforeEach(() => {
+    loadDiagram({ ...SAMPLES[0].data, id: `focus-${Math.random().toString(36).slice(2)}` });
+  });
+
+  it("智能整理返回涉及的管 id，供 toast 定位闪烁", () => {
+    const r = smartTidyPipes();
+    expect(Array.isArray(r.affected)).toBe(true);
+    expect(r.affected.length).toBeGreaterThan(0);
+    for (const id of r.affected) expect(store.get().diagram.pipes.some((p) => p.id === id)).toBe(true);
+  });
+
+  it("重排全部返回受影响管 id，且不含曲线管", () => {
+    updateDiagramForTest((d) => { d.pipes[0].routing = "curved"; });
+    const r = rerouteAllPipes();
+    expect(r.affected.length).toBeGreaterThan(0);
+    expect(r.affected).not.toContain(store.get().diagram.pipes[0].id);
+  });
+});

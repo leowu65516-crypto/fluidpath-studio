@@ -14,6 +14,7 @@ function pdfBlockedMessage(): string {
 }
 import { parseDiagnosticProfile } from "./fault-codes/profile";
 import { flowExportEntry } from "./flow";
+import { exportCanvasBackground } from "./canvasTheme";
 
 /** Current diagram JSON schema. Keep this single source of truth for exports, migration and reports. */
 export const CURRENT_DIAGRAM_SCHEMA_VERSION = 3;
@@ -172,6 +173,8 @@ export interface ExportOptions {
   saveTextToDiagram: boolean;
   /** 暗色导出（元素色映射暗色板，背景自动深色） */
   darkMode: boolean;
+  /** 符号风格：follow=跟随图纸 / teaching / engineering（导出时临时切换，不写回图纸） */
+  symbolProfile: "follow" | "teaching" | "engineering";
   /** GIF：帧间隔 ms（默认约 66 = 15fps） */
   gifFrameDelay: number;
   /** GIF 演示步骤间的交叉切换时长 ms；0 表示直接切换。 */
@@ -193,6 +196,7 @@ export const EXPORT_DEFAULTS: Omit<ExportOptions, "format" | "lang"> = {
   dateStamp: false,
   saveTextToDiagram: false,
   darkMode: false,
+  symbolProfile: "follow",
   gifFrameDelay: 66,
   gifStepTransitionMs: 320,
   textLayerSizes: {},
@@ -497,7 +501,7 @@ function appendExportNodes(clone: SVGSVGElement, extra: DiagramNode[]) {
 }
 
 
-function buildExportClone(svgEl: SVGSVGElement, diagram: Diagram, transparent = false): { clone: SVGSVGElement; w: number; h: number } {
+function buildExportClone(svgEl: SVGSVGElement, diagram: Diagram, transparent = false, darkMode = false): { clone: SVGSVGElement; w: number; h: number } {
   const bbox = contentBBox(diagram);
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   preserveExportText(clone);
@@ -516,7 +520,7 @@ function buildExportClone(svgEl: SVGSVGElement, diagram: Diagram, transparent = 
     bg.setAttribute("y", String(bbox.y));
     bg.setAttribute("width", String(bbox.w));
     bg.setAttribute("height", String(bbox.h));
-    bg.setAttribute("fill", diagram.settings.background || "#ffffff");
+    bg.setAttribute("fill", exportCanvasBackground(diagram.settings, darkMode));
     clone.insertBefore(bg, clone.firstChild);
   }
   return { clone, w: Math.round(bbox.w), h: Math.round(bbox.h) };
@@ -558,7 +562,7 @@ function rasterizeAndDownload(
     canvas.height = h * scale;
     const ctx = canvas.getContext("2d")!;
     if (!transparent) {
-      ctx.fillStyle = bgColor || diagram.settings.background || "#ffffff";
+      ctx.fillStyle = bgColor || exportCanvasBackground(diagram.settings, false);
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -657,7 +661,7 @@ export async function exportGIF(
     const xml = new XMLSerializer().serializeToString(clone);
     const img = await rasterize(xml, w, h);
     if (!transparent) {
-      ctx.fillStyle = diagram.settings.background || "#ffffff";
+      ctx.fillStyle = exportCanvasBackground(diagram.settings, false);
       ctx.fillRect(0, 0, outW, outH);
     } else {
       ctx.clearRect(0, 0, outW, outH);
@@ -679,9 +683,9 @@ export async function exportGIF(
 // ===== 导出对话框函数族（v1.18）：ExportDialog 专用 =====
 
 function backgroundColorOf(diagram: Diagram, opts: ExportOptions): string {
-  if (opts.darkMode) return "#141b24";
   if (opts.background === "white") return "#ffffff";
-  return diagram.settings.background || "#ffffff";
+  // 跟随主题的图纸：导出按导出对话框选择的主题取底色，保证「所见即所出」
+  return exportCanvasBackground(diagram.settings, opts.darkMode);
 }
 
 /** 组装导出 SVG：预览与落盘共用同一管线（数据副本 + 附加节点 + DOM 后处理 + 主题色） */
@@ -790,6 +794,7 @@ export async function exportGifWithOptions(
   const { clone } = (() => {
     const c = svgEl.cloneNode(true) as SVGSVGElement;
     prepareDiagnosticExport(c, opts);
+    preserveExportText(c);
     c.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
     const world = c.querySelector("[data-world='1']");
     if (world) world.removeAttribute("transform");
@@ -918,6 +923,7 @@ export async function exportGifSequenceWithOptions(
   const scenes: PreparedScene[] = sources.map((source) => {
     const clone = source.svg.cloneNode(true) as SVGSVGElement;
     prepareDiagnosticExport(clone, opts);
+    preserveExportText(clone);
     clone.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
     clone.querySelector("[data-world='1']")?.removeAttribute("transform");
     clone.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
@@ -1269,7 +1275,7 @@ export function buildSelectedSVG(svgEl: SVGSVGElement, diagram: Diagram, selecte
   const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
   bg.setAttribute("x", String(vx)); bg.setAttribute("y", String(vy));
   bg.setAttribute("width", String(vw)); bg.setAttribute("height", String(vh));
-  bg.setAttribute("fill", diagram.settings.background || "#ffffff");
+  bg.setAttribute("fill", exportCanvasBackground(diagram.settings, false));
   clone.insertBefore(bg, clone.firstChild);
   return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(clone)}`, w: Math.round(vw), h: Math.round(vh) };
 }
@@ -1285,7 +1291,7 @@ export function exportSelectedPNG(svgEl: SVGSVGElement, diagram: Diagram, select
     const canvas = document.createElement("canvas");
     canvas.width = w * scale; canvas.height = h * scale;
     const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = diagram.settings.background || "#ffffff";
+    ctx.fillStyle = exportCanvasBackground(diagram.settings, false);
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     URL.revokeObjectURL(url);

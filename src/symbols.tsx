@@ -1,7 +1,8 @@
-import type { DiagramNode, NodeType, Port, PortDirection, PortPosition, ShapeVariant } from "./types";
+import type { DiagramNode, NodeType, Port, PortDirection, PortPosition, ShapeVariant, SymbolProfile } from "./types";
 import { uid } from "./types";
 import { diaphragmPortLabel, diaphragmRouteLabel, diaphragmValveRoute } from "./diaphragmValve";
 import { portLocalPos } from "./geometry";
+import { EngineeringNodeSymbol, type SymbolSurface } from "./symbols-engineering";
 
 interface PortTemplate {
   position: PortPosition;
@@ -52,6 +53,11 @@ export function nodeCanvasLabel(node: DiagramNode, lang: "zh" | "en") {
   return lang === "en" && (node.label === def.label || node.label === "自定义" || node.label === "文本标签")
     ? nodeDisplayLabel(def, lang)
     : node.label;
+}
+
+/** Old diagrams deliberately resolve to the original teaching expression. */
+export function resolveSymbolProfile(profile?: SymbolProfile): SymbolProfile {
+  return profile === "engineering" ? "engineering" : "teaching";
 }
 
 export const NODE_DEFS: NodeDef[] = [
@@ -230,7 +236,8 @@ function CenterText({ node, w, h }: { node: DiagramNode; w: number; h: number })
 }
 
 /** 各设备的 2D 工业符号（在 0..w × 0..h 局部坐标系内绘制） */
-export function NodeSymbol({ node }: { node: DiagramNode }) {
+export function NodeSymbol({ node, profile = "teaching", surface = "canvas" }: { node: DiagramNode; profile?: SymbolProfile; surface?: SymbolSurface }) {
+  if (resolveSymbolProfile(profile) === "engineering") return <EngineeringNodeSymbol node={node} surface={surface} />;
   const { width: w, height: h, fill, stroke } = node;
   const sw = 2;
   const common = { fill, stroke, strokeWidth: sw } as const;
@@ -538,12 +545,13 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
     case "pressureRegulator": {
       const cy = h * 0.72;
       return (
-        <g>
+        <g data-symbol-feature="teaching-pressure-regulator">
           {/* 阀体（上下三角，与截止阀一致） */}
           <path d={`M 2 ${cy - 16} L ${w / 2} ${cy} L 2 ${cy + 16} Z`} {...common} />
           <path d={`M ${w - 2} ${cy - 16} L ${w / 2} ${cy} L ${w - 2} ${cy + 16} Z`} {...common} />
           {/* 弹簧 + 调压旋钮 */}
           <line x1={w / 2} y1={cy} x2={w / 2} y2={h * 0.3} stroke={stroke} strokeWidth={sw} />
+          <path d={`M ${w / 2 - 8} ${h * 0.31} l 5 -4 l -10 -5 l 10 -5 l -5 -4`} fill="none" stroke={stroke} strokeWidth={1.25} strokeLinejoin="round" />
           <path d={`M ${w / 2 - 7} ${h * 0.3} L ${w / 2 + 7} ${h * 0.3} L ${w / 2 + 5} ${h * 0.2} L ${w / 2 - 5} ${h * 0.2} Z`} {...common} />
           {/* 减压箭头（下游压力降低） */}
           <path d={`M ${w - 10} ${cy - 8} L ${w - 2} ${cy} L ${w - 10} ${cy + 8}`} fill="none" stroke="#c94f3d" strokeWidth={1.6} strokeLinejoin="round" />
@@ -562,7 +570,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
       }
       zig.push(`L ${cx} 6`);
       return (
-        <g>
+        <g data-symbol-feature="teaching-safety-spring">
           <path d={`M ${cx - 14} ${h - 2} L ${cx} ${vy} L ${cx + 14} ${h - 2} Z`} {...common} />
           <path d={`M ${cx} ${vy} L ${w - 4} ${vy - 12}`} stroke={stroke} strokeWidth={sw} fill="none" />
           <path d={`M ${w - 11} ${vy - 19} L ${w - 3} ${vy - 12} L ${w - 13} ${vy - 8}`} fill={stroke} stroke="none" />
@@ -574,22 +582,14 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
     case "opv": {
       const cx = w / 2;
       const vy = h * 0.66;
-      const zig: string[] = [`M ${cx} ${vy - 8}`];
-      const n = 4;
-      for (let i = 0; i < n; i++) {
-        const y = vy - 10 - ((vy - 16) / n) * (i + 0.5);
-        zig.push(`L ${cx + (i % 2 === 0 ? 8 : -8)} ${y}`);
-      }
-      zig.push(`L ${cx} 8`);
       return (
-        <g>
+        <g data-symbol-feature="teaching-opv-relief">
           <path d={`M ${cx - 13} ${h - 2} L ${cx} ${vy} L ${cx + 13} ${h - 2} Z`} {...common} />
           <path d={`M ${cx} ${vy} L ${w - 4} ${vy - 10}`} stroke={stroke} strokeWidth={sw} fill="none" />
           <path d={`M ${w - 10} ${vy - 16} L ${w - 3} ${vy - 10} L ${w - 12} ${vy - 6}`} fill={stroke} stroke="none" />
-          <path d={zig.join(" ")} fill="none" stroke={stroke} strokeWidth={1.7} strokeLinejoin="round" />
-          <line x1={cx - 9} y1={8} x2={cx + 9} y2={8} stroke={stroke} strokeWidth={sw + 0.5} strokeLinecap="round" />
-          {/* 旁通回流箭头提示 */}
-          <path d={`M ${w - 10} ${vy + 6} h 6 M ${w - 7} ${vy + 3} l 3 3 l -3 3`} fill="none" stroke="#c94f3d" strokeWidth={1.4} />
+          {/* OPV 是受控回流/泄压件；保留矩形调压腔，不画安全阀弹簧。 */}
+          <rect x={cx - 11} y={8} width={22} height={14} rx={2} fill={fill} stroke={stroke} strokeWidth={1.6} />
+          <path d={`M ${cx} 22 V ${vy - 9} M ${cx - 4} ${vy - 15} L ${cx} ${vy - 9} L ${cx + 4} ${vy - 15}`} fill="none" stroke="#c94f3d" strokeWidth={1.5} />
         </g>
       );
     }
@@ -842,8 +842,8 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <path d={`M ${cx - 7} 14 L ${cx + 7} 14 L ${cx + 4.5} ${h * 0.72} L ${cx - 4.5} ${h * 0.72} Z`} {...common} strokeLinejoin="round" />
           {/* 出水嘴（扩口） */}
           <path d={`M ${cx - 4.5} ${h * 0.72} L ${cx + 4.5} ${h * 0.72} L ${cx + 8} ${h - 6} L ${cx + 8} ${h - 2} L ${cx - 8} ${h - 2} L ${cx - 8} ${h - 6} Z`} {...common} strokeLinejoin="round" />
-          {/* 热水标识点 */}
-          <circle cx={cx} cy={h * 0.4} r={3.2} fill="#e2542f" stroke="none" opacity={0.85} />
+          {/* 水滴是形状识别，不依赖介质颜色。 */}
+          <path data-symbol-feature="hot-water-drop" d={`M ${cx} ${h * 0.3} C ${cx + 5} ${h * 0.37}, ${cx + 5} ${h * 0.46}, ${cx} ${h * 0.49} C ${cx - 5} ${h * 0.46}, ${cx - 5} ${h * 0.37}, ${cx} ${h * 0.3} Z`} fill="none" stroke={stroke} strokeWidth={1.35} />
         </g>
       );
     }
@@ -861,8 +861,8 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <path d={`M ${cx - 6} ${h - 20} L ${cx + 6} ${h - 20} L ${cx + 5} ${h - 4} Q ${cx + 5} ${h - 2} ${cx + 3} ${h - 2} L ${cx - 3} ${h - 2} Q ${cx - 5} ${h - 2} ${cx - 5} ${h - 4} Z`} {...common} strokeLinejoin="round" />
           <circle cx={cx - 2.4} cy={h - 6.5} r={1.1} fill={stroke} stroke="none" opacity={0.8} />
           <circle cx={cx + 2.4} cy={h - 6.5} r={1.1} fill={stroke} stroke="none" opacity={0.8} />
-          {/* 蒸汽标识点 */}
-          <circle cx={cx} cy={h * 0.45} r={3} fill="#ef8aa0" stroke="none" opacity={0.9} />
+          {/* 蒸汽波纹是形状识别，不依赖颜色。 */}
+          {[0, 1, 2].map((i) => <path key={i} data-symbol-feature="steam-wave" d={`M ${cx - 7 + i * 5} ${h * 0.48} q 3 -4 0 -8`} fill="none" stroke={stroke} strokeWidth={1.2} strokeLinecap="round" />)}
         </g>
       );
     }
@@ -907,8 +907,8 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           ) : (
             <path d={`M ${cx - 5} ${bodyH + 12} L ${cx + 5} ${bodyH + 12} L ${cx + 6.5} ${h - 8} L ${cx + 6.5} ${h - 2} L ${cx - 6.5} ${h - 2} L ${cx - 6.5} ${h - 8} Z`} {...common} strokeLinejoin="round" />
           )}
-          {/* 咖啡标识点 */}
-          <circle cx={cx} cy={bodyH * 0.72} r={3} fill="#7b4a2d" stroke="none" opacity={0.85} />
+          {/* 双短线让咖啡出口在无颜色打印时仍有区别。 */}
+          <path data-symbol-feature="coffee-mark" d={`M ${w * 0.34} ${bodyH * 0.68} H ${w * 0.66} M ${w * 0.34} ${bodyH * 0.78} H ${w * 0.66}`} fill="none" stroke={stroke} strokeWidth={1.2} />
         </g>
       );
     }
@@ -930,7 +930,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           ) : (
             <path d={`M ${cx - 5} ${bodyH + 12} L ${cx + 5} ${bodyH + 12} L ${cx + 6.5} ${h - 8} L ${cx + 6.5} ${h - 2} L ${cx - 6.5} ${h - 2} L ${cx - 6.5} ${h - 8} Z`} {...common} strokeLinejoin="round" />
           )}
-          <circle cx={cx} cy={bodyH * 0.72} r={3} fill="#f3ead6" stroke="none" opacity={0.85} />
+          <path data-symbol-feature="milk-drop" d={`M ${cx} ${bodyH * 0.58} C ${cx + 6} ${bodyH * 0.68}, ${cx + 6} ${bodyH * 0.84}, ${cx} ${bodyH * 0.88} C ${cx - 6} ${bodyH * 0.84}, ${cx - 6} ${bodyH * 0.68}, ${cx} ${bodyH * 0.58} Z`} fill="none" stroke={stroke} strokeWidth={1.25} />
         </g>
       );
     }
@@ -944,7 +944,7 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           <line x1={w * 0.2} y1={bodyH * 0.42} x2={w * 0.8} y2={bodyH * 0.42} stroke={stroke} strokeWidth={1.2} opacity={0.4} />
           <path d={`M ${w * 0.3} ${bodyH} L ${w * 0.7} ${bodyH} L ${w * 0.62} ${bodyH + 12} L ${w * 0.38} ${bodyH + 12} Z`} {...common} strokeLinejoin="round" />
           <path d={`M ${cx - 5} ${bodyH + 12} L ${cx + 5} ${bodyH + 12} L ${cx + 6.5} ${h - 8} L ${cx + 6.5} ${h - 2} L ${cx - 6.5} ${h - 2} L ${cx - 6.5} ${h - 8} Z`} {...common} strokeLinejoin="round" />
-          <circle cx={cx} cy={bodyH * 0.72} r={3} fill="#2f7fd6" stroke="none" opacity={0.85} />
+          {[0, 1, 2].map((i) => <path key={i} data-symbol-feature="hot-water-wave" d={`M ${w * 0.28} ${bodyH * 0.55 + i * 6} q ${w * 0.11} -4 ${w * 0.22} 0 q ${w * 0.11} 4 ${w * 0.22} 0`} fill="none" stroke={stroke} strokeWidth={1.05} />)}
         </g>
       );
     }
@@ -1030,9 +1030,8 @@ export function NodeSymbol({ node }: { node: DiagramNode }) {
           })}
           <line x1={cx} y1={cy} x2={cx + r * 0.55} y2={cy - r * 0.5} stroke="#c94f3d" strokeWidth={2.2} strokeLinecap="round" />
           <circle cx={cx} cy={cy} r={2.6} fill={stroke} />
-          {/* 电开关触点（右下） */}
-          <circle cx={cx + r * 0.6} cy={cy + r * 0.6} r={2.4} fill="#3fae6a" stroke="none" />
-          <path d={`M ${cx + r * 0.6 - 5} ${cy + r * 0.6} h 3.4 M ${cx + r * 0.6 + 1.6} ${cy + r * 0.6} h 3.4`} stroke="#3fae6a" strokeWidth={1.4} />
+          {/* 电开关触点：以形状而非绿色状态色区分压力表。 */}
+          <g data-symbol-feature="pressure-switch-contact"><circle cx={cx + r * 0.6} cy={cy + r * 0.6} r={2.2} fill={fill} stroke={stroke} strokeWidth={1.2} /><path d={`M ${cx + r * 0.6 - 6} ${cy + r * 0.6} h 3.6 M ${cx + r * 0.6 + 2.4} ${cy + r * 0.6} h 4`} stroke={stroke} strokeWidth={1.5} /></g>
         </g>
       );
     }

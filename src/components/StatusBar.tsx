@@ -14,6 +14,9 @@ export function StatusBar() {
   const { t } = useT();
   const sel = ui.selection;
   const diag = useMemo(() => diagnosisSummary(diagram), [diagram]);
+  const diagnosticMarkerMode = diagram.settings.diagnosticMarkerMode ?? "all";
+  const visibleWarnings = diagnosticMarkerMode === "all" ? diag.warnings : 0;
+  const showDiagnosticSummary = diagnosticMarkerMode !== "hidden" && (diag.errors > 0 || visibleWarnings > 0);
   let selText = t("未选中对象");
   if (sel.nodes.length === 1) {
     const n = diagram.nodes.find((nn) => nn.id === sel.nodes[0]);
@@ -37,16 +40,15 @@ export function StatusBar() {
         <span className="sb-item sb-zoom">{t("缩放")} {Math.round(ui.zoom * 100)}%</span>
         <span className="sb-item sb-hint" title={`${t("Ctrl+E 快速导出")} ${lastExportLabel()}`}>⌨ Ctrl+E → {lastExportLabel()}</span>
         <span className="sb-item sb-counts">{t("节点")} {diagram.nodes.length} · {t("管路")} {diagram.pipes.length}</span>
-        <span
+        {showDiagnosticSummary && <span
           className="sb-item sb-diag-click"
-          title={t("结构问题计数（工况提示不参与）· 点击打开回路诊断")}
-          onClick={() => window.dispatchEvent(new CustomEvent("fluidpath:open-advice"))}
+          title={t("点击查看并定位结构问题")}
+          onClick={() => window.dispatchEvent(new CustomEvent("fluidpath:open-advice", { detail: { view: "list" } }))}
           style={{ cursor: "pointer" }}
         >
           {diag.errors > 0 && <span className="sb-error">⛔ {diag.errors}</span>}
-          {diag.warnings > 0 && <span className="sb-warning">⚠ {diag.warnings}</span>}
-          {diag.errors === 0 && diag.warnings === 0 && <span className="sb-success">✓ {t("正常")}</span>}
-        </span>
+          {visibleWarnings > 0 && <span className="sb-warning">⚠ {visibleWarnings}</span>}
+        </span>}
         <SaveStatusPill />
       </div>
     </div>

@@ -11,7 +11,7 @@ import { trackSmart } from "../smart-draw/telemetry";
  * 面向教学：① 调整当前状态 ② 输入名字点“记住” ③ 点方案里的“恢复”变回。
  * 保存后想干嘛，面板里直接写清楚。
  */
-export function ConditionPanel({ onClose }: { onClose: () => void }) {
+export function ConditionPanel({ onClose, embedded = false }: { onClose: () => void; embedded?: boolean }) {
   const { diagram, ui } = useAppState();
   const { t } = useT();
   const [name, setName] = useState("");
@@ -46,7 +46,7 @@ export function ConditionPanel({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="cond-panel" data-ui="1">
+    <div className={`cond-panel${embedded ? " cond-panel-embedded" : ""}`} data-ui="1">
       <div className="cond-panel-head">
         <h3>💾 {t("工况 · 完整状态")}</h3>
         <div className="cond-panel-actions">

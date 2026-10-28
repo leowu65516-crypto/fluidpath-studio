@@ -69,6 +69,9 @@ export type NodeType =
 /** 节点变体：自定义图形（rect/ellipse/diamond）或咖啡出口（single/double 出液口） */
 export type ShapeVariant = "rect" | "ellipse" | "diamond" | "triangle" | "single" | "double";
 
+/** Visual expression only. It never changes port semantics, topology or engine state. */
+export type SymbolProfile = "teaching" | "engineering";
+
 export interface DiagramNode {
   id: string;
   type: NodeType;
@@ -242,6 +245,8 @@ export interface DiagramSettings {
   diagnosticProfile?: DiagnosticProfile;
   showGrid: boolean;
   background: string;
+  /** 画布底色跟随明暗主题（只影响显示与导出底色，不回写 background） */
+  backgroundFollowTheme?: boolean;
   globalAnimationPlaying: boolean;
   crossoverHops?: boolean;
   layers?: { id: string; name: string; visible: boolean }[];
@@ -265,12 +270,16 @@ export interface DiagramSettings {
   /** 管路中段标签：是否显示管径（DNxx），与编号可分开开关。 */
   showPipeDiameters?: boolean;
   showFluidColors?: boolean;
+  /** 诊断角标的纯显示筛选；不改变诊断结果、工程状态或验收。 */
+  diagnosticMarkerMode?: "all" | "errors" | "hidden";
   /** 全局元器件名称字号（单个元件未设置专属字号时使用）。 */
   nodeLabelFontSize?: number;
   /** 背景样式：点阵/方格/纯色 */
   backgroundType?: "dot" | "grid" | "solid";
   /** 记录保存时的应用版本（预留：版本历史/兼容迁移用） */
   appVersion?: string;
+  /** 图纸级符号表达。缺失时按 teaching 处理，确保历史 JSON 的原样显示。 */
+  symbolProfile?: SymbolProfile;
   /** 工况快照：命名的工程/教学显示状态；以保存时的当前设置为准，随图纸保存/分享。 */
   workConditions?: WorkCondition[];
   /** 智能绘图分区提示；只影响画布辅助标注，不影响工程判定。 */
@@ -331,7 +340,7 @@ export type WorkConditionDisplaySettings = Pick<DiagramSettings,
   "showGrid" | "background" | "globalAnimationPlaying" | "crossoverHops" | "layers" |
   "currentLayerId" | "snapToGrid" | "showAlignmentGuides" | "flowScale" |
   "showFluidLabels" | "showNodeLabels" | "showPipeLabels" | "showPipeDiameters" |
-  "showFluidColors" | "nodeLabelFontSize" | "backgroundType"
+  "showFluidColors" | "diagnosticMarkerMode" | "nodeLabelFontSize" | "backgroundType"
 >;
 
 export interface WorkCondition {
@@ -426,6 +435,8 @@ export interface UIState {
   blink?: { ids: string[]; stamp: number } | null;
   /** 因果链路径：停流根因 → 该管的管路链在画布上点亮（橙色发光路径） */
   chainPath?: { pipeIds: string[]; stamp: number } | null;
+  /** 导出面板打开时临时关闭视口裁剪，保证快照包含完整图纸；不写入 JSON。 */
+  exportFullRender?: boolean;
 }
 
 export interface AppState {

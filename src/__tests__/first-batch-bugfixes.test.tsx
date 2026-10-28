@@ -11,7 +11,8 @@ import { Inspector } from "../components/Inspector";
 import { StatusBar } from "../components/StatusBar";
 import { LangProvider } from "../i18n";
 import { runValidationCase } from "../validation";
-import { createPipe, loadDiagram, reconnectPipeEndpoint, selectPipe, setMouseWorld, setPipesForceStop, setSelection, setSelectionDisabled, setWorkMode, store, undo, updateDiagram } from "../store";
+import { createPipe, loadDiagram, reconnectPipeEndpoint, selectPipe, setMouseWorld, setPipesForceStop, setSelection, setSelectionDisabled, setUI, setWorkMode, store, undo, updateDiagram } from "../store";
+import { diagnosisSummary } from "../diagnostics";
 
 function fixture(): { diagram: Diagram; inlet: DiagramNode; outlet: DiagramNode; inlet2: DiagramNode; outlet2: DiagramNode; pump: DiagramNode } {
   const diagram = createEmptyDiagram();
@@ -173,5 +174,24 @@ describe("首批修复：画布状态、性能与定位", () => {
     const controls = Array.from(teachingSection!.querySelectorAll<HTMLButtonElement>(".seg button"));
     expect(controls).toHaveLength(3);
     expect(controls.every(button => button.disabled)).toBe(true);
+  });
+
+  it("截图隐藏诊断标记不改变诊断结果，导出完整渲染仍保留视口外元件", () => {
+    const { diagram, inlet, outlet } = fixture();
+    outlet.x = 6000;
+    diagram.nodes = [inlet, outlet];
+    loadDiagram(diagram);
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (fn: FrameRequestCallback) => { callbacks.push(fn); return callbacks.length; });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const { container } = render(<LangProvider><CanvasView svgRefOut={{ current: null }} /></LangProvider>);
+    const before = diagnosisSummary(store.get().diagram);
+    expect(before.infos).toBeGreaterThanOrEqual(0);
+    act(() => updateDiagram((d) => { d.settings.diagnosticMarkerMode = "hidden"; }, false));
+    expect(diagnosisSummary(store.get().diagram)).toEqual(before);
+    expect(container.querySelectorAll("g[data-node-id]").length).toBeLessThan(2);
+    act(() => setUI({ exportFullRender: true }));
+    expect(container.querySelectorAll("g[data-node-id]").length).toBe(2);
+    act(() => setUI({ exportFullRender: false }));
   });
 });

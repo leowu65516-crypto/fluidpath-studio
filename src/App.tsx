@@ -17,13 +17,15 @@ import { FaultCodePanel } from "./components/FaultCodePanel";
 import { AiDrawingPanel } from "./components/AiDrawingPanel";
 import { SmartDrawingWizard } from "./components/SmartDrawingWizard";
 import { SmartDrawingPanel } from "./components/SmartDrawingPanel";
+import { ConditionPanel } from "./components/ConditionPanel";
+import { smartViewProjection } from "./smart-draw/view";
 import { SmartBlockDialog } from "./components/SmartBlockDialog";
 import { SaveNudge, type SaveNudgeKind } from "./components/SaveNudge";
 import { selectFaultCodes, setSimulationRunning } from "./fault-codes/session";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, setWorkMode, useAppState } from "./store";
-import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath, insertSmartDrawing, fitToScreen, fitToNodeIds } from "./store";
+import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath, insertSmartDrawing, fitToScreen, fitToNodeIds, toastWithFocus } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave, recordSavedAt } from "./store";
 import type { AutosaveVersion } from "./store";
 import { decompressDiagram, parseDiagramJSON, saveJSONFile } from "./export";
@@ -55,6 +57,13 @@ export default function App() {
   const [showScenario, setShowScenario] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
+  const [showConditions, setShowConditions] = useState(false);
+  // 打开工况前记录右栏原面板，关掉工况时恢复，避免"开一次工况就丢了智能绘图/诊断面板"
+  const [panelBeforeConditions, setPanelBeforeConditions] = useState<"smart" | "ai" | "advice" | null>(null);
+  // 视图切换的交叉淡化：先淡出 → 切换投影 → 淡入（条件渲染没有退场元素，只能整层过渡）
+  const [viewFading, setViewFading] = useState(false);
+  const viewFadeTimer = useRef<number | undefined>();
+  const [adviceFocus, setAdviceFocus] = useState<{ elementId?: string; view?: "overview" | "list"; revision: number }>({ revision: 0 });
   const [showAi, setShowAi] = useState(false);
   const [showSmartWizard, setShowSmartWizard] = useState(false);
   const [showSmartPanel, setShowSmartPanel] = useState(false);
@@ -73,9 +82,13 @@ export default function App() {
     } catch { return { template: false, insert: false, save: false }; }
   });
   const [gateOk, setGateOk] = useState(() => !shouldGate() || gateAuthed());
-  // 状态栏诊断徽章点击 → 打开回路诊断面板
+  // 诊断入口可指定问题对象：打开后直接落在可处理的条目，而不是只显示总览。
   useEffect(() => {
-    const onOpen = () => setShowAdvice(true);
+    const onOpen = (event: Event) => {
+      const detail = (event as CustomEvent<{ elementId?: string; view?: "overview" | "list" }>).detail;
+      setAdviceFocus((previous) => ({ elementId: detail?.elementId, view: detail?.view, revision: previous.revision + 1 }));
+      setShowAdvice(true);
+    };
     window.addEventListener("fluidpath:open-advice", onOpen);
     return () => window.removeEventListener("fluidpath:open-advice", onOpen);
   }, []);
@@ -363,12 +376,18 @@ export default function App() {
   }
 
   function handleSmartInserted(result: SmartBuildResult, insertMode: "replace" | "append") {
-    insertSmartDrawing(result, insertMode);
+    const inserted = insertSmartDrawing(result, insertMode);
     setStartStep("insert");
     setShowSmartWizard(false);
     setShowSmartPanel(true);
     // 插入后保留完整图纸；先用主链视口聚焦，不删减元器件，缩略图与画布内容始终一致。
     setSmartView("all");
+    if (inserted.pipeIds.length) {
+      toastWithFocus(
+        t("已插入 {n} 个元件、{m} 条管路").replace("{n}", String(inserted.nodeIds.length)).replace("{m}", String(inserted.pipeIds.length)),
+        inserted.pipeIds
+      );
+    }
     setShowAdvice(false);
     setShowAi(false);
     window.setTimeout(() => {
@@ -380,6 +399,55 @@ export default function App() {
       if (mainIds.length) fitToNodeIds(mainIds, svg?.clientWidth || 1200, svg?.clientHeight || 800, 1);
       else fitToScreen(svg?.clientWidth || 1200, svg?.clientHeight || 800);
     }, 120);
+  }
+
+  /**
+   * 切换「只看主链 / 显示全部」。
+   * 1) 整层淡出（--motion-base 的一半，视觉上够顺又不拖沓）
+   * 2) 切换投影并自动取景到主链包围盒
+   * 3) 淡入
+   */
+  function toggleSmartView() {
+    const reduce = typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const next = smartView === "main" ? "all" : "main";
+    const apply = () => {
+      setSmartView(next);
+      if (next === "main") {
+        const projection = smartViewProjection(appState.diagram.nodes, appState.diagram.pipes, "main", appState.diagram.settings.smartAccessoriesVisible !== false);
+        const ids = projection.visibleNodes.map((n) => n.id);
+        const svg = svgRef.current;
+        if (ids.length) fitToNodeIds(ids, svg?.clientWidth || 1200, svg?.clientHeight || 800, 1.1);
+      }
+      setViewFading(false);
+    };
+    if (reduce) {
+      apply();
+      return;
+    }
+    if (viewFadeTimer.current !== undefined) window.clearTimeout(viewFadeTimer.current);
+    setViewFading(true);
+    viewFadeTimer.current = window.setTimeout(apply, 140);
+  }
+
+  useEffect(() => () => {
+    if (viewFadeTimer.current !== undefined) window.clearTimeout(viewFadeTimer.current);
+  }, []);
+
+  function openConditions() {
+    if (mode !== "edit") {
+      toast(t("工况面板只在编辑模式可用，请先切回编辑"));
+      return;
+    }
+    setShowConditions((v) => {
+      const next = !v;
+      if (next) {
+        setPanelBeforeConditions(showSmartPanel ? "smart" : showAi ? "ai" : showAdvice ? "advice" : null);
+        setShowSmartPanel(false);
+        setShowAi(false);
+        setShowAdvice(false);
+      }
+      return next;
+    });
   }
 
   function focusSmartGroup(kind: "main" | "accessories") {
@@ -402,15 +470,17 @@ export default function App() {
       setPendingBlock(block);
       return;
     }
-    insertSmartDrawing(block.build(), "append");
+    const inserted = insertSmartDrawing(block.build(), "append");
     trackSmart("block_insert", { block: block.id, anchored: "no" });
+    if (inserted.pipeIds.length) toastWithFocus(t("已插入「{name}」").replace("{name}", t(block.titleZh)), inserted.pipeIds);
     setShowSmartPanel(true);
   }
 
   function handleBlockInsert(anchorPortId: string | null) {
     if (!pendingBlock) return;
-    insertSmartDrawing(pendingBlock.build(), "append", anchorPortId ?? undefined, pendingBlock.medium);
+    const inserted = insertSmartDrawing(pendingBlock.build(), "append", anchorPortId ?? undefined, pendingBlock.medium);
     trackSmart("block_insert", { block: pendingBlock.id, anchored: anchorPortId ? "yes" : "no" });
+    if (inserted.pipeIds.length) toastWithFocus(t("已插入「{name}」").replace("{name}", t(pendingBlock.titleZh)), inserted.pipeIds);
     setPendingBlock(null);
     setShowSmartPanel(true);
   }
@@ -473,6 +543,18 @@ export default function App() {
     <FaultCodePanel onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }} />
   ) : mode === "verify" ? (
     <ValidationPanel onClose={() => setWorkMode("edit")} />
+  ) : showConditions ? (
+    <ConditionPanel
+      onClose={() => {
+        setShowConditions(false);
+        // 恢复打开工况前的那块面板（原来没有则回到检查器）
+        if (panelBeforeConditions === "smart") setShowSmartPanel(true);
+        else if (panelBeforeConditions === "ai") setShowAi(true);
+        else if (panelBeforeConditions === "advice") setShowAdvice(true);
+        setPanelBeforeConditions(null);
+      }}
+      embedded
+    />
   ) : showSmartPanel ? (
     <SmartDrawingPanel
       onClose={() => setShowSmartPanel(false)}
@@ -482,12 +564,12 @@ export default function App() {
       onFocusMain={() => focusSmartGroup("main")}
       onFocusAccessories={() => focusSmartGroup("accessories")}
       smartView={smartView}
-      onToggleSmartView={() => setSmartView((v) => v === "main" ? "all" : "main")}
+      onToggleSmartView={toggleSmartView}
     />
   ) : showAi ? (
     <AiDrawingPanel onClose={() => setShowAi(false)} />
   ) : showAdvice ? (
-    <AdvicePanel onClose={() => setShowAdvice(false)} />
+    <AdvicePanel onClose={() => setShowAdvice(false)} focusRequest={adviceFocus} />
   ) : (
     <Inspector collapsed={collapsed.inspector} onToggle={togglePanel("inspector")} />
   );
@@ -508,11 +590,11 @@ export default function App() {
             <span className="mode-banner-lock">{modeInfo.lock}</span>
           </div>
         )}
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenSmart={openSmartWizard} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => setShowScenario(true)} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenSmart={openSmartWizard} onOpenConditions={openConditions} conditionsOpen={showConditions} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <div className="canvas-anchor">
-          <CanvasView svgRefOut={svgRef} smartView={smartView} />
+          <CanvasView svgRefOut={svgRef} smartView={smartView} viewFading={viewFading} />
           {mode === "edit" && appState.diagram.nodes.length === 0 && appState.diagram.pipes.length === 0 && !showHelp && (
             <div className="canvas-empty-overlay" data-ui="1">
               <div className="canvas-empty-card">

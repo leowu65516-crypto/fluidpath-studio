@@ -1,11 +1,11 @@
-# FluidPath Studio 当前事实（v1.39.0）
+# FluidPath Studio 当前事实（v1.41.0）
 
 本文件是代码、图纸协议和交付说明的单一事实入口。版本发布或图纸协议变化时必须同步更新。
 
 ## 项目与版本
 
 - 项目路径：`/Users/leo/Documents/Fluidpath studio`
-- 应用版本：`1.39.0`
+- 应用版本：`1.41.0`
 - 当前图纸 Schema：`v3`（旧图纸按显式迁移注册表导入）
 - 当前 AI 协议：`fluidpath.ai-operations 0.2-draft`，目标 Schema `v3`，目录 `fluidpath-legacy-catalog/1`；外部模型规范见 [`docs/ai-protocol.md`](ai-protocol.md)
 - AI 能力边界：这是 v3 legacy 的受限结构化改图子集，不是完整 v4 语义协议，也不是流体求解器。AI 只能提出白名单结构变更（含新增/删除元件、连管/断管），Studio 负责校验、预览、应用、撤销和重放保护。工具栏「智能绘图」→ 右栏底部「高级：结构化指令」打开协议面板：可下载上下文、粘贴外部 AI 返回的 JSON、校验预览并一次应用；面板本身不连接模型服务。

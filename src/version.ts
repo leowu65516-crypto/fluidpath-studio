@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.40.0";
+export const APP_VERSION = "1.41.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -14,7 +14,7 @@ export interface ChangelogEntry {
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "1.39.0",
+    version: "1.41.0",
     date: "2026-10-28",
     highlights: [
       "画布底色可跟随明暗主题（显示层派生，不改图纸底色）：投影/暗房教学切主题即变暗，网格、流光配色与导出底色同步解析",

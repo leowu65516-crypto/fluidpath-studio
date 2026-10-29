@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { focusNode, useAppState } from "../store";
+import { focusNodeAnimated, useAppState } from "../store";
 import { defOf } from "../symbols";
 import { useT } from "../i18n";
 
@@ -22,7 +22,7 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => setActive(0), [query]);
 
   function jump(id: string) {
-    focusNode(id);
+    focusNodeAnimated(id);
     onClose();
   }
 

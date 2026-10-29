@@ -33,6 +33,7 @@ import { resolveFaultTargets } from "../fault-codes/profile";
 import { useT } from "../i18n";
 import { smartViewProjection } from "../smart-draw/view";
 import { resolveCanvasBackground } from "../canvasTheme";
+import { emitPopupClose } from "../popupBus";
 import { ContextMenu } from "./ContextMenu";
 import { RoutePreviewOverlay } from "./RoutePreviewOverlay";
 import { ActionBar } from "./ActionBar";
@@ -980,6 +981,8 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
     if (!hasSel && kind === "canvas") {
       items[0] = { label: `📋 ${t("粘贴 (Ctrl+V)")}`, onClick: () => pasteFromClipboard(), disabled: !store.get().ui.clipboard };
     }
+    // 命令型浮层互斥：打开右键菜单时关闭搜索等其他命令浮层
+    emitPopupClose("contextMenu");
     setCtxMenu({ x: e.clientX, y: e.clientY, items });
   }
 

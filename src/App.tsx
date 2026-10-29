@@ -32,6 +32,7 @@ import { decompressDiagram, parseDiagramJSON, saveJSONFile } from "./export";
 import { getBinding, matchKeys } from "./shortcuts";
 import { toast } from "./toast";
 import { useT } from "./i18n";
+import { emitPopupClose, onPopupClose } from "./popupBus";
 import type { SmartBlock, SmartBuildResult } from "./smart-draw/types";
 import { engineeringIssueLabel, engineeringSummary } from "./smart-draw/engineering";
 import { trackSmart } from "./smart-draw/telemetry";
@@ -214,6 +215,15 @@ export default function App() {
     if (modeNoticeTimer.current !== undefined) window.clearTimeout(modeNoticeTimer.current);
     if (modeLeaveTimer.current !== undefined) window.clearTimeout(modeLeaveTimer.current);
   }, []);
+  // 命令型浮层互斥：任一浮层打开时广播，其余（含画布右键菜单）自关
+  useEffect(() => {
+    const offs = [
+      onPopupClose("search", () => setShowSearch(false)),
+      onPopupClose("shortcuts", () => setShowShortcuts(false)),
+      onPopupClose("shortcutSettings", () => setShowShortcutSettings(false)),
+    ];
+    return () => offs.forEach((off) => off());
+  }, []);
   const togglePanel = (key: keyof typeof collapsed) => () =>
     setCollapsed((c) => {
       const next = { ...c, [key]: !c[key] };
@@ -277,8 +287,8 @@ export default function App() {
       if (hit("ungroup")) { e.preventDefault(); ungroupSelection(); return; }
       if (hit("copy")) { e.preventDefault(); copyToClipboard(); return; }
       if (hit("paste")) { e.preventDefault(); pasteFromClipboard(); return; }
-      if (hit("search")) { e.preventDefault(); setShowSearch((v) => !v); return; }
-      if (hit("help")) { e.preventDefault(); setShowShortcuts((v) => !v); return; }
+      if (hit("search")) { e.preventDefault(); setShowSearch((v) => { if (!v) emitPopupClose("search"); return !v; }); return; }
+      if (hit("help")) { e.preventDefault(); setShowShortcuts((v) => { if (!v) emitPopupClose("shortcuts"); return !v; }); return; }
       if (hit("collapseLeft")) { e.preventDefault(); togglePanel("library")(); return; }
       if (hit("collapseRight")) { e.preventDefault(); togglePanel("inspector")(); return; }
       if (hit("collapseTop")) { e.preventDefault(); togglePanel("toolbar")(); return; }
@@ -590,7 +600,7 @@ export default function App() {
             <span className="mode-banner-lock">{modeInfo.lock}</span>
           </div>
         )}
-        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => setShowShortcutSettings(true)} onOpenScenario={() => { if (mode === "present") setShowScenario((v) => !v); else setWorkMode("present"); }} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenSmart={openSmartWizard} onOpenConditions={openConditions} conditionsOpen={showConditions} />
+        <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => { emitPopupClose("shortcutSettings"); setShowShortcutSettings(true); }} onOpenScenario={() => { if (mode === "present") setShowScenario((v) => !v); else setWorkMode("present"); }} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenSmart={openSmartWizard} onOpenConditions={openConditions} conditionsOpen={showConditions} />
         <div className="main">
           <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
           <div className="canvas-anchor">
@@ -641,7 +651,7 @@ export default function App() {
       />
       {showWelcome && <WelcomePanel onClose={closeWelcome} onAction={handleWelcomeAction} />}
       {showHelp && <HelpPanel onClose={closeHelp} />}
-      {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} onOpenSettings={() => { setShowShortcuts(false); setShowShortcutSettings(true); }} />}
+      {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} onOpenSettings={() => { emitPopupClose("shortcutSettings"); setShowShortcutSettings(true); }} />}
       {showSearch && <SearchPanel onClose={() => setShowSearch(false)} />}
       {showShortcutSettings && <ShortcutSettings onClose={() => setShowShortcutSettings(false)} />}
       {showScenario && <ScenarioPanel onClose={() => setShowScenario(false)} />}

@@ -42,4 +42,20 @@ describe("动效令牌", () => {
     expect(css).toMatch(/\.inspector\s*\{[^}]*transition:\s*width var\(--motion-base\)/);
     expect(css).toMatch(/\.mode-banner\.leaving\s*\{[^}]*opacity:\s*0/);
   });
+
+  it("所有容器层 transition 都走令牌（无硬编码时长残留）", () => {
+    const offenders = css
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("transition:") && !l.includes("var(--motion"));
+    expect(offenders).toEqual([]);
+  });
+
+  it("进出场动画（toastIn/menuIn）走令牌", () => {
+    const offenders = css
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => /^animation:\s*(toastIn|menuIn)\b/.test(l) && !l.includes("var(--motion"));
+    expect(offenders).toEqual([]);
+  });
 });

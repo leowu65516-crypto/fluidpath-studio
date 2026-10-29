@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { onPopupClose } from "../popupBus";
 
 interface MenuItem {
   label: string;
@@ -25,9 +26,22 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         onClose();
       }
     };
+    // Escape 全局可关（与搜索面板等浮层行为一致）
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    const offPopup = onPopupClose("contextMenu", onClose);
     // 延时一帧，避免触发自身的右键
-    setTimeout(() => document.addEventListener("mousedown", handle), 0);
-    return () => document.removeEventListener("mousedown", handle);
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handle);
+      window.addEventListener("keydown", onKey);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handle);
+      window.removeEventListener("keydown", onKey);
+      offPopup();
+    };
   }, [onClose]);
 
   // 边界碰撞修正

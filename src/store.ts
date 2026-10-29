@@ -2082,6 +2082,36 @@ export function setZoomCenter(nextZoom: number, viewW: number, viewH: number) {
   setUI({ zoom: next, panX: cx - wx * next, panY: cy - wy * next });
 }
 
+/** 计算以元素为中心的目标视图（纯函数）。元素在屏幕上过小时放大到最低可辨，钳制在 [zoom, 1]。 */
+export function computeFocusView(
+  rect: { x: number; y: number; width: number; height: number },
+  viewport: { w: number; h: number },
+  zoom: number,
+): { zoom: number; panX: number; panY: number } {
+  const cx = rect.x + rect.width / 2;
+  const cy = rect.y + rect.height / 2;
+  const minSide = Math.max(1, Math.min(rect.width, rect.height));
+  const minScreen = minSide * zoom;
+  const targetZoom = minScreen < 48 ? Math.min(1, Math.max(zoom, 96 / minSide)) : zoom;
+  return {
+    zoom: targetZoom,
+    panX: viewport.w / 2 - cx * targetZoom,
+    panY: viewport.h / 2 - cy * targetZoom,
+  };
+}
+
+/** 与 --ease-out-soft 同族的缓出曲线（cubic-bezier(0.22,0.61,0.36,1) 的解析近似，JS 侧令牌见 src/motion.ts） */
+function easeOutSoft(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+const VIEW_ANIM_MS = 260; // 略高于 --motion-base：视口级平移比控件反馈慢半拍才顺
+let viewAnimToken = 0;
+/** 用户手动接管视图（拖画布/滚轮）时终止进行中的聚焦动画 */
+export function cancelViewAnimation(): void {
+  viewAnimToken++;
+}
+
 /** 将画布视图居中定位到指定节点（保持当前缩放） */
 export function focusNode(id: string) {
   const n = state.diagram.nodes.find((nn) => nn.id === id);
@@ -2097,6 +2127,47 @@ export function focusNode(id: string) {
     panY: h / 2 - cy * zoom,
     selection: { nodes: [id], pipes: [] }
   });
+}
+
+/**
+ * 平滑聚焦：260ms 缓动平移（需要时含放大），到位后闪烁目标一次作确认。
+ * 偏好减弱动效、无 rAF 或距离可忽略时退化为瞬时定位；用户中途接管视图即终止。
+ */
+export function focusNodeAnimated(id: string) {
+  const n = state.diagram.nodes.find((nn) => nn.id === id);
+  if (!n) return;
+  const svg = document.querySelector(".main-canvas") as SVGSVGElement | null;
+  const w = svg?.clientWidth ?? 1200;
+  const h = svg?.clientHeight ?? 800;
+  const target = computeFocusView(n, { w, h }, state.ui.zoom);
+  const delta = Math.abs(target.panX - state.ui.panX) + Math.abs(target.panY - state.ui.panY) + Math.abs(target.zoom - state.ui.zoom) * 400;
+  const reduced = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (reduced || typeof requestAnimationFrame === "undefined" || delta < 4) {
+    setUI({ panX: target.panX, panY: target.panY, zoom: target.zoom, selection: { nodes: [id], pipes: [] } });
+    blinkElements([id]);
+    return;
+  }
+  viewAnimToken++;
+  const token = viewAnimToken;
+  const from = { panX: state.ui.panX, panY: state.ui.panY, zoom: state.ui.zoom };
+  setUI({ selection: { nodes: [id], pipes: [] } });
+  const cancel = () => cancelViewAnimation();
+  window.addEventListener("pointerdown", cancel, { once: true, passive: true });
+  window.addEventListener("wheel", cancel, { once: true, passive: true });
+  const t0 = performance.now();
+  const step = (now: number) => {
+    if (token !== viewAnimToken) return;
+    const t = Math.min(1, (now - t0) / VIEW_ANIM_MS);
+    const k = easeOutSoft(t);
+    setUI({
+      panX: from.panX + (target.panX - from.panX) * k,
+      panY: from.panY + (target.panY - from.panY) * k,
+      zoom: from.zoom + (target.zoom - from.zoom) * k,
+    });
+    if (t < 1) requestAnimationFrame(step);
+    else blinkElements([id]);
+  };
+  requestAnimationFrame(step);
 }
 
 /** 聚焦某个节点或管路：选中并居中（供智能诊断定位使用） */

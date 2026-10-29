@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.42.0";
+export const APP_VERSION = "1.43.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,24 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.43.1",
+    date: "2026-10-28",
+    highlights: [
+      "使用指南全面更新：新增「智能绘图」章节（三步向导/7 模板/继续完善/智能整理），补齐符号双风格、三态工作模式、工况快照、故障模式与故障码库、视图聚焦与分区、导出符号风格、搜索定位与浮层 Esc 行为；中英双语同步",
+    ],
+  },
+  {
+    version: "1.43.0",
+    date: "2026-10-28",
+    highlights: [
+      "搜索跳转平滑化：视口 260ms 缓动平移（Figma 惯例），到位后目标闪烁一次确认；小元件在低缩放下自动放大到可辨（钳制 ≤1），MiniMap 与搜索共用同一聚焦管线",
+      "命令型浮层互斥：右键菜单/搜索/快捷键面板/快捷键设置同刻至多一个——打开任一浮层自动关闭其他，Escape 可全局关闭右键菜单",
+      "动效令牌归一：全部容器层 transition 与 toastIn/menuIn 进出场改走 --motion tokens，样式表无硬编码时长残留，并由回归测试锁定",
+      "新增回归：聚焦视图纯函数不变量（居中/缩放钳制）、浮层互斥总线、右键菜单 Escape 与广播自关、令牌全覆盖",
+      "全量 85 文件 / 562 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.42.0",
     date: "2026-10-28",

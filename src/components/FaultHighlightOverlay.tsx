@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { Diagram } from "../types";
-import { nodeBBox, pipePolyline, pathD, smoothPath } from "../geometry";
+import { nodeBBox, pipePolyline, pathD, smoothPath, polylineBBox } from "../geometry";
 import { resolveFaultTargets, resolveHighlightGroupTargets } from "../fault-codes/profile";
 import { suspectsForSymptom } from "../fault-codes/consult";
 import { useDiagnosticView } from "../fault-codes/session";
@@ -86,7 +86,37 @@ function DrillLayer({ diagram, profile, drill, visibleNodes, visiblePipes, anima
   </g>;
 }
 
-export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagram, visibleNodes, visiblePipes }: { diagram: Diagram; visibleNodes: Set<string>; visiblePipes: Set<string> }) {
+/** 故障模式备注/高亮：编号徽标 + 琥珀色描边 + 文本标签（仅故障模式渲染，读图纸 settings.faultNotes）。 */
+function FaultNotesLayer({ diagram, visibleNodes, visiblePipes }: { diagram: Diagram; visibleNodes: Set<string>; visiblePipes: Set<string> }) {
+  const notes = diagram.settings.faultNotes ?? [];
+  return <g data-fault-notes="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    {notes.map((note, noteIndex) => {
+      const boxes = [
+        ...diagram.nodes.filter(node => note.nodeIds.includes(node.id) && visibleNodes.has(node.id)).map(nodeBBox),
+        ...diagram.pipes.filter(pipe => note.pipeIds.includes(pipe.id) && visiblePipes.has(pipe.id)).flatMap(pipe => {
+          const points = pipePolyline(pipe, diagram.nodes);
+          return points ? [polylineBBox(points)] : [];
+        }),
+      ];
+      if (!boxes.length) return null;
+      const left = Math.min(...boxes.map(box => box.x)), top = Math.min(...boxes.map(box => box.y));
+      const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
+      const color = note.color || "#b45309";
+      const text = note.text.length > 28 ? `${note.text.slice(0, 27)}…` : note.text;
+      const labelWidth = Math.max(48, Math.min(220, text.length * 11 + 20));
+      return <g key={note.id} data-fault-note={note.id} stroke={color}>
+        <title>{note.text}</title>
+        <rect x={left - 8} y={top - 8} width={right - left + 16} height={bottom - top + 16} rx={10} strokeDasharray="5 5" strokeWidth={2} opacity={0.85} />
+        <circle cx={left - 8} cy={top - 8} r={9} fill="#fff7ed" strokeWidth={1.6} />
+        <text x={left - 8} y={top - 4} textAnchor="middle" fontSize={11} fontWeight={700} fill={color} stroke="none">{noteIndex + 1}</text>
+        <rect x={left - 8} y={top - 34} width={labelWidth} height={20} rx={6} fill="#fff7ed" strokeWidth={1.2} opacity={0.96} />
+        <text x={left + 1} y={top - 20} fontSize={11} fill={color} stroke="none">{text}</text>
+      </g>;
+    })}
+  </g>;
+}
+
+export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagram, visibleNodes, visiblePipes, showFaultNotes = false }: { diagram: Diagram; visibleNodes: Set<string>; visiblePipes: Set<string>; showFaultNotes?: boolean }) {
   const view = useDiagnosticView();
   const profile = diagram.settings.diagnosticProfile;
   if (!profile) return null;
@@ -138,5 +168,6 @@ export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagr
       </g>;
     })()}
     {view.drill && <DrillLayer diagram={diagram} profile={profile} drill={view.drill} visibleNodes={visibleNodes} visiblePipes={visiblePipes} animation={view.animation} />}
+    {showFaultNotes && <FaultNotesLayer diagram={diagram} visibleNodes={visibleNodes} visiblePipes={visiblePipes} />}
   </g>;
 });

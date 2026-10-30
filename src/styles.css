@@ -2987,3 +2987,44 @@ button.smart-eng-item:hover { border-color: var(--accent); }
 .drill-action-row select { flex: 1; min-width: 0; }
 .drill-editor select, .drill-editor input { font-size: 12px; }
 .drill-zero { color: #b45309; font-weight: 600; }
+
+/* ===== 1.48 故障模式左栏 / 步骤工作台 / 画布提示 ===== */
+.fault-left-scroll { overflow-y: auto; padding: 8px 10px 14px; display: flex; flex-direction: column; gap: 10px; }
+.fl-section { display: flex; flex-direction: column; gap: 6px; border-bottom: 1px dashed var(--border); padding-bottom: 9px; }
+.fl-section:last-child { border-bottom: none; padding-bottom: 0; }
+.fl-title { font-size: 11.5px; font-weight: 700; display: flex; gap: 6px; align-items: baseline; }
+.fl-title em { font-style: normal; color: var(--text-dim); font-size: 10px; }
+.fl-search { height: 26px; border: 1px solid var(--border); border-radius: 5px; background: var(--input-bg); color: var(--text); padding: 0 8px; font-size: 12px; outline: none; }
+.fl-code-list { display: flex; flex-direction: column; gap: 3px; max-height: 260px; overflow-y: auto; }
+.fl-code { all: unset; cursor: pointer; display: flex; gap: 6px; align-items: center; padding: 4px 6px; border-radius: 6px; border: 1px solid transparent; font-size: 11.5px; }
+.fl-code:hover { border-color: var(--accent); }
+.fl-code.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.fl-code b { font-family: ui-monospace, monospace; font-size: 11px; flex: none; }
+.fl-code span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-code i { color: #b45309; font-style: normal; flex: none; }
+.fl-code.scope-missing { border-left: 2px solid #b45309; }
+.fl-hint { margin: 0; font-size: 10.5px; color: var(--text-dim); line-height: 1.5; }
+.fl-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.fl-note-list { display: flex; flex-direction: column; gap: 4px; }
+.fl-note { display: flex; gap: 4px; align-items: center; }
+.fl-note-text { all: unset; cursor: pointer; flex: 1; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: 5px; align-items: center; }
+.fl-note-text i { flex: none; width: 15px; height: 15px; border-radius: 50%; background: #fff7ed; border: 1px solid #b45309; color: #b45309; font-size: 9.5px; display: inline-flex; align-items: center; justify-content: center; font-style: normal; }
+.fl-steps { display: flex; flex-direction: column; gap: 3px; }
+.fl-steps button { all: unset; cursor: pointer; font-size: 11.5px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); }
+.fl-steps button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 650; }
+
+.step-question { border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 5px; background: var(--surface); margin-top: 6px; }
+.step-question b { font-size: 12px; }
+.fault-scope-summary { display: flex; gap: 14px; font-size: 11px; color: var(--text-dim); }
+.kb-unbound-list em { font-style: normal; color: var(--text-dim); font-size: 10px; }
+
+.fw-steps-nav button { all: unset; cursor: pointer; display: flex; gap: 4px; align-items: center; font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
+.fw-steps-nav li.done button { color: #2f855a; border-color: color-mix(in srgb, #2f855a 40%, var(--border)); }
+.fw-steps-nav li.current button { color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); font-weight: 650; }
+
+.fault-canvas-hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 20; max-width: min(760px, calc(100% - 40px)); background: color-mix(in srgb, #b45309 12%, var(--panel)); border: 1px solid color-mix(in srgb, #b45309 45%, var(--border)); color: var(--text); border-radius: 999px; padding: 6px 14px; font-size: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+
+.ncw-steps { display: flex; gap: 6px; list-style: none; margin: 6px 0; padding: 0; font-size: 10.5px; color: var(--text-dim); flex-wrap: wrap; }
+.ncw-steps li { border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; }
+.ncw-steps li.current { border-color: var(--accent); color: var(--text); }
+.ncw-steps li.done { color: #2f855a; border-color: color-mix(in srgb, #2f855a 40%, var(--border)); }

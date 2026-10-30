@@ -7,10 +7,11 @@ import { suggestGroupTargets, unboundGroups } from "../fault-codes/binding";
 import { setBindPreviewGroupId } from "../fault-codes/session";
 
 /** 从当前图纸开启绑定向导（队列 = 所有未绑定部件组）。返回是否成功开启。 */
-export function startBindingWizard(): boolean {
+export function startBindingWizard(onlyGroupIds?: string[]): boolean {
   const profile = store.get().diagram.settings.diagnosticProfile;
   if (!profile) return false;
-  const queue = unboundGroups(profile).map(group => group.id);
+  const unbound = new Set(unboundGroups(profile).map(group => group.id));
+  const queue = (onlyGroupIds?.length ? onlyGroupIds : [...unbound]).filter(id => unbound.has(id));
   if (!queue.length) return false;
   setUI({ kbBinding: { queue, index: 0 } });
   return true;

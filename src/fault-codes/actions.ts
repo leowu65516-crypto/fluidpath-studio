@@ -120,6 +120,16 @@ export function bindKbGroupTargets(groupId: string, targets: { nodes: string[]; 
   });
 }
 
+/** 清空所有部件组的画布落点（可撤销；代码范围组也会一起清空）。 */
+export function clearKbGroupBindings() {
+  editDiagnosticProfile(p => {
+    for (const group of p.highlightGroups) {
+      group.nodeIds = [];
+      group.pipeIds = [];
+    }
+  });
+}
+
 export function addTroubleshootingStep(faultId: string, lang: "zh" | "en") {
   const stepId = uid("faultStep");
   editDiagnosticProfile(profile => {

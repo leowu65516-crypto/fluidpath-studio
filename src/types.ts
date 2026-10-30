@@ -238,11 +238,22 @@ export const MATERIAL_PRESETS: MaterialPreset[] = [
   { key: "custom", label: "自定义", wallColor: "#5b6b7d", wallOpacity: 1 }
 ];
 
+/** 故障模式专用的备注/高亮（只在故障模式下显示；随图纸保存，不影响工程判定）。 */
+export interface FaultNote {
+  id: string;
+  text: string;
+  nodeIds: string[];
+  pipeIds: string[];
+  color?: string;
+}
+
 export interface DiagramSettings {
   /** Successfully applied AI request IDs; retained on round-trip for idempotency. */
   aiAppliedRequestIds?: string[];
   /** Optional, independently versioned diagnostic module; simulation/selection stays in memory. */
   diagnosticProfile?: DiagnosticProfile;
+  /** 故障模式专用备注/高亮（仅故障模式显示；不参与工程判定与导出）。 */
+  faultNotes?: FaultNote[];
   showGrid: boolean;
   background: string;
   /** 画布底色跟随明暗主题（只影响显示与导出底色，不回写 background） */
@@ -417,6 +428,8 @@ export interface UIState {
   styleBrush?: boolean;
   /** 0.4 故障演练绑定向导：队列与当前位置（null = 未开启）。 */
   kbBinding?: { queue: string[]; index: number } | null;
+  /** 故障模式右侧工作台当前步骤（1 图纸 / 2 故障库 / 3 画布落点 / 4 演练）。 */
+  faultStep?: 1 | 2 | 3 | 4;
   /** 撤销历史列表（供面板使用） */
   undoCount?: number;
   redoCount?: number;

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Toolbar } from "./components/Toolbar";
 import { Library } from "./components/Library";
+import { FaultLeftPanel } from "./components/FaultLeftPanel";
 import { CanvasView } from "./components/CanvasView";
 import { Inspector } from "./components/Inspector";
 import { StatusBar } from "./components/StatusBar";
@@ -23,12 +24,14 @@ import { SmartBlockDialog } from "./components/SmartBlockDialog";
 import { SaveNudge, type SaveNudgeKind } from "./components/SaveNudge";
 import { selectFaultCodes, setSimulationRunning, useDiagnosticSession } from "./fault-codes/session";
 import { restoreFaultDrill } from "./fault-codes/drill";
+import { faultWorkbenchStatus } from "./fault-codes/workbench";
+import { EMPTY_PROFILE } from "./fault-codes/profile";
 import { bindKbGroupTargets, importFaultCatalog, sampleKnowledgeBase } from "./fault-codes/actions";
 import BCMTS_SAMPLE from "../BCMTS.json";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, setWorkMode, useAppState } from "./store";
-import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath, insertSmartDrawing, fitToScreen, fitToNodeIds, toastWithFocus, saveWorkCondition, updateDiagram } from "./store";
+import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath, insertSmartDrawing, fitToScreen, fitToNodeIds, toastWithFocus, saveWorkCondition, updateDiagram, setUI } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave, recordSavedAt } from "./store";
 import type { AutosaveVersion } from "./store";
 import { decompressDiagram, parseDiagramJSON, saveJSONFile } from "./export";
@@ -155,12 +158,12 @@ export default function App() {
   }, []);
   const welcomeFileRef = useRef<HTMLInputElement | null>(null);
   // 三栏折叠状态：折叠后收起为窄条，让出画布视角（localStorage 持久化）
-  const [collapsed, setCollapsed] = useState<{ library: boolean; inspector: boolean; toolbar: boolean }>(() => {
+  const [collapsed, setCollapsed] = useState<{ library: boolean; faultLeft: boolean; inspector: boolean; toolbar: boolean }>(() => {
     try {
       const saved = localStorage.getItem("fluidpath.panelCollapsed");
-      if (saved) return { library: false, inspector: false, toolbar: false, ...JSON.parse(saved) };
+      if (saved) return { library: false, faultLeft: false, inspector: false, toolbar: false, ...JSON.parse(saved) };
     } catch { /* ignore */ }
-    return { library: false, inspector: false, toolbar: false };
+    return { library: false, faultLeft: false, inspector: false, toolbar: false };
   });
   // ===== 工作模式联动（edit / present / verify / fault）=====
   const mode = appState.ui.mode ?? "edit";
@@ -292,7 +295,7 @@ export default function App() {
       if (hit("paste")) { e.preventDefault(); pasteFromClipboard(); return; }
       if (hit("search")) { e.preventDefault(); setShowSearch((v) => { if (!v) emitPopupClose("search"); return !v; }); return; }
       if (hit("help")) { e.preventDefault(); setShowShortcuts((v) => { if (!v) emitPopupClose("shortcuts"); return !v; }); return; }
-      if (hit("collapseLeft")) { e.preventDefault(); togglePanel("library")(); return; }
+      if (hit("collapseLeft")) { e.preventDefault(); togglePanel(mode === "fault" ? "faultLeft" : "library")(); return; }
       if (hit("collapseRight")) { e.preventDefault(); togglePanel("inspector")(); return; }
       if (hit("collapseTop")) { e.preventDefault(); togglePanel("toolbar")(); return; }
       if (hit("fullscreen")) { e.preventDefault(); document.documentElement.requestFullscreen?.(); return; }
@@ -576,6 +579,9 @@ export default function App() {
       if (pumpId) bindKbGroupTargets("part-pump", { nodes: [pumpId], pipes: [] });
       if (cleanId) bindKbGroupTargets("part-cleanValve", { nodes: [cleanId], pipes: [] });
       if (drainId) bindKbGroupTargets("part-drain", { nodes: [drainId], pipes: [] });
+      const demoFault = store.get().diagram.settings.diagnosticProfile?.diagnostics.find(fault => fault.code === "E045");
+      if (demoFault) selectFaultCodes([demoFault.id]);
+      setUI({ faultStep: 4 });
       setSourceFilePath(null);
       toast(t("已载入示例：BCMTS 图纸 + 奶泵知识库（预绑定奶泵/清洗阀/排废阀，含运行基线）。选 E045 点「演练故障」即可看到停流差异。"));
     } catch (error) {
@@ -594,6 +600,22 @@ export default function App() {
     window.addEventListener("resize", apply);
     return () => { observer?.disconnect(); window.removeEventListener("resize", apply); };
   }, [gateOk]);
+
+  // 进入故障模式时按前置条件自动落到对应步骤（图纸 → 故障库 → 落点 → 演练）。
+  useEffect(() => {
+    if (mode !== "fault" || appState.ui.faultStep) return;
+    const status = faultWorkbenchStatus(appState.diagram, appState.diagram.settings.diagnosticProfile ?? EMPTY_PROFILE);
+    setUI({ faultStep: status.stage === "no-diagram" ? 1 : status.stage === "no-library" ? 2 : status.stage === "unbound" ? 3 : 4 });
+  }, [mode, appState.diagram, appState.ui.faultStep]);
+
+  // 故障模式画布提示：绑定向导 / 落点步骤时告诉用户"在画布上做什么"。
+  const faultCanvasHint = mode !== "fault" ? null : appState.ui.kbBinding ? (() => {
+    const profile = appState.diagram.settings.diagnosticProfile ?? EMPTY_PROFILE;
+    const binding = appState.ui.kbBinding!;
+    const queue = binding.queue.filter(id => profile.highlightGroups.some(group => group.id === id));
+    const group = profile.highlightGroups.find(item => item.id === queue[Math.min(binding.index, queue.length - 1)]);
+    return `${t("绑定向导")}：${group ? (lang === "en" ? group.label.en || group.label.zh : group.label.zh || group.label.en) : t("未命名部件组")} · ${t("在画布点选元件/管路，再点右侧「确认绑定」；Esc 退出")}`;
+  })() : appState.ui.faultStep === 3 ? t("把部件组落到画布：右侧点「开始绑定」，在画布点选元件/管路，再点「确认绑定」。") : null;
 
   if (!gateOk) {
     return <PasswordGate onPass={() => { setGateAuthed(); setGateOk(true); }} />;
@@ -645,7 +667,7 @@ export default function App() {
     : shownMode === "verify"
       ? { icon: "✓", title: t("验收模式"), summary: t("验收中 · 拓扑已锁定，可摆工况跑验收，切回编辑可修改"), lock: t("禁止手动改到通过") }
       : shownMode === "fault"
-        ? { icon: "⚠", title: t("故障模式"), summary: t("选择故障码、绑定排查范围并模拟信号"), lock: t("拓扑编辑已锁定") }
+        ? { icon: "⚠", title: t("故障模式"), summary: t("按图纸 → 故障库 → 画布落点 → 演练四步走；演练可一键还原"), lock: t("拓扑编辑已锁定") }
         : { icon: "✏️", title: t("编辑模式"), summary: t("可修改拓扑、属性和工程状态"), lock: t("全部编辑操作可用") };
   return (
     <ErrorBoundary>
@@ -669,7 +691,9 @@ export default function App() {
         )}
         <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => { emitPopupClose("shortcutSettings"); setShowShortcutSettings(true); }} onOpenScenario={() => { if (mode === "present") setShowScenario((v) => !v); else setWorkMode("present"); }} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenSmart={openSmartWizard} onOpenConditions={openConditions} conditionsOpen={showConditions} />
         <div className="main">
-          <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />
+          {mode === "fault"
+            ? <FaultLeftPanel collapsed={collapsed.faultLeft} onToggle={togglePanel("faultLeft")} />
+            : <Library collapsed={collapsed.library} onToggle={togglePanel("library")} />}
           <div className="canvas-anchor">
           <CanvasView svgRefOut={svgRef} smartView={smartView} viewFading={viewFading} symbolProfileOverride={mode === "present" ? "teaching" : undefined} />
           {mode === "edit" && appState.diagram.nodes.length === 0 && appState.diagram.pipes.length === 0 && !showHelp && (
@@ -696,6 +720,7 @@ export default function App() {
             </div>
           )}
           </div>
+          {faultCanvasHint && <div className="fault-canvas-hint" data-ui="1" role="status">{faultCanvasHint}</div>}
           {rightPanel}
         </div>
         <StatusBar />

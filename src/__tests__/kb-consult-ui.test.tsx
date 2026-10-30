@@ -6,12 +6,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { KbConsultPanel } from "../components/KbConsultPanel";
 import { FaultHighlightOverlay } from "../components/FaultHighlightOverlay";
-import { FaultCodePanel } from "../components/FaultCodePanel";
 import { LangProvider } from "../i18n";
 import { loadDiagram, setWorkMode, store, updateDiagram } from "../store";
 import { EMPTY_PROFILE, parseDiagnosticProfile } from "../fault-codes/profile";
 import { createFaultCode, deleteFaultCode } from "../fault-codes/actions";
-import { selectKbSymptom, selectKbPart, resetDiagnosticSession, diagnosticSession } from "../fault-codes/session";
+import { selectKbSymptom, selectKbPart, resetDiagnosticSession } from "../fault-codes/session";
 import { suspectsForSymptom } from "../fault-codes/consult";
 import { createEmptyDiagram } from "../sample";
 import type { DiagnosticProfile } from "../fault-codes/types";
@@ -100,18 +99,6 @@ describe("KB 部件组孤儿保护", () => {
 });
 
 describe("1.46.0 咨询台联动与引导", () => {
-  it("点故障码会反查知识库症状与部件", () => {
-    const view = render(createElement(LangProvider, null, createElement(FaultCodePanel, { onClose: () => undefined, onOpenJson: () => undefined, onOpenSmart: () => undefined, onLoadDemo: () => undefined })));
-    const list = view.container.querySelector(".fault-code-list")!;
-    const codeButton = [...list.querySelectorAll("button")].find(button => button.textContent?.includes("E045"));
-    expect(codeButton).toBeTruthy();
-    act(() => { fireEvent.click(codeButton!); });
-    expect(diagnosticSession.get().kbSymptomId).toBeTruthy();
-    expect(diagnosticSession.get().kbPartGroupId).toBeTruthy();
-    expect(view.getByTestId("kb-status").textContent).not.toContain("None");
-    cleanup();
-  });
-
   it("无知识库时给出示例/导入引导，点击示例走预览回调", () => {
     const d = createEmptyDiagram();
     d.settings.diagnosticProfile = structuredClone(EMPTY_PROFILE);

@@ -1470,7 +1470,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
             );
           })}</g>
           <g>{diagram.nodes.filter((n) => visibleNodeIds.has(n.id)).map(renderNode)}</g>
-          <FaultHighlightOverlay diagram={diagram} visibleNodes={visibleNodeIds} visiblePipes={visiblePipeIds} />
+          <FaultHighlightOverlay diagram={diagram} visibleNodes={visibleNodeIds} visiblePipes={visiblePipeIds} showFaultNotes={(ui.mode ?? "edit") === "fault"} />
           {routePreview && <RoutePreviewOverlay routes={routePreview.routes} zoom={ui.zoom} />}
           {/* 标注节点引线 + 目标点手柄（与节点分开渲染以避免 transform 干扰） */}
           {diagram.nodes.filter((n) => visibleNodeIds.has(n.id) && n.type === "annotation" && n.pointerTarget).map((n) => {

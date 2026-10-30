@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { Diagram } from "../types";
 import { nodeBBox, pipePolyline, pathD, smoothPath } from "../geometry";
 import { resolveFaultTargets, resolveHighlightGroupTargets } from "../fault-codes/profile";
+import { suspectsForSymptom } from "../fault-codes/consult";
 import { useDiagnosticView } from "../fault-codes/session";
 
 function animationClass(enabled: boolean, animation: "none" | "breathe" | "flash") {
@@ -33,6 +34,8 @@ export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagr
   const view = useDiagnosticView();
   const profile = diagram.settings.diagnosticProfile;
   if (!profile) return null;
+  // 0.3 知识库咨询层：按概率分档渲染嫌疑部件（与故障码高亮独立，只读显示语义）
+  const kbSuspects = view.kbSymptomId && profile.symptoms?.length ? suspectsForSymptom(profile, view.kbSymptomId) : [];
   return <g data-fault-overlay="1" data-ui="1" pointerEvents="none">
     {profile.diagnostics.filter(f => view.ids.includes(f.id)).map((fault, index) => {
       const targets = resolveFaultTargets(diagram, profile, fault);
@@ -49,5 +52,20 @@ export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagr
         </g>}
       </g>;
     })}
+    {kbSuspects.length > 0 && <g data-kb-consult="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      {kbSuspects.map(({ groupId, pr }) => {
+        const targets = resolveHighlightGroupTargets(diagram, profile, groupId);
+        const isActive = view.kbPartGroupId === groupId;
+        const label = profile.highlightGroups.find(g => g.id === groupId)?.label;
+        const title = `${label ? (label.zh || label.en) : groupId} · ${pr === 3 ? "首要排查" : pr === 2 ? "次要排查" : "罕见排除"}`;
+        // 分档视觉：pr3 橙色呼吸 / pr2 橙色静态细描 / pr1 极弱虚线；选中部件组叠加蓝色强调
+        return <g key={groupId} data-kb-suspect={pr} stroke={isActive ? "#2563eb" : "#d97706"} opacity={pr === 3 ? 0.9 : pr === 2 ? 0.5 : 0.22}>
+          <title>{title}</title>
+          <g className={pr === 3 ? animationClass(view.animation, "breathe") : undefined} strokeWidth={pr === 3 ? 4 : pr === 2 ? 3 : 2} strokeDasharray={pr === 1 ? "3 7" : undefined}>
+            <TargetOutline diagram={diagram} nodeIds={targets.nodes} pipeIds={targets.pipes} visibleNodes={visibleNodes} visiblePipes={visiblePipes} index={0} strong={pr === 3 || isActive} />
+          </g>
+        </g>;
+      })}
+    </g>}
   </g>;
 });

@@ -10,6 +10,9 @@ export interface DiagnosticSession {
   revealHidden: boolean;
   animation: boolean;
   activeStepByFault: Record<string, number>;
+  /** 0.3 知识库咨询：当前症状 / 当前部件组（仅显示层选择，与仿真/工程状态无关）。 */
+  kbSymptomId: string | null;
+  kbPartGroupId: string | null;
   nowMs: number;
   running: boolean;
   profile: DiagnosticProfile | null;
@@ -17,7 +20,7 @@ export interface DiagnosticSession {
   results: Record<string, FaultRuntime>;
   events: DiagnosticEvent[];
 }
-const fresh = (): DiagnosticSession => ({ selectedIds: [], injectedIds: [], revealHidden: false, animation: true, activeStepByFault: {}, nowMs: 0, running: false, profile: null, values: {}, results: {}, events: [] });
+const fresh = (): DiagnosticSession => ({ selectedIds: [], injectedIds: [], revealHidden: false, animation: true, activeStepByFault: {}, kbSymptomId: null, kbPartGroupId: null, nowMs: 0, running: false, profile: null, values: {}, results: {}, events: [] });
 let state = fresh();
 const listeners = new Set<() => void>();
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -28,13 +31,13 @@ export const diagnosticSession = {
 };
 export const useDiagnosticSession = () => useSyncExternalStore(diagnosticSession.subscribe, diagnosticSession.get);
 let viewKey = "";
-let viewSnapshot = { ids: [] as string[], revealHidden: false, animation: true, activeStepByFault: {} as Record<string, number> };
+let viewSnapshot = { ids: [] as string[], revealHidden: false, animation: true, activeStepByFault: {} as Record<string, number>, kbSymptomId: null as string | null, kbPartGroupId: null as string | null };
 /** Canvas subscribes only to overlay changes, not 10 Hz clock/sample updates. */
 function getViewSnapshot() {
   const ids = [...new Set([...state.selectedIds, ...state.injectedIds, ...Object.keys(state.results).filter(id => state.results[id].alarmState !== "clear")])];
   const activeStepByFault = Object.fromEntries(Object.entries(state.activeStepByFault).filter(([id]) => ids.includes(id)));
-  const key = JSON.stringify([ids, state.revealHidden, state.animation, activeStepByFault]);
-  if (key !== viewKey) { viewKey = key; viewSnapshot = { ids, revealHidden: state.revealHidden, animation: state.animation, activeStepByFault }; }
+  const key = JSON.stringify([ids, state.revealHidden, state.animation, activeStepByFault, state.kbSymptomId, state.kbPartGroupId]);
+  if (key !== viewKey) { viewKey = key; viewSnapshot = { ids, revealHidden: state.revealHidden, animation: state.animation, activeStepByFault, kbSymptomId: state.kbSymptomId, kbPartGroupId: state.kbPartGroupId }; }
   return viewSnapshot;
 }
 export const useDiagnosticView = () => useSyncExternalStore(diagnosticSession.subscribe, getViewSnapshot);
@@ -47,6 +50,13 @@ export function selectFaultStep(faultId: string, index: number) {
   if (!state.selectedIds.includes(faultId)) return;
   state = { ...state, activeStepByFault: { ...state.activeStepByFault, [faultId]: Math.max(0, Math.floor(index)) } };
   emit();
+}
+/** 知识库咨询选择：症状与部件组互相独立，选择部件组时若其不在当前症状嫌疑内仍允许（自由跳查）。 */
+export function selectKbSymptom(symptomId: string | null) {
+  state = { ...state, kbSymptomId: symptomId, kbPartGroupId: null }; emit();
+}
+export function selectKbPart(groupId: string | null) {
+  state = { ...state, kbPartGroupId: groupId }; emit();
 }
 export function setDiagnosticView(patch: Partial<Pick<DiagnosticSession, "revealHidden" | "animation">>) { state = { ...state, ...patch }; emit(); }
 export function resetDiagnosticSession() {

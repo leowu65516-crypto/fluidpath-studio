@@ -9,6 +9,7 @@ import type { DiagnosticProfile, FaultCode, Observation, TroubleshootingStep } f
 import { buildFaultReport, downloadText } from "../fault-codes/report";
 import { FaultRuleEditor } from "./FaultRuleEditor";
 import { FaultSignalInput } from "./FaultSignalInput";
+import { KbConsultPanel } from "./KbConsultPanel";
 
 const STATUS: Record<string, string> = { notApplicable: "不适用或宽限中", normal: "正常", pending: "等待持续条件", triggered: "已触发", unknown: "无法判断", invalid: "规则无效", clear: "无活动报警", active: "活动报警", recoveredAwaitingReset: "已恢复，等待复位" };
 
@@ -107,6 +108,7 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
     <header className="fault-header"><div><strong>{t("故障代码")}</strong><span>{profile.namespace}</span></div><button className="btn ghost sq" onClick={onClose} aria-label={t("关闭故障代码")}>×</button></header>
     <div className="fault-scroll">
       <p className="fault-intro">{t("选择代码查看关联水路；高亮不改变泵阀、介质或工程流动。")}</p>
+      <KbConsultPanel profile={profile} canEdit={canEdit} />
       {!canEdit && <p className="fault-hint">{t("先在编辑或故障模式配置代码；演示和验收模式可查阅、模拟。")}</p>}
       {error && <div className="fault-error" role="alert">{t("配置错误")}: {error}</div>}
       <div className="fault-actions">

@@ -1030,8 +1030,32 @@ const EN: Record<string, string> = {
   "跟随图纸": "Follow drawing",
   "已插入 {n} 个元件、{m} 条管路": "Inserted {n} components and {m} pipes",
   "已插入「{name}」": "Inserted \"{name}\"",
-  "演示使用教学符号：讲解用语与画布符号保持一致": "Presentations use teaching symbols so narration and canvas stay consistent"
-
+  "演示使用教学符号：讲解用语与画布符号保持一致": "Presentations use teaching symbols so narration and canvas stay consistent",
+  "诊断咨询": "Diagnostic consult",
+  "选择症状查看嫌疑部件分级；点部件看对策与处置归属；点故障码反查。": "Pick a symptom to rank suspect parts; click a part for remedies and ownership; click a code to trace back.",
+  "首要排查": "Primary suspect",
+  "次要排查": "Secondary",
+  "罕见排除": "Rare / rule out",
+  "门店可处理": "Store-fixable",
+  "服务商处理": "Service call",
+  "门店先排查 → 报修": "Store first, then ticket",
+  "当前症状": "Symptom",
+  "首要怀疑": "Top suspect",
+  "处置归属": "Ownership",
+  "关联报警码": "Linked codes",
+  "依据": "Per",
+  "排查要点": "Inspection points",
+  "为什么": "Why",
+  "对策": "Action",
+  "手册溯源": "Handbook reference",
+  "该部件在当前症状下不是首要怀疑对象；可点其他症状或直接查看其排查要点。": "This part is not a primary suspect for the current symptom; try another symptom or read its inspection points.",
+  "已绑定": "Bound",
+  "未绑定画布对象": "Not bound to canvas",
+  "定位部件": "Locate part",
+  "替换绑定": "Replace binding",
+  "追加绑定": "Add binding",
+  "移除绑定": "Remove binding",
+  "把当前画布选择绑定为该部件在本图中的落点": "Bind the current canvas selection as this part's location in the drawing"
 };
 
 const LangContext = createContext<{ lang: Lang; t: (zh: string) => string; setLang: (l: Lang) => void }>({

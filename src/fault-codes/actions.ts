@@ -69,10 +69,28 @@ export function bindFaultSelection(id: string, mode: "replace" | "add" | "remove
 }
 
 function referencedGroupIds(profile: DiagnosticProfile) {
-  return new Set(profile.diagnostics.flatMap(f => [
-    ...f.highlightBindings.map(binding => binding.groupId),
-    ...(f.troubleshooting ?? []).flatMap(step => step.highlightBinding ? [step.highlightBinding.groupId] : []),
-  ]));
+  return new Set([
+    ...profile.diagnostics.flatMap(f => [
+      ...f.highlightBindings.map(binding => binding.groupId),
+      ...(f.troubleshooting ?? []).flatMap(step => step.highlightBinding ? [step.highlightBinding.groupId] : []),
+    ]),
+    // 0.3：知识库的部件组被 causes/checkGuides 引用，不得当作孤儿清理
+    ...(profile.causes ?? []).map(c => c.partGroupId),
+    ...(profile.checkGuides ?? []).map(g => g.groupId),
+  ]);
+}
+
+/** 0.3 知识库：把当前画布选择绑定到部件组（节点/管路身份即该部件在本图中的落点）。 */
+export function bindKbGroupSelection(groupId: string, mode: "replace" | "add" | "remove") {
+  const selection = store.get().ui.selection;
+  if (!selection.nodes.length && !selection.pipes.length) throw new Error("Select components or pipes on the canvas first");
+  editDiagnosticProfile(p => {
+    const group = p.highlightGroups.find(g => g.id === groupId);
+    if (!group) throw new Error("Part group no longer exists");
+    const next = bindSelection(group, selection, mode);
+    group.nodeIds = next.nodeIds;
+    group.pipeIds = next.pipeIds;
+  });
 }
 
 export function addTroubleshootingStep(faultId: string, lang: "zh" | "en") {

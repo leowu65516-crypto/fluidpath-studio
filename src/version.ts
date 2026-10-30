@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.44.0";
+export const APP_VERSION = "1.45.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.45.0",
+    date: "2026-10-30",
+    highlights: [
+      "故障面板新增「诊断咨询台」（0.3 知识库消费层）：症状按观察分组选卡 → 嫌疑部件按手册概率分档（●首要/○次要/◦罕见，含处置归属徽标与关联故障码）→ 部件详情卡（排查要点/为什么/对策/手册溯源 ref）三向联动；底部常驻状态条（当前症状/首要怀疑/处置归属/关联报警码）+ KB 版本溯源行",
+      "画布概率分档高亮：选中症状后嫌疑部件组分档描边——pr3 橙色呼吸、pr2 静态描边、pr1 弱虚线，选中部件叠加蓝色强调；与故障码高亮、真实流停叠加呈现，复用既有 overlay 通道（只读显示，不改工程判定）",
+      "部件组绑定入口：画布选择 ↔ 部件组（替换/追加/移除）+ 已绑定定位；修复 0.3 遗留缺陷——删除故障码时会误清 causes/checkGuides 仍引用的知识库部件组（孤儿判定纳入知识库引用）",
+      "新增回归：consult 纯函数（分档排序/组去重/码反查/未知输入）、面板渲染（chips/分档/详情/状态条）、画布分档描边与选中变蓝、知识库部件组孤儿保护；全量 90 文件 / 587 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.44.0",
     date: "2026-10-30",

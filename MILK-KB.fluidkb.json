@@ -1,0 +1,1589 @@
+{
+  "format": "fluidpath.diagnostic-profile",
+  "version": "0.3-draft",
+  "namespace": "caye.milk",
+  "source": {
+    "kind": "userDeclared",
+    "appliesToRealMachine": true
+  },
+  "kb": {
+    "kbVersion": 7,
+    "source": {
+      "zh": "CAYE_咖啡机故障对策速查手册_V7（奶泵模组 F28/F30/F31/F32）+《维修手册》第 3 章 牛奶模组",
+      "en": "CAYE Fault Countermeasure Handbook V7 (milk module F28/F30/F31/F32) + Service Manual ch.3 (milk module)"
+    },
+    "updatedAt": "2026-10-30"
+  },
+  "signalDefinitions": [],
+  "highlightGroups": [
+    {
+      "id": "part-tank",
+      "label": {
+        "zh": "1. 奶箱",
+        "en": "1. Milk Tank"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-selv",
+      "label": {
+        "zh": "2. 三通隔膜阀(牛奶选择)",
+        "en": "2. 3-Way Milk Select Valve"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-probe",
+      "label": {
+        "zh": "3. 牛奶检测探针",
+        "en": "3. Milk Detect Probe"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-inntc",
+      "label": {
+        "zh": "4. 进奶NTC",
+        "en": "4. Inlet NTC"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-dlv",
+      "label": {
+        "zh": "5. 两通隔膜阀(奶输送)",
+        "en": "5. 2-Way Milk Delivery Valve"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-pulse",
+      "label": {
+        "zh": "6. 脉冲空气阀",
+        "en": "6. Pulse Air Valve"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-mckv",
+      "label": {
+        "zh": "7. 单向阀(奶路)",
+        "en": "7. Check Valve"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-pump",
+      "label": {
+        "zh": "8. 奶泵",
+        "en": "8. Milk Pump"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-heat",
+      "label": {
+        "zh": "9. 蒸汽混合仓",
+        "en": "9. Steam Mix Chamber"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-drain",
+      "label": {
+        "zh": "10. 三通隔膜阀(排废)",
+        "en": "10. 3-Way Drain Valve"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-outntc",
+      "label": {
+        "zh": "11. 出奶NTC",
+        "en": "11. Outlet NTC"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-oselv",
+      "label": {
+        "zh": "12. 三通隔膜阀(出奶选择)",
+        "en": "12. 3-Way Outlet Select Valve"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-svalve",
+      "label": {
+        "zh": "13. 蒸汽三通电磁阀",
+        "en": "13. Steam 3-Way Valve"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-boiler",
+      "label": {
+        "zh": "14. 蒸汽锅炉",
+        "en": "14. Steam Boiler"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-checkv",
+      "label": {
+        "zh": "15. 单向阀(蒸汽)",
+        "en": "15. Check Valve"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-hose",
+      "label": {
+        "zh": "16. 进奶管路",
+        "en": "16. Milk Hose"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-recipe",
+      "label": {
+        "zh": "配方与软件设置",
+        "en": "Recipe & settings"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-module",
+      "label": {
+        "zh": "奶泵模组（整体）",
+        "en": "Milk-pump module (assembly)"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-harness",
+      "label": {
+        "zh": "线束与接插件",
+        "en": "Harness & connectors"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-alarm",
+      "label": {
+        "zh": "报警处置",
+        "en": "Alarm handling"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-cleanValve",
+      "label": {
+        "zh": "牛奶清洗电磁阀",
+        "en": "Milk cleaning valve"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-tempComp",
+      "label": {
+        "zh": "温度补偿设置",
+        "en": "Temperature compensation"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    },
+    {
+      "id": "part-cupRest",
+      "label": {
+        "zh": "杯台与出奶口",
+        "en": "Cup rest & spout"
+      },
+      "resolution": "explicit",
+      "nodeIds": [],
+      "pipeIds": []
+    }
+  ],
+  "diagnostics": [
+    {
+      "id": "code-E037",
+      "code": "E037",
+      "label": {
+        "zh": "奶泵系统不在位",
+        "en": "Pump not in position"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-module",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#d97706",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E038",
+      "code": "E038",
+      "label": {
+        "zh": "牛奶选择阀故障",
+        "en": "Selection valve"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-selv",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#64748b",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E039",
+      "code": "E039",
+      "label": {
+        "zh": "奶输送阀故障",
+        "en": "Milk inlet valve"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-dlv",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#d97706",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E040",
+      "code": "E040",
+      "label": {
+        "zh": "进奶NTC故障",
+        "en": "Inlet NTC"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-inntc",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#64748b",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E041",
+      "code": "E041",
+      "label": {
+        "zh": "牛奶清洗阀故障",
+        "en": "Cleaning valve"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-cleanValve",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#d97706",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E043",
+      "code": "E043",
+      "label": {
+        "zh": "脉冲空气阀故障",
+        "en": "Pulse air valve"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-pulse",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#d97706",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E044",
+      "code": "E044",
+      "label": {
+        "zh": "奶泵转速异常",
+        "en": "Pump rotation"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-pump",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#d97706",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E045",
+      "code": "E045",
+      "label": {
+        "zh": "奶泵故障",
+        "en": "Milk pump failure"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-pump",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#d97706",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E046",
+      "code": "E046",
+      "label": {
+        "zh": "出奶NTC故障",
+        "en": "Outlet NTC"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-outntc",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#64748b",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E047",
+      "code": "E047",
+      "label": {
+        "zh": "出奶选择阀故障",
+        "en": "Outlet select valve"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-oselv",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#64748b",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    },
+    {
+      "id": "code-E048",
+      "code": "E048",
+      "label": {
+        "zh": "牛奶排废阀故障",
+        "en": "3-way drain valve"
+      },
+      "definitionStatus": "userDeclared",
+      "highlightBindings": [
+        {
+          "groupId": "part-drain",
+          "meaning": "inspectionScope"
+        }
+      ],
+      "presentation": {
+        "style": "outline",
+        "color": "#d97706",
+        "animation": "none"
+      },
+      "controlActions": [],
+      "rootCauseStatus": "notDetermined"
+    }
+  ],
+  "symptoms": [
+    {
+      "id": "th",
+      "label": {
+        "zh": "奶温偏高",
+        "en": "Outlet temp too high"
+      },
+      "group": {
+        "zh": "奶温",
+        "en": "Temperature"
+      }
+    },
+    {
+      "id": "tl",
+      "label": {
+        "zh": "奶温偏低",
+        "en": "Outlet temp too low"
+      },
+      "group": {
+        "zh": "奶温",
+        "en": "Temperature"
+      }
+    },
+    {
+      "id": "unstable",
+      "label": {
+        "zh": "温度/奶量不稳定",
+        "en": "Temp / volume unstable"
+      },
+      "group": {
+        "zh": "稳定性",
+        "en": "Stability"
+      }
+    },
+    {
+      "id": "vl",
+      "label": {
+        "zh": "奶量偏少",
+        "en": "Volume too low"
+      },
+      "group": {
+        "zh": "奶量",
+        "en": "Volume"
+      }
+    },
+    {
+      "id": "vh",
+      "label": {
+        "zh": "奶量偏多",
+        "en": "Volume too high"
+      },
+      "group": {
+        "zh": "奶量",
+        "en": "Volume"
+      }
+    },
+    {
+      "id": "foam",
+      "label": {
+        "zh": "奶泡异常",
+        "en": "Foam abnormal"
+      },
+      "group": {
+        "zh": "奶泡",
+        "en": "Foam"
+      }
+    },
+    {
+      "id": "nomilk",
+      "label": {
+        "zh": "不出奶/空喷蒸汽",
+        "en": "No milk / steam only"
+      },
+      "group": {
+        "zh": "运行",
+        "en": "Running"
+      }
+    },
+    {
+      "id": "alarm",
+      "label": {
+        "zh": "异响/报警停机",
+        "en": "Noise / alarm"
+      },
+      "group": {
+        "zh": "运行",
+        "en": "Running"
+      }
+    },
+    {
+      "id": "leak",
+      "label": {
+        "zh": "漏奶/渗漏",
+        "en": "Milk leak"
+      },
+      "group": {
+        "zh": "密封",
+        "en": "Sealing"
+      }
+    }
+  ],
+  "causes": [
+    {
+      "id": "cause-hose-th-0",
+      "partGroupId": "part-hose",
+      "symptomId": "th",
+      "pr": 3,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "奶管折弯、被柜门压住、脱落或未插到底；奶量少时塑料接头浮在液面，一半吸奶一半吸空气 → 抽奶不畅，奶温忽高忽低。",
+        "en": "Milk hose kinked, pinched by the cabinet door, disconnected or not fully seated; with low milk the coupling floats at the surface drawing air with the milk."
+      },
+      "act": {
+        "zh": "理顺并插紧奶管、去掉奶箱出奶口多余橡胶垫、更换合适奶箱、保证牛奶冷藏 2–4℃ 后复测。",
+        "en": "Straighten and fully seat the hose, remove the extra gasket at the tank outlet, fit a proper tank, keep milk at 2–4°C, then retest."
+      }
+    },
+    {
+      "id": "cause-tank-th-1",
+      "partGroupId": "part-tank",
+      "symptomId": "th",
+      "pr": 3,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "牛奶未冷藏（常温奶），进奶温度本身就在 20–30℃，直接抬高出口温度与稳定性。",
+        "en": "Milk not chilled — the inlet is already 20–30°C, which lifts outlet temperature and hurts repeatability."
+      },
+      "act": {
+        "zh": "门店冷藏 2–4℃ 并确认未过期；热奶饮进奶 ≤10℃、冷奶饮 ≤5℃。",
+        "en": "Store: chill to 2–4°C within shelf life; inlet ≤10°C for hot drinks, ≤5°C for cold."
+      }
+    },
+    {
+      "id": "cause-dlv-th-2",
+      "partGroupId": "part-dlv",
+      "symptomId": "th",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E039"
+      ],
+      "why": {
+        "zh": "奶输送（两通隔膜）电磁阀动作异常或内漏，进奶路径被干扰；进奶温度偏高时应优先排查奶泵前段（奶管、两通隔膜电磁阀及进奶路径）。",
+        "en": "The milk delivery (2-way diaphragm) valve mis-acts or leaks internally, disturbing the inlet path; when the inlet runs warm, inspect the pump-inlet section first."
+      },
+      "act": {
+        "zh": "服务商拆检阀体与膜片，更换 FFKM 最新件；换件后重新做奶温校准。",
+        "en": "Service: open the valve, inspect body and diaphragm, fit the latest FFKM part, then re-calibrate."
+      }
+    },
+    {
+      "id": "cause-inntc-th-3",
+      "partGroupId": "part-inntc",
+      "symptomId": "th",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E040"
+      ],
+      "why": {
+        "zh": "进奶 NTC 漂移或线束接触不良，读数失真导致温度补偿算错，泵速与加热量整体偏移。",
+        "en": "Inlet NTC drift or a loose harness skews the reading so the compensation mis-drives pump speed and heating."
+      },
+      "act": {
+        "zh": "清洁探头、插紧接插件；退 pin 或水腐蚀需导入一体式线束并重新校准。",
+        "en": "Clean the probe and reseat connectors; for backed-out pins or corrosion adopt the one-piece harness and re-calibrate."
+      }
+    },
+    {
+      "id": "cause-pump-th-4",
+      "partGroupId": "part-pump",
+      "symptomId": "th",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E044"
+      ],
+      "why": {
+        "zh": "IOT 牛奶温度补偿值被写入异常大数（泵速异常偏高，例如 2800 rpm），出奶约 65℃ 但转速不合理。",
+        "en": "The IOT milk temperature compensation was written as an abnormal large number (e.g. 2800 rpm) — outlet ≈65°C but the speed is unrealistic."
+      },
+      "act": {
+        "zh": "按软件 Bug 处理：把牛奶温度补偿值改为 0，再复测并重新校准。",
+        "en": "Treat as a software bug: set the milk temperature compensation value to 0, then retest and re-calibrate."
+      }
+    },
+    {
+      "id": "cause-outntc-th-5",
+      "partGroupId": "part-outntc",
+      "symptomId": "th",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E046"
+      ],
+      "why": {
+        "zh": "出奶 NTC 漂移，显示温度虚高，实际奶温正常但读数偏高、易触发过温保护。",
+        "en": "Outlet NTC drift makes the reading run high — the milk is fine but the display (and over-heat logic) is not."
+      },
+      "act": {
+        "zh": "万用表测 NTC 阻值判定，损坏则更换并重新校准。",
+        "en": "Measure the NTC resistance to judge; replace if failed and re-calibrate."
+      }
+    },
+    {
+      "id": "cause-heat-th-6",
+      "partGroupId": "part-heat",
+      "symptomId": "th",
+      "pr": 1,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "蒸汽加热室进汽量过大，或混合腔单向阀卡滞在旁通位，导致过度加热。",
+        "en": "Too much steam into the heating chamber, or a check valve stuck bypassed, over-heats the milk."
+      },
+      "act": {
+        "zh": "拆检单向阀与蒸汽通路结垢情况，清洁/更换后重校准。",
+        "en": "Inspect the check valve and steam path for scale, clean or replace, then re-calibrate."
+      }
+    },
+    {
+      "id": "cause-drain-tl-7",
+      "partGroupId": "part-drain",
+      "symptomId": "tl",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E048"
+      ],
+      "why": {
+        "zh": "排废三通隔膜阀的密封头膨胀 / 老化，密封不良导致奶温偏低且杯量偏少——典型表现是出奶只有 20 多℃ 且奶量明显不足。",
+        "en": "The 3-way drain valve seal head has expanded or aged, so the milk path leaks: outlet only ~20–25°C with low cup volume — the classic cold-milk signature."
+      },
+      "act": {
+        "zh": "更换 FKM / FFKM 材质密封件或整个三通总成；换件后重新做奶温校准，连续出杯验证 65±3℃。",
+        "en": "Replace the FKM/FFKM seal head or the whole valve, re-run milk-temp calibration and verify 65±3°C over several cups."
+      }
+    },
+    {
+      "id": "cause-checkv-tl-8",
+      "partGroupId": "part-checkv",
+      "symptomId": "tl",
+      "pr": 3,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "奶泵蒸汽单向阀卡滞或密封损坏，蒸汽无法在设定位置与牛奶充分混合 → 奶泡温度偏低、质地粗糙。",
+        "en": "The milk-pump steam check valve sticks or leaks, so steam never mixes fully at the designed point — foam runs cold and coarse."
+      },
+      "act": {
+        "zh": "关机断电拆下奶泵蒸汽单向阀，检查阀芯卡滞与密封损坏，清洁或更换，确保蒸汽与牛奶在设定位置充分混合。",
+        "en": "Power down, remove the milk-pump steam check valve, inspect the disc for sticking/seal damage, clean or replace so steam mixes at the designed point."
+      }
+    },
+    {
+      "id": "cause-heat-tl-9",
+      "partGroupId": "part-heat",
+      "symptomId": "tl",
+      "pr": 3,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "蒸汽加热室进汽不足：蒸汽通路结垢、蒸汽三通电磁阀开闭异常或锅炉压力不足，蒸汽量不够就发不起来。",
+        "en": "Not enough steam reaches the heating chamber — scaled steam path, a three-way steam valve that does not act, or low boiler pressure."
+      },
+      "act": {
+        "zh": "检查蒸汽三通电磁阀动作与通路；阀芯结垢拆洗或更换；确认锅炉压力与泄压正常。",
+        "en": "Check the three-way steam valve actuation and path; clean or replace a scaled valve; confirm boiler pressure and venting."
+      }
+    },
+    {
+      "id": "cause-pump-tl-10",
+      "partGroupId": "part-pump",
+      "symptomId": "tl",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E044"
+      ],
+      "why": {
+        "zh": "转速正常但温度仍很低（约 1070 rpm 仍只有 26℃，或 830 rpm 出奶约 16℃）→ 优先判断蒸汽根本没有进入混合腔。",
+        "en": "Pump speed normal yet the milk is still cold (~1070 rpm → only 26°C; ~830 rpm → ~16°C): first suspect that steam never enters the chamber."
+      },
+      "act": {
+        "zh": "查下壳体进蒸汽位置的不锈钢接头与单向阀是否被水垢堵塞；同时查变压装置下壳体/阀芯胀大、两通与三通隔膜阀。",
+        "en": "Check the stainless steam-inlet fitting and the check valve for scale, plus lower-housing/diaphragm swelling and the 2-way / 3-way valves."
+      }
+    },
+    {
+      "id": "cause-svalve-tl-11",
+      "partGroupId": "part-svalve",
+      "symptomId": "tl",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "蒸汽电磁阀未打开（线圈开路或阀芯卡滞），蒸汽支路不导通。",
+        "en": "The steam solenoid never opens (open coil or stuck disc), so the steam branch does not conduct."
+      },
+      "act": {
+        "zh": "检查阀体与线圈动作声；不通电则拆洗或更换电磁阀。",
+        "en": "Check the coil and valve for an actuation click; if dead, strip clean or replace the solenoid."
+      }
+    },
+    {
+      "id": "cause-tank-tl-12",
+      "partGroupId": "part-tank",
+      "symptomId": "tl",
+      "pr": 2,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "进奶温度 20–30℃ 会明显影响奶泵转速与出奶温度（牛奶未冷藏）。",
+        "en": "An inlet of 20–30°C clearly disturbs both pump speed and outlet temperature (milk not chilled)."
+      },
+      "act": {
+        "zh": "门店冷藏牛奶并记录进奶温度后再复测。",
+        "en": "Store: chill the milk, log the inlet temperature, then retest."
+      }
+    },
+    {
+      "id": "cause-inntc-tl-13",
+      "partGroupId": "part-inntc",
+      "symptomId": "tl",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E040"
+      ],
+      "why": {
+        "zh": "进奶 NTC 读数偏低，控制器误判进奶温度，校准基线被拉偏。",
+        "en": "The inlet NTC reads low, so the controller misjudges the inlet and the calibration baseline is skewed."
+      },
+      "act": {
+        "zh": "清洁或更换探头，并重新做奶温校准。",
+        "en": "Clean or replace the probe and re-run milk-temp calibration."
+      }
+    },
+    {
+      "id": "cause-hose-unstable-14",
+      "partGroupId": "part-hose",
+      "symptomId": "unstable",
+      "pr": 3,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "奶管时通时断（折弯、被压、半插），吸奶断续 → 出奶温度与奶量忽高忽低。",
+        "en": "An intermittently blocked hose (kinked, pinched, half-seated) makes suction intermittent — outlet temperature and volume swing."
+      },
+      "act": {
+        "zh": "理顺奶管、固定走向、重新插到底后复测；机内奶管由服务商处理。",
+        "en": "Straighten, route and fully reseat the hose, then retest; internal hoses are for service."
+      }
+    },
+    {
+      "id": "cause-inntc-unstable-15",
+      "partGroupId": "part-inntc",
+      "symptomId": "unstable",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E040"
+      ],
+      "why": {
+        "zh": "进奶 NTC 线束退 pin / 水腐蚀 / 接插件松动，读数跳变 → 每次校准结果都不一样。",
+        "en": "Inlet NTC harness backed out, corroded or loose gives jumpy readings — every calibration ends differently."
+      },
+      "act": {
+        "zh": "清洁接插件并插紧后复测，观察读数是否稳定。",
+        "en": "Clean and reseat the connectors, then retest and watch whether the reading is stable."
+      }
+    },
+    {
+      "id": "cause-dlv-unstable-16",
+      "partGroupId": "part-dlv",
+      "symptomId": "unstable",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E039"
+      ],
+      "why": {
+        "zh": "奶输送电磁阀间歇动作异常，膜片老化导致通断不稳。",
+        "en": "The milk delivery valve actuates intermittently — an aged diaphragm opens and closes inconsistently."
+      },
+      "act": {
+        "zh": "更换 FFKM 最新膜片 / 阀体，并重新校准。",
+        "en": "Fit the latest FFKM diaphragm/valve body and re-calibrate."
+      }
+    },
+    {
+      "id": "cause-pulse-unstable-17",
+      "partGroupId": "part-pulse",
+      "symptomId": "unstable",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E043"
+      ],
+      "why": {
+        "zh": "脉冲进气阀开合不稳定（阀芯卡滞 / 线束虚接），奶泡厚度忽厚忽薄。",
+        "en": "The pulse air valve opens inconsistently (stuck disc / loose wiring) so foam thickness varies run to run."
+      },
+      "act": {
+        "zh": "测试模式下确认开合声；动作异常或卡滞则清洁或更换电磁阀。",
+        "en": "Confirm the open/close sound in test mode; clean or replace the solenoid if sluggish or stuck."
+      }
+    },
+    {
+      "id": "cause-mckv-unstable-18",
+      "partGroupId": "part-mckv",
+      "symptomId": "unstable",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "奶路单向阀（脉冲空气阀后）密封不完全或结垢 → 背压异常、牛奶与空气混合不充分，奶温与奶量稳定性差。",
+        "en": "The milk-line check valve (after the pulse air valve) does not seal or is scaled — abnormal back pressure makes milk and air mix poorly, hurting temperature and volume stability."
+      },
+      "act": {
+        "zh": "拆洗变压装置下壳体与混合线，更换单向阀密封件后重新校准。",
+        "en": "Strip and clean the lower housing and mixing line, replace the check-valve seals, then re-calibrate."
+      }
+    },
+    {
+      "id": "cause-tank-unstable-19",
+      "partGroupId": "part-tank",
+      "symptomId": "unstable",
+      "pr": 2,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "奶量不足时吸空、奶液位探针接触不稳，进奶量在\"有奶 / 吸空\"之间跳变。",
+        "en": "Low milk draws air and the level-probe contact is unstable, so the drawn amount jumps between full and empty."
+      },
+      "act": {
+        "zh": "补足奶量、清洁奶箱口与探针后复测。",
+        "en": "Refill milk and clean the tank mouth and probe, then retest."
+      }
+    },
+    {
+      "id": "cause-heat-tl-20",
+      "partGroupId": "part-heat",
+      "symptomId": "tl",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "蒸汽未真正进入蒸汽混合仓：单向阀被水垢堵塞、下壳体进蒸汽接头松动或结垢 → 奶只被\"走过\"未被加热，出奶温度明显偏低（常见 26℃ / 16℃）。",
+        "en": "Steam never actually enters the mixing chamber — a scaled check valve, or a loose/scaled steam-inlet fitting in the lower housing — so the milk is only carried through, never heated (often 26 °C or 16 °C)."
+      },
+      "act": {
+        "zh": "服务商拆洗下壳体进蒸汽接头与单向阀，复位并紧固后重新做奶温校准。",
+        "en": "Service strips and cleans the lower-housing steam fitting and the check valve, then refits, tightens and re-calibrates."
+      }
+    },
+    {
+      "id": "cause-mckv-tl-21",
+      "partGroupId": "part-mckv",
+      "symptomId": "tl",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "奶路单向阀卡滞／结垢造成背压异常，奶泵吃力、泵速与出奶温度同时失稳。",
+        "en": "A stuck or scaled milk-line check valve creates abnormal back pressure — the pump works harder and both speed and outlet temperature drift."
+      },
+      "act": {
+        "zh": "拆检单向阀并清洗管路；更换后重新校准。",
+        "en": "Strip the check valve, clean the line, replace if needed, then re-calibrate."
+      }
+    },
+    {
+      "id": "cause-drain-vl-22",
+      "partGroupId": "part-drain",
+      "symptomId": "vl",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E048"
+      ],
+      "why": {
+        "zh": "排废三通隔膜阀密封头膨胀老化 → 出奶不畅、杯量偏少（常与奶温低同时出现）。",
+        "en": "An expanded/aged seal in the 3-way drain valve restricts the flow — low cup volume, often together with low temperature."
+      },
+      "act": {
+        "zh": "更换密封件 / 三通总成；换件后重新校准并连做出杯验证。",
+        "en": "Replace the seal / valve assembly, re-calibrate and verify over several cups."
+      }
+    },
+    {
+      "id": "cause-hose-vl-23",
+      "partGroupId": "part-hose",
+      "symptomId": "vl",
+      "pr": 3,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "奶管被柜门压住、明显折弯或未插到底 → 负压吸奶不畅，杯量偏少。",
+        "en": "Milk hose pinched by the cabinet door, sharply kinked or not fully seated — weak suction and low cup volume."
+      },
+      "act": {
+        "zh": "门店理顺外部奶管、确认插到底（机内奶管不得自行拆插）。",
+        "en": "Store: straighten the external hose and confirm full seating (never open internal hoses)."
+      }
+    },
+    {
+      "id": "cause-tank-vl-24",
+      "partGroupId": "part-tank",
+      "symptomId": "vl",
+      "pr": 3,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "奶箱奶量不足或吸空，泵头吸空后出奶断续、杯量明显偏少。",
+        "en": "Tank empty or drawing air — once the pump head runs dry the flow becomes intermittent and the cup under-fills."
+      },
+      "act": {
+        "zh": "补奶、擦净奶箱口、保证牛奶冷藏 2–4℃ 后重做一杯验证。",
+        "en": "Refill milk, wipe the tank mouth, keep milk at 2–4°C and remake one cup to verify."
+      }
+    },
+    {
+      "id": "cause-probe-vl-25",
+      "partGroupId": "part-probe",
+      "symptomId": "vl",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "牛奶检测探针（螺纹式）弹力不足且阻值偏大（实测 0.14 Ω，正常约 0.0012 Ω，偏大约 100 倍），导通性能变差，有奶也误报\"牛奶用完\"。",
+        "en": "The milk detection probe has lost spring force and reads high (measured 0.14 Ω vs ~0.0012 Ω normal, ~100×), so a full tank still reports \"milk empty\"."
+      },
+      "act": {
+        "zh": "清洁探针通常无效，需更换牛奶检测探针。",
+        "en": "Cleaning the probe rarely helps — replace the milk detection probe."
+      }
+    },
+    {
+      "id": "cause-pump-vl-26",
+      "partGroupId": "part-pump",
+      "symptomId": "vl",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E045"
+      ],
+      "why": {
+        "zh": "奶泵内部单向阀与通道被奶垢或异物堵塞 → 出奶慢、杯量偏少。",
+        "en": "Scale or debris blocks the internal check valve and passage of the milk pump — slow flow and low volume."
+      },
+      "act": {
+        "zh": "断电拆洗奶泵内部，检查单向阀与通道；复装后确认阀芯活动灵活、管路畅通。",
+        "en": "Power down, strip and clean the pump, check the valve and passage, then confirm free movement and clear flow."
+      }
+    },
+    {
+      "id": "cause-heat-vl-27",
+      "partGroupId": "part-heat",
+      "symptomId": "vl",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "奶垢缩小通径（蒸汽混合仓、奶出口结垢）→ 流量整体下降。",
+        "en": "Scale narrows the passage (mixing chamber, milk outlet) and the whole flow drops."
+      },
+      "act": {
+        "zh": "断电清洁奶出口与可见奶路；机内由服务商拆洗后重校准。",
+        "en": "Power down and clean the outlet and visible path; service strips the internals, then re-calibrate."
+      }
+    },
+    {
+      "id": "cause-pulse-vh-28",
+      "partGroupId": "part-pulse",
+      "symptomId": "vh",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E043"
+      ],
+      "why": {
+        "zh": "脉冲进气阀开度偏大 / 进气过量 → 奶泡体积虚高，杯量读数偏多甚至溢杯。",
+        "en": "The pulse air valve opens too wide or over-injects — foam volume inflates, the cup reads high and may overflow."
+      },
+      "act": {
+        "zh": "降低奶沫厚度或厚度补偿；测试模式确认阀动作量，异常则拆洗或更换。",
+        "en": "Lower the foam thickness or thickness compensation; verify valve stroke in test mode and clean or replace it."
+      }
+    },
+    {
+      "id": "cause-hose-vh-29",
+      "partGroupId": "part-hose",
+      "symptomId": "vh",
+      "pr": 2,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "奶箱出奶口橡胶垫挤压奶管，或大奶箱抽到空气 → 奶中带气、奶泡偏多。",
+        "en": "A rubber gasket squeezes the hose at the tank outlet, or an oversized tank draws air — aerated milk and excess foam."
+      },
+      "act": {
+        "zh": "去掉多余橡胶垫、更换合适奶箱、理顺奶管。",
+        "en": "Remove the extra gasket, fit a proper tank and straighten the hose."
+      }
+    },
+    {
+      "id": "cause-tempComp-vh-30",
+      "partGroupId": "part-tempComp",
+      "symptomId": "vh",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E044"
+      ],
+      "why": {
+        "zh": "温度补偿调得过高 → 泵速偏低，单位时间通过混合腔的奶量与泡沫量偏差。",
+        "en": "Temperature compensation set too high drives the pump slow, so milk and foam per unit time drift."
+      },
+      "act": {
+        "zh": "把温度补偿回到中性（20）后重新校准。",
+        "en": "Return compensation to neutral (20) and re-calibrate."
+      }
+    },
+    {
+      "id": "cause-recipe-vh-31",
+      "partGroupId": "part-recipe",
+      "symptomId": "vh",
+      "pr": 1,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "配方奶量设定偏大或杯台高度不合适 —— 与泵速无关的\"杯量大\"。",
+        "en": "A large recipe volume or a badly set cup rest — \"too much milk\" that has nothing to do with pump speed."
+      },
+      "act": {
+        "zh": "按门店标准配方核对奶量与杯台高度（改配方前先确认标准配方）。",
+        "en": "Check volume and cup-rest height against the store standard recipe (confirm the standard before changing it)."
+      }
+    },
+    {
+      "id": "cause-pulse-foam-32",
+      "partGroupId": "part-pulse",
+      "symptomId": "foam",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E043"
+      ],
+      "why": {
+        "zh": "脉冲空气阀故障或进气不稳定 → 气泡过大；完全打不出奶泡多数也是此阀故障。",
+        "en": "The pulse air valve is faulty or unstable — oversized bubbles; no foam at all is usually this same valve."
+      },
+      "act": {
+        "zh": "测试模式下检查是否有清晰开合声；动作异常或卡滞则清洁或更换电磁阀。",
+        "en": "In test mode check for a clear open/close sound; clean or replace the solenoid if sluggish or stuck."
+      }
+    },
+    {
+      "id": "cause-checkv-foam-33",
+      "partGroupId": "part-checkv",
+      "symptomId": "foam",
+      "pr": 3,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "奶泵模块内单向阀失效 → 蒸汽无法与牛奶充分混合，奶泡温度偏低、质地粗糙。",
+        "en": "The internal check valve has failed — steam cannot mix properly, so foam is cold and coarse."
+      },
+      "act": {
+        "zh": "关机断电拆下奶泵蒸汽单向阀，检查阀芯卡滞或密封损坏，清洁或更换。",
+        "en": "Power down, remove the milk-pump steam check valve, inspect the disc for sticking or seal damage, clean or replace."
+      }
+    },
+    {
+      "id": "cause-tank-foam-34",
+      "partGroupId": "part-tank",
+      "symptomId": "foam",
+      "pr": 3,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "进奶温度过高会明显影响发泡效果：热奶饮建议不高于约 10℃、冷奶饮不高于约 5℃。",
+        "en": "Warm incoming milk clearly degrades foaming: ≤~10°C for hot drinks, ≤~5°C for cold."
+      },
+      "act": {
+        "zh": "冷藏牛奶至 2–4℃ 后复测发泡效果。",
+        "en": "Chill the milk to 2–4°C and retest the foam."
+      }
+    },
+    {
+      "id": "cause-cupRest-foam-35",
+      "partGroupId": "part-cupRest",
+      "symptomId": "foam",
+      "pr": 2,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "杯台高度 / 出奶口位置过高（尤其 5 mm、10 mm 奶配方）→ 奶泡被拉高变粗。",
+        "en": "Cup rest or spout set too high (notably for 5 mm / 10 mm milk recipes) stretches the foam and makes it coarse."
+      },
+      "act": {
+        "zh": "按配方建议下调杯台高度与出奶口位置后复测。",
+        "en": "Lower the cup rest and spout position as the recipe recommends, then retest."
+      }
+    },
+    {
+      "id": "cause-heat-foam-36",
+      "partGroupId": "part-heat",
+      "symptomId": "foam",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "蒸汽混合仓奶垢堆积、奶出口堵塞 → 流量与流型改变，奶泡变粗或厚薄不稳。",
+        "en": "A blocked milk outlet or scaled milk path changes flow and texture — coarse or unstable foam."
+      },
+      "act": {
+        "zh": "断电清洁奶出口与可见奶路；机内由服务商拆洗。",
+        "en": "Power down and clean the outlet and visible path; internal cleaning is for service."
+      }
+    },
+    {
+      "id": "cause-svalve-foam-37",
+      "partGroupId": "part-svalve",
+      "symptomId": "foam",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "蒸汽锅炉三通电磁阀开闭异常或阀芯结垢 → 蒸汽量不稳，奶泡打发不充分。",
+        "en": "The boiler three-way steam valve mis-acts or its disc is scaled — unstable steam and under-whipped foam."
+      },
+      "act": {
+        "zh": "拆洗或更换阀芯，确认蒸汽通路畅通。",
+        "en": "Clean or replace the valve disc and confirm the steam path is clear."
+      }
+    },
+    {
+      "id": "cause-hose-nomilk-38",
+      "partGroupId": "part-hose",
+      "symptomId": "nomilk",
+      "pr": 3,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "机内奶管脱落 / 被压 / 破损会吸进空气 → 吸不上奶，或只出蒸汽不吸奶。",
+        "en": "An internal milk hose that is off, pinched or cracked draws air — no suction, or steam only."
+      },
+      "act": {
+        "zh": "门店只做外部走线检查；机内奶管由服务商重新插紧并扎带固定。",
+        "en": "Store checks external routing only; service reseats and straps the internal hose."
+      }
+    },
+    {
+      "id": "cause-dlv-nomilk-39",
+      "partGroupId": "part-dlv",
+      "symptomId": "nomilk",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E039"
+      ],
+      "why": {
+        "zh": "奶输送电磁阀未打开或内部通道堵塞 → 奶无法进入泵腔。",
+        "en": "The milk delivery valve does not open or its passage is blocked — milk never reaches the pump chamber."
+      },
+      "act": {
+        "zh": "拆检阀体与通道；用奶泵测试菜单确认动作声。",
+        "en": "Open and inspect the valve body and passage; confirm actuation in the milk-pump test menu."
+      }
+    },
+    {
+      "id": "cause-cleanValve-nomilk-40",
+      "partGroupId": "part-cleanValve",
+      "symptomId": "nomilk",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E041"
+      ],
+      "why": {
+        "zh": "热水锅炉模组奶清洗电磁阀进水管未插到位或漏水 → 蒸汽 / 水路串入奶路，表现为\"只出蒸汽不吸奶\"。",
+        "en": "The hot-water boiler milk-cleaning valve inlet is not seated or leaks, so steam/water crosses into the milk path — shown as \"steam only\"."
+      },
+      "act": {
+        "zh": "重新插紧或更换密封件，复测奶路动作与清洗流程。",
+        "en": "Reseat or replace the seal, then retest the milk path and the wash cycle."
+      }
+    },
+    {
+      "id": "cause-tank-nomilk-41",
+      "partGroupId": "part-tank",
+      "symptomId": "nomilk",
+      "pr": 3,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "奶箱缺奶、机内管路未插到底 → 直接不出奶并报缺奶。",
+        "en": "Empty tank or a hose not fully seated — no milk at all plus a \"milk empty\" alarm."
+      },
+      "act": {
+        "zh": "补奶并确认奶箱安装到位后重做一杯验证。",
+        "en": "Refill milk, confirm the tank is seated and remake one cup to verify."
+      }
+    },
+    {
+      "id": "cause-probe-nomilk-42",
+      "partGroupId": "part-probe",
+      "symptomId": "nomilk",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "牛奶检测探针阻值偏大（0.14 Ω vs 正常 0.0012 Ω）→ 有奶也误报\"牛奶用完\"。",
+        "en": "The milk detection probe reads ~100× too high, so a full tank still reports \"milk empty\"."
+      },
+      "act": {
+        "zh": "更换牛奶检测探针。",
+        "en": "Replace the milk detection probe."
+      }
+    },
+    {
+      "id": "cause-pump-nomilk-43",
+      "partGroupId": "part-pump",
+      "symptomId": "nomilk",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E045"
+      ],
+      "why": {
+        "zh": "奶泵内部单向阀与通道堵塞，泵吸不动。",
+        "en": "The pump internal check valve and passages are blocked — the pump cannot pull."
+      },
+      "act": {
+        "zh": "断电拆洗奶泵内部，复装后确认单向阀活动灵活。",
+        "en": "Power down, strip and clean the pump, confirm free valve movement after reassembly."
+      }
+    },
+    {
+      "id": "cause-pump-alarm-44",
+      "partGroupId": "part-pump",
+      "symptomId": "alarm",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E045",
+        "E044"
+      ],
+      "why": {
+        "zh": "缺奶状态下运行导致泵头过热报故障；连续 2 秒检测到转速为 0 即报\"奶泵故障\"。",
+        "en": "Running dry overheats the pump head; a 2-second zero-speed detection raises \"milk pump failure\"."
+      },
+      "act": {
+        "zh": "门店禁止缺奶空转；服务商拆洗泵体并检查驱动电路与转速反馈。",
+        "en": "Never run dry; service strips the pump and checks the drive circuit and speed feedback."
+      }
+    },
+    {
+      "id": "cause-harness-alarm-45",
+      "partGroupId": "part-harness",
+      "symptomId": "alarm",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E044",
+        "E045"
+      ],
+      "why": {
+        "zh": "奶泵线束未插到位、端子退针、水腐蚀导致接触不良 → 转速反馈跳变报 E044 / E045。",
+        "en": "The pump harness is unseated, backed out or corroded — intermittent speed feedback raises E044 / E045."
+      },
+      "act": {
+        "zh": "断电检查奶泵线束与 PCB 转接线束；退 pin / 水腐蚀需导入一体式线束。",
+        "en": "Power down and check the pump harness and PCB adapter; adopt the one-piece harness where pins are backed out or corroded."
+      }
+    },
+    {
+      "id": "cause-drain-alarm-46",
+      "partGroupId": "part-drain",
+      "symptomId": "alarm",
+      "pr": 3,
+      "own": "svc",
+      "codes": [
+        "E048"
+      ],
+      "why": {
+        "zh": "排奶三通阀失效导致蒸汽倒灌，损坏奶泵齿轮——必须与奶泵一并排查。",
+        "en": "A failed 3-way drain valve lets steam back-flow and damages the pump gear — the pump must be inspected together with it."
+      },
+      "act": {
+        "zh": "在奶泵测试菜单对排奶三通阀做程序测试，有动作声才正常；失效则更换并同时检查奶泵齿轮。",
+        "en": "Run the drain-valve program test — a click is expected; if it fails, replace it and inspect the pump gear at the same time."
+      }
+    },
+    {
+      "id": "cause-module-alarm-47",
+      "partGroupId": "part-module",
+      "symptomId": "alarm",
+      "pr": 2,
+      "own": "svc",
+      "codes": [
+        "E037"
+      ],
+      "why": {
+        "zh": "E037 奶泵系统不在位：多发生在装机、搬动或维保之后，模组线束未连接到位。",
+        "en": "E037 milk-pump system not in position — common after installation, moving or servicing; the module harness is unseated."
+      },
+      "act": {
+        "zh": "重新安装模组并插紧线束，确认无退针、无受压。",
+        "en": "Reinstall the module, reseat the harness and confirm no backed-out pins or pinching."
+      }
+    },
+    {
+      "id": "cause-alarm-alarm-48",
+      "partGroupId": "part-alarm",
+      "symptomId": "alarm",
+      "pr": 2,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "报\"奶泵报警\"后继续强行出杯会扩大损坏（严重时导致奶泵齿轮损坏）。",
+        "en": "Continuing to dispense after a milk-pump alarm escalates the damage, including pump-gear failure."
+      },
+      "act": {
+        "zh": "立即停止使用奶路功能、正常关机断电、记录报警码与发生时机后报修。",
+        "en": "Stop using the milk path immediately, shut down and power off, log the code and timing, then raise a ticket."
+      }
+    },
+    {
+      "id": "cause-hose-leak-49",
+      "partGroupId": "part-hose",
+      "symptomId": "leak",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "机内奶管接头松脱或未插到底、管口切面不平、Y 型密封圈磨损 → 奶路接口渗奶。",
+        "en": "A loose or unseated internal milk fitting, an unevenly cut pipe end or a worn Y-seal causes seepage at the milk-path joint."
+      },
+      "act": {
+        "zh": "服务商重新插紧并扎带固定，切面不平的剪平重装；门店不得拆机插拔机内奶管。",
+        "en": "Service reseats and straps the fitting and re-cuts uneven pipe ends; stores must not open internal hoses."
+      }
+    },
+    {
+      "id": "cause-heat-leak-50",
+      "partGroupId": "part-heat",
+      "symptomId": "leak",
+      "pr": 2,
+      "own": "svc",
+      "codes": [],
+      "why": {
+        "zh": "蒸汽混合仓与变压装置下壳体密封件 / 隔膜阀老化 → 渗奶（常伴奶温低、杯量偏少）。",
+        "en": "Aged seals or the diaphragm valve in the lower housing leak milk — often together with low temperature and low volume."
+      },
+      "act": {
+        "zh": "更换密封件与隔膜阀，换后重新校准并观察一个班次。",
+        "en": "Replace the seals and diaphragm valve, re-calibrate and watch one shift."
+      }
+    },
+    {
+      "id": "cause-drain-leak-51",
+      "partGroupId": "part-drain",
+      "symptomId": "leak",
+      "pr": 3,
+      "own": "store",
+      "codes": [],
+      "why": {
+        "zh": "进水管接头松动、排水管过长 / 打折 / 上坡 → 底部或台面渗水外溢（多数被误判为漏奶）。",
+        "en": "Loose inlet fittings or an over-long, kinked or uphill drain hose cause pooling under the machine — often mis-reported as a milk leak."
+      },
+      "act": {
+        "zh": "门店紧固外部进水接头，理顺、裁短排水管并保持缓降；清空渣盒与蓄水盘。",
+        "en": "Store: tighten external inlet fittings, shorten and route the drain with a fall; empty the bin and drip tray."
+      }
+    }
+  ],
+  "checkGuides": [
+    {
+      "groupId": "part-tank",
+      "text": {
+        "zh": "查奶量与奶温（2–4℃）、奶箱是否放正、出奶口有无多余垫圈；清洁奶箱口与探针周围。",
+        "en": "Check milk level and temperature (2–4 °C), correct tank seating and extra gaskets at the outlet; clean the tank mouth."
+      }
+    },
+    {
+      "groupId": "part-selv",
+      "text": {
+        "zh": "测试模式下听三通阀切换动作声；检查阀口与膜片有无结垢、膨胀或压痕。",
+        "en": "In test mode listen for the 3-way valve switching; check ports and diaphragm for scale, swelling or imprint marks."
+      }
+    },
+    {
+      "groupId": "part-probe",
+      "text": {
+        "zh": "万用表测探针阻值（正常约 0.0012 Ω）；检查螺纹与弹力，擦拭探头表面后复测。",
+        "en": "Measure the probe resistance (~0.0012 Ω normal); check thread and spring force, wipe the tip and retest."
+      }
+    },
+    {
+      "groupId": "part-inntc",
+      "text": {
+        "zh": "万用表测 NTC 阻值并对比 IOT 显示；检查接插件是否插紧、有无退针或水腐蚀。",
+        "en": "Measure the NTC resistance against the IOT reading; check that connectors are seated, with no backed-out or corroded pins."
+      }
+    },
+    {
+      "groupId": "part-dlv",
+      "text": {
+        "zh": "测试模式确认两通阀开合声；拆检膜片有无膨胀/压痕，阀体通道有无结垢。",
+        "en": "Confirm the 2-way valve click in test mode; inspect the diaphragm for swelling or imprint, the body passage for scale."
+      }
+    },
+    {
+      "groupId": "part-pulse",
+      "text": {
+        "zh": "测试模式听进气阀开合声与节奏；检查空气滤网是否脏堵、线束连接是否牢固。",
+        "en": "In test mode listen to the valve rhythm; check the air filter for dirt and the wiring for a tight connection."
+      }
+    },
+    {
+      "groupId": "part-mckv",
+      "text": {
+        "zh": "拆检阀芯是否活动灵活；检查密封面结垢与磨损，确认脉冲阀后管路背压正常。",
+        "en": "Strip the valve and confirm free disc movement; check sealing faces for scale and wear, and normal back pressure downstream."
+      }
+    },
+    {
+      "groupId": "part-pump",
+      "text": {
+        "zh": "读 IOT 转速并与实际对比；听泵有无异响，检查线束接插件；确认泵与阀件是否为最新 FFKM 件。",
+        "en": "Compare the IOT RPM with actual speed; listen for noise, check harness connectors; confirm pump and valves are on the latest FFKM parts."
+      }
+    },
+    {
+      "groupId": "part-heat",
+      "text": {
+        "zh": "拆检蒸汽进口接头是否紧固、单向阀是否结垢；观察通蒸汽时出口温度是否快速上升。",
+        "en": "Check that the steam-inlet fitting is tight and the check valve is clean; watch whether outlet temperature rises quickly when steam opens."
+      }
+    },
+    {
+      "groupId": "part-drain",
+      "text": {
+        "zh": "测试模式跑排废程序听动作声；检查密封头有无膨胀老化，排废管路是否通畅。",
+        "en": "Run the drain program in test mode and listen for the click; check the seal head for swelling and the drain line for free flow."
+      }
+    },
+    {
+      "groupId": "part-outntc",
+      "text": {
+        "zh": "万用表测 NTC 阻值；对比显示温度与实测出奶温度，检查探头安装位置是否正确。",
+        "en": "Measure the NTC resistance; compare displayed vs measured outlet temperature and check probe seating."
+      }
+    },
+    {
+      "groupId": "part-svalve",
+      "text": {
+        "zh": "通电听电磁阀动作声；测线圈电阻；拆检阀芯有无结垢或卡滞。",
+        "en": "Listen for solenoid actuation; measure coil resistance; strip the disc for scale or sticking."
+      }
+    },
+    {
+      "groupId": "part-boiler",
+      "text": {
+        "zh": "查看锅炉压力与温度显示是否正常；确认加热、泄压动作；观察蒸汽输出是否稳定。",
+        "en": "Check boiler pressure and temperature readings; confirm heating and venting; watch for a steady steam supply."
+      }
+    },
+    {
+      "groupId": "part-checkv",
+      "text": {
+        "zh": "拆下阀芯检查有无卡滞与结垢；吹气测试单向导通性；确认密封面完好。",
+        "en": "Remove the disc and check for sticking and scale; blow-test one-way flow; confirm the sealing faces are intact."
+      }
+    },
+    {
+      "groupId": "part-oselv",
+      "text": {
+        "zh": "测试模式听出奶选择阀动作声；拆检膜片与阀座有无膨胀压痕，检查出口通道结垢。",
+        "en": "Listen for the outlet-select valve click in test mode; strip diaphragm and seat for swelling or imprint, check the outlet passage for scale."
+      }
+    },
+    {
+      "groupId": "part-hose",
+      "text": {
+        "zh": "全程检查奶管走线：有无折弯、压扁、接头松动；确认两端插到底；机内段由服务商检查。",
+        "en": "Trace the hose end to end: kinks, flattening, loose fittings; confirm both ends fully seated; internal section is for service."
+      }
+    }
+  ]
+}

@@ -56,9 +56,12 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
     raw = JSON.parse(raw);
   }
   const o = object(raw, "profile");
-  keys(o, ["format", "version", "namespace", "source", "diagramBinding", "signalDefinitions", "highlightGroups", "diagnostics"], "profile");
   enumeration(o.format, ["fluidpath.diagnostic-profile"], "format");
-  enumeration(o.version, ["0.1-draft", "0.2-draft"], "version"); str(o.namespace, "namespace", 160);
+  enumeration(o.version, ["0.1-draft", "0.2-draft", "0.3-draft"], "version"); str(o.namespace, "namespace", 160);
+  // 0.3+ 才接受故障知识库扩展字段；旧版本出现这些字段一律拒绝（版本门控，不做静默迁移）
+  const kbFields = ["kb", "symptoms", "causes", "checkGuides"];
+  const baseKeys = ["format", "version", "namespace", "source", "diagramBinding", "signalDefinitions", "highlightGroups", "diagnostics"];
+  keys(o, o.version === "0.3-draft" ? [...baseKeys, ...kbFields] : baseKeys, "profile");
   const source = object(o.source, "source"); keys(source, ["kind", "appliesToRealMachine"], "source");
   enumeration(source.kind, ["userDeclared", "illustrative"], "source.kind");
   if (typeof source.appliesToRealMachine !== "boolean") fail("source.appliesToRealMachine", "expected boolean");
@@ -130,7 +133,7 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
       if (!groups.has(binding.groupId as string)) fail(p, "unknown highlight group");
       enumeration(binding.meaning, ["inspectionScope", "observedAt", "affectedCircuit"], p);
     }
-    if (f.troubleshooting !== undefined && o.version !== "0.2-draft") fail(`${p}.troubleshooting`, "requires diagnostic profile 0.2-draft");
+    if (f.troubleshooting !== undefined && o.version !== "0.3-draft" && o.version !== "0.2-draft") fail(`${p}.troubleshooting`, "requires diagnostic profile 0.2-draft");
     const stepIds = new Set<string>();
     for (const [stepIndex, stepValue] of list(f.troubleshooting ?? [], `${p}.troubleshooting`, 100).entries()) {
       const stepPath = `${p}.troubleshooting[${stepIndex}]`, step = object(stepValue, stepPath);
@@ -170,7 +173,48 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
       if (r.latching !== (r.resetPolicy === "manualAfterRecovery")) fail(p, "latching/reset policy conflict");
     }
   }
+  parseKnowledgeBase(o, groups, codes);
   return structuredClone(o) as unknown as DiagnosticProfile;
+}
+
+/** 0.3+：症状 / 原因 / 排查要点——诊断咨询层。引用完整性在这里一次性锁死。 */
+function parseKnowledgeBase(o: Record<string, unknown>, groups: Set<string>, codes: Set<string>): void {
+  if (o.kb === undefined && o.symptoms === undefined && o.causes === undefined && o.checkGuides === undefined) return;
+  if (o.kb !== undefined) {
+    const kb = object(o.kb, "kb"); keys(kb, ["kbVersion", "source", "updatedAt"], "kb");
+    if (typeof kb.kbVersion !== "number" || !Number.isInteger(kb.kbVersion) || kb.kbVersion < 1 || kb.kbVersion > 9999) fail("kb.kbVersion", "expected integer 1–9999");
+    textPair(kb.source, "kb.source");
+    if (typeof kb.updatedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(kb.updatedAt)) fail("kb.updatedAt", "expected YYYY-MM-DD");
+  }
+  const symptomIds = new Set<string>();
+  for (const [i, value] of list(o.symptoms ?? [], "symptoms", 200).entries()) {
+    const p = `symptoms[${i}]`, s = object(value, p);
+    keys(s, ["id", "label", "group"], p);
+    str(s.id, `${p}.id`, 160); if (symptomIds.has(s.id)) fail(p, "duplicate symptom ID"); symptomIds.add(s.id);
+    textPair(s.label, `${p}.label`);
+    if (s.group !== undefined) textPair(s.group, `${p}.group`);
+  }
+  for (const [i, value] of list(o.causes ?? [], "causes", 2000).entries()) {
+    const p = `causes[${i}]`, c = object(value, p);
+    keys(c, ["id", "partGroupId", "symptomId", "pr", "own", "codes", "why", "act", "ref"], p);
+    str(c.id, `${p}.id`, 160);
+    str(c.partGroupId, `${p}.partGroupId`, 160); if (!groups.has(c.partGroupId)) fail(`${p}.partGroupId`, "unknown highlight group (part)");
+    str(c.symptomId, `${p}.symptomId`, 160); if (!symptomIds.has(c.symptomId)) fail(`${p}.symptomId`, "unknown symptom");
+    if (c.pr !== 3 && c.pr !== 2 && c.pr !== 1) fail(`${p}.pr`, "expected 3 (primary) / 2 (secondary) / 1 (rare)");
+    enumeration(c.own, ["store", "svc", "both"], `${p}.own`);
+    idList(c.codes, `${p}.codes`);
+    for (const code of c.codes as string[]) if (!codes.has(code)) fail(`${p}.codes`, `unknown fault code: ${code}`);
+    textPair(c.why, `${p}.why`); textPair(c.act, `${p}.act`);
+    if (c.ref !== undefined) str(c.ref, `${p}.ref`, 160);
+  }
+  const guideGroups = new Set<string>();
+  for (const [i, value] of list(o.checkGuides ?? [], "checkGuides", 500).entries()) {
+    const p = `checkGuides[${i}]`, g = object(value, p);
+    keys(g, ["groupId", "text"], p);
+    str(g.groupId, `${p}.groupId`, 160); if (!groups.has(g.groupId)) fail(`${p}.groupId`, "unknown highlight group (part)");
+    if (guideGroups.has(g.groupId)) fail(p, "duplicate check guide for group"); guideGroups.add(g.groupId);
+    textPair(g.text, `${p}.text`);
+  }
 }
 
 export function resolveFaultTargets(diagram: Diagram, profile: DiagnosticProfile, fault: FaultCode) {

@@ -63,15 +63,59 @@ export interface FaultCode {
   controlActions: never[];
   rootCauseStatus: "notDetermined";
 }
+
+/** 0.3+：一条可见症状（奶温偏高/不出奶…），按观察维度分组。 */
+export interface Symptom {
+  id: string;
+  label: LocalizedText;
+  group?: LocalizedText;
+}
+
+/**
+ * 0.3+：部件 × 症状的责任条目（诊断矩阵的单元格）。
+ * pr: 3=高概率首要排查 2=次要常规 1=罕见需排除；own: 处置归属（门店/服务商/先排查后报修）。
+ * partGroupId 引用 highlightGroups（部件组），codes 引用 diagnostics[].code。
+ */
+export interface Cause {
+  id: string;
+  partGroupId: string;
+  symptomId: string;
+  pr: 1 | 2 | 3;
+  own: "store" | "svc" | "both";
+  codes: string[];
+  why: LocalizedText;
+  act: LocalizedText;
+  /** 手册章节/页码溯源（可选） */
+  ref?: string;
+}
+
+/** 0.3+：部件排查要点——无论该部件是否为嫌疑，都给出的检查内容。 */
+export interface CheckGuide {
+  groupId: string;
+  text: LocalizedText;
+}
+
+/** 0.3+：知识库身份与溯源。kbVersion 随手册/知识库修订递增，与图纸更新节奏解耦。 */
+export interface KbMeta {
+  kbVersion: number;
+  source: LocalizedText;
+  updatedAt: string;
+}
+
 export interface DiagnosticProfile {
   format: "fluidpath.diagnostic-profile";
-  version: "0.1-draft" | "0.2-draft";
+  version: "0.1-draft" | "0.2-draft" | "0.3-draft";
   namespace: string;
   source: { kind: "userDeclared" | "illustrative"; appliesToRealMachine: boolean };
   diagramBinding?: { sourceFile: string; sourceSha256: string };
   signalDefinitions: SignalDefinition[];
   highlightGroups: HighlightGroup[];
   diagnostics: FaultCode[];
+  /** 0.3+：故障知识库扩展（症状→原因→对策的 consult 层）。 */
+  kb?: KbMeta;
+  symptoms?: Symptom[];
+  causes?: Cause[];
+  checkGuides?: CheckGuide[];
 }
 export interface Observation {
   value: SignalValue;

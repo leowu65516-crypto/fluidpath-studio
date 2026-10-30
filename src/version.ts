@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.43.1";
+export const APP_VERSION = "1.44.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.44.0",
+    date: "2026-10-30",
+    highlights: [
+      "故障知识库 0.3-draft：诊断配置新增 kb 元数据（kbVersion/来源/日期）、symptoms 症状表、causes 部件×症状责任条目（概率 3/2/1、处置归属 store/svc/both、关联码、双语机理与对策、手册溯源 ref）、checkGuides 部件排查要点；0.1/0.2 版本门控拒绝新字段，0.2 行为不变",
+      "黄金样例 MILK-KB.fluidkb.json：由 scripts/milk-kb-migrate.mjs 从奶泵系统交互页 V2 一次性迁移手册 V7 奶泵模组知识——23 部件组（16 实体件 + 7 手册诊断类别/设置项）、9 症状、52 条原因、11 个 E037–E048 码、16 条排查要点，全部双语；诊断报告的 AI 转化协议（转写不创作/双语/概率口径/溯源）落进《图纸规范与AI绘图协议》v0.2.4 §18",
+      "新增回归：KB 解析与双语完整性、引用完整性（部件组/症状/故障码）、版本门控与 0.2 兼容；全量 86 文件 / 576 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.43.1",
     date: "2026-10-28",

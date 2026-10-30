@@ -14,6 +14,7 @@ import {
   toggleInjectedFault, useDiagnosticSession,
 } from "../fault-codes/session";
 import { codeReferences, symptomLabelOf } from "../fault-codes/consult";
+import { codePartGroups, firstRunnableCode, runnableCodes } from "../fault-codes/journey";
 import { startFaultDrill, restoreFaultDrill } from "../fault-codes/drill";
 import { faultWorkbenchStatus } from "../fault-codes/workbench";
 import { suggestGroupTargets, unboundGroups } from "../fault-codes/binding";
@@ -140,6 +141,9 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
   const [pendingImportName, setPendingImportName] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [confirmClearBindings, setConfirmClearBindings] = useState(false);
+  const [drillConfigOpen, setDrillConfigOpen] = useState(false);
+  const [importSummary, setImportSummary] = useState<{ codes: number; symptoms: number; causes: number; groups: number; newGroups: number; unbound: number } | null>(null);
+  const [createdCode, setCreatedCode] = useState<{ code: string; faultId: string; groupId?: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const canEdit = !["present", "verify"].includes(ui.mode ?? "edit");
@@ -163,6 +167,27 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
   const suggestedNames = selectedGroupSuggestions
     ? [...selectedGroupSuggestions.nodes.map(id => diagram.nodes.find(node => node.id === id)?.label ?? id), ...selectedGroupSuggestions.pipes.map(id => diagram.pipes.find(pipe => pipe.id === id)?.label ?? id)]
     : [];
+  const runnable = runnableCodes(diagram, profile);
+  const firstRunnable = runnable[0] ?? null;
+  const scopeLess = profile.diagnostics.filter(fault => resolveFaultTargets(diagram, profile, fault).nodes.length + resolveFaultTargets(diagram, profile, fault).pipes.length === 0);
+
+  // 没有演练配置的代码：把演练配置默认展开，避免"演练故障"点了没反应。
+  useEffect(() => { setDrillConfigOpen(!!active && !active.drill?.actions?.length); }, [active?.id]);
+  // 第④步没有选中代码时自动选中第一个可演练代码，避免空白页。
+  useEffect(() => {
+    if (step === 4 && !active && firstRunnable) selectFaultCodes([firstRunnable.id]);
+  }, [step, active, firstRunnable]);
+  // 落点从"还有未绑定"变为"全部绑定"时，自动进入演练并选中第一个可用代码。
+  const prevUnbound = useRef(unbound.length);
+  useEffect(() => {
+    if (prevUnbound.current > 0 && unbound.length === 0 && status.groupCount > 0) {
+      const first = firstRunnableCode(diagram, profile);
+      if (first) selectFaultCodes([first.id]);
+      setUI({ faultStep: 4 });
+      toast(first ? `${t("全部部件组已绑定：已选中")} ${first.code}，${t("点「演练故障」看差异")}` : t("全部部件组已绑定"));
+    }
+    prevUnbound.current = unbound.length;
+  }, [unbound.length, status.groupCount, diagram, profile, t]);
 
   // 切换步骤时把工作区滚回顶部，避免上一组操作的滚动位置遮住当前步骤标题。
   useEffect(() => {
@@ -232,13 +257,29 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
     const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
     focusRectAnimated(left, top, right, bottom, [...nodeIds, ...pipeIds]);
   }
+  function goDrill(codeId: string) {
+    selectFaultCodes([codeId]);
+    setUI({ faultStep: 4 });
+  }
+  function bindCodeScope(fault: FaultCode) {
+    const groups = codePartGroups(profile, fault);
+    setUI({ faultStep: 3 });
+    if (!startBindingWizard(groups.length ? groups : undefined)) toast(t("该代码引用的部件组都已绑定"));
+  }
+  function restoreAndNext() {
+    const currentId = active?.id;
+    restoreFaultDrill();
+    const next = runnable.find(code => code.id !== currentId);
+    if (next) selectFaultCodes([next.id]);
+    toast(next ? `${t("已还原；下一个")}：${next.code}（${t("已选中")}）` : t("已还原到演练前状态；可继续选下一个代码"));
+  }
   function applySuggestionToGroup(groupId: string) {
     const group = profile.highlightGroups.find(item => item.id === groupId);
     if (!group) return;
     const suggestions = suggestGroupTargets(diagram, group);
     if (!suggestions.nodes.length && !suggestions.pipes.length) { toast(t("该部件组没有可用的名称建议，请在画布点选对象")); return; }
     run(() => bindKbGroupTargets(groupId, suggestions));
-    toast(`${t("已按名称建议绑定")}：${labelOfGroup(group)}`);
+    toast(`${t("已按名称建议绑定")}：${labelOfGroup(group)} · ${t("继续下一组，或点「去演练」")}`);
   }
   function autoSuggestAll() {
     const candidates = profile.highlightGroups
@@ -251,15 +292,30 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
   }
   function applyImport(goBind: boolean) {
     run(() => {
+      const incoming = pendingImport!;
       const before = new Map(profile.highlightGroups.map(group => [group.id, group]));
-      const result = importFaultCatalog(JSON.stringify(pendingImport));
+      const newGroups = incoming.highlightGroups.filter(group => !before.has(group.id)).length;
+      const result = importFaultCatalog(JSON.stringify(incoming));
       setImportConflicts(result.conflicts.map(id => ({ id, label: labelOfGroup(before.get(id)) })));
       setPendingImport(null); setPendingImportName(""); setActiveId("");
       const nextProfile = store.get().diagram.settings.diagnosticProfile;
       const remaining = nextProfile ? unboundGroups(nextProfile).length : 0;
+      setImportSummary({
+        codes: incoming.diagnostics.length,
+        symptoms: incoming.symptoms?.length ?? 0,
+        causes: incoming.causes?.length ?? 0,
+        groups: incoming.highlightGroups.length,
+        newGroups,
+        unbound: remaining,
+      });
       if (goBind && remaining > 0) stopBindingWizard();
-      setUI({ faultStep: goBind && remaining > 0 ? 3 : remaining > 0 ? 3 : 4 });
+      setUI({ faultStep: 3 });
       if (goBind && remaining > 0) startBindingWizard();
+      if (remaining === 0 && nextProfile) {
+        const first = firstRunnableCode(store.get().diagram, nextProfile);
+        if (first) selectFaultCodes([first.id]);
+        setUI({ faultStep: 4 });
+      }
     });
   }
 
@@ -310,8 +366,20 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
       {showNewCode && canEdit && <NewCodeWizard canEdit={canEdit} onError={setError}
         onStartBinding={groupId => startBinding([groupId])}
         onSave={saveDiagram}
-        onExport={() => downloadText(`${diagram.name}-fault-library.fluidkb.json`, JSON.stringify(profile, null, 2), "application/json")}
-        onDone={() => { setShowNewCode(false); stopBindingWizard(); }} />}
+        onExport={() => { downloadText(`${diagram.name}-fault-library.fluidkb.json`, JSON.stringify(profile, null, 2), "application/json"); toast(t("已导出知识库：可发给同事导入")); }}
+        onDone={code => {
+        setShowNewCode(false); stopBindingWizard();
+        if (code) {
+          const latest = store.get().diagram.settings.diagnosticProfile;
+          const fault = latest?.diagnostics.find(item => item.code === code);
+          if (fault) {
+            setCreatedCode({ code, faultId: fault.id, groupId: codePartGroups(latest!, fault)[0] });
+            setImportSummary(null);
+            setUI({ faultStep: 3 });
+            toast(`${t("新代码")} ${code} ${t("已创建：下一步绑定它的排查范围")}`);
+          }
+        }
+      }} />}
       {error && <div className="fault-error" role="alert">{t("配置错误")}: {error}</div>}
       {importConflicts.length > 0 && <section className="fault-card kb-conflicts" role="status">
         <strong>{t("以下已绑定部件组在新知识库中不存在，绑定已解除：")}</strong>
@@ -345,7 +413,7 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
           <div className="fault-actions">
             <button className="btn" disabled={!canEdit} onClick={() => inputRef.current?.click()}>{t("导入知识库")}</button>
             <button className="btn ghost" disabled={!canEdit} onClick={() => run(() => setPendingImport(sampleKnowledgeBase()))}>{t("加载示例知识库")}</button>
-            <button className="btn ghost" onClick={() => downloadText("fault-library-template.fluidkb.json", JSON.stringify(buildLibraryTemplate(), null, 2), "application/json")}>{t("下载空白模板")}</button>
+            <button className="btn ghost" onClick={() => { downloadText("fault-library-template.fluidkb.json", JSON.stringify(buildLibraryTemplate(), null, 2), "application/json"); toast(t("模板已下载：填好后回到这里导入")); }}>{t("下载空白模板")}</button>
           </div>
         </div>
         <div className="step-question">
@@ -360,15 +428,15 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
           <p className="fault-hint">{t("可以表单化添加症状、原因（概率/处置归属/关联报警码/机理与对策）和排查要点；也可以先只建故障码。")}</p>
           <div className="fault-actions">
             <button className="btn" disabled={!canEdit} onClick={() => setShowKbEditor(value => !value)}>{showKbEditor ? t("收起知识库编辑器") : t("编辑知识库内容")}</button>
-            <button className="btn ghost" disabled={!canEdit} onClick={() => downloadText("fault-library-template.fluidkb.json", JSON.stringify(buildLibraryTemplate(), null, 2), "application/json")}>{t("下载模板参考")}</button>
+            <button className="btn ghost" disabled={!canEdit} onClick={() => { downloadText("fault-library-template.fluidkb.json", JSON.stringify(buildLibraryTemplate(), null, 2), "application/json"); toast(t("模板已下载：填好后回到这里导入")); }}>{t("下载模板参考")}</button>
           </div>
-          {showKbEditor && <FaultKnowledgeEditor profile={profile} canEdit={canEdit} onError={setError} />}
+          {showKbEditor && <FaultKnowledgeEditor profile={profile} canEdit={canEdit} onError={setError} onGoBinding={() => { setUI({ faultStep: 3 }); }} />}
         </div>
         <div className="step-question">
           <b>{t("要备份或交给别人？")}</b>
           <p className="fault-hint">{t("导出知识库会把故障码、症状、原因、排查要点与演练配置一起存成 .fluidkb.json。")}</p>
           <div className="fault-actions">
-            <button className="btn ghost" disabled={!profile.diagnostics.length} onClick={() => downloadText(`${diagram.name}-fault-library.fluidkb.json`, JSON.stringify(profile, null, 2), "application/json")}>{t("导出知识库")}</button>
+            <button className="btn ghost" disabled={!profile.diagnostics.length} onClick={() => { downloadText(`${diagram.name}-fault-library.fluidkb.json`, JSON.stringify(profile, null, 2), "application/json"); toast(t("已导出知识库：可发给同事导入")); }}>{t("导出知识库")}</button>
           </div>
         </div>
         {importPreview}
@@ -377,6 +445,27 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
 
       {step === 3 && <section className="fault-card" data-testid="fault-step-binding">
         <div className="fault-section-title"><strong>{t("③ 画布落点")}</strong><span className="fault-badge">{t("已绑定")} {status.boundGroupCount}/{status.groupCount}</span></div>
+        {importSummary && <div className="fault-outcome" role="status" data-testid="import-outcome">
+          <b>✅ {t("导入完成")}：{importSummary.codes} {t("故障码")} · {importSummary.symptoms} {t("症状")} · {importSummary.causes} {t("原因")} · {importSummary.groups} {t("部件组")}{importSummary.newGroups ? `（${t("新")} ${importSummary.newGroups}）` : ""}</b>
+          <p>{importSummary.unbound > 0
+            ? `${t("还有")} ${importSummary.unbound} ${t("个部件组未绑定。建议：先一键采用名称建议，再用向导补齐其余；也可以先演练已可用的代码。")}`
+            : t("所有部件组都已绑定，可以直接去演练。")}</p>
+          <div className="fault-actions">
+            {importSummary.unbound > 0 && <button className="btn mini" onClick={autoSuggestAll} disabled={!canEdit || suggestibleGroups === 0}>{t("一键采用名称建议")} ({suggestibleGroups})</button>}
+            {importSummary.unbound > 0 && <button className="btn ghost mini" onClick={() => startBinding()}>{t("开始/继续绑定向导")}</button>}
+            {runnable.length > 0 && <button className="btn mini" onClick={() => goDrill(runnable[0].id)}>{t("去演练")} {runnable[0].code} →</button>}
+            <button className="btn ghost mini" onClick={() => setImportSummary(null)}>{t("知道了")}</button>
+          </div>
+        </div>}
+        {createdCode && <div className="fault-outcome" role="status" data-testid="created-outcome">
+          <b>✅ {t("新故障码已创建")}：{createdCode.code}</b>
+          <p>{createdCode.groupId ? t("下一步：绑定它的排查范围，然后去演练；也可以先只保存代码，稍后回来绑。") : t("下一步：去演练或继续新建下一个代码。")}</p>
+          <div className="fault-actions">
+            <button className="btn mini" onClick={() => { const fault = profile.diagnostics.find(item => item.id === createdCode.faultId); if (fault) bindCodeScope(fault); }}>{t("绑定它的范围")}</button>
+            <button className="btn ghost mini" onClick={() => goDrill(createdCode.faultId)}>{t("去演练")} →</button>
+            <button className="btn ghost mini" onClick={() => setCreatedCode(null)}>{t("知道了")}</button>
+          </div>
+        </div>}
         <p className="fault-hint">{t("把知识库里的部件组落到本图元件/管路上，故障码才能在画布高亮和演练。推荐用绑定向导：画布点选 → Enter 确认 → 自动下一组。")}</p>
         <div className="fault-actions">
           <button className="btn" onClick={() => startBinding()} disabled={!canEdit || unbound.length === 0}>{unbound.length ? t("开始/继续绑定向导") : t("全部已绑定")}</button>
@@ -392,7 +481,7 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
               <button className="btn ghost" onClick={() => setConfirmClearBindings(false)}>{t("取消")}</button>
             </span>
             : <button className="btn ghost" onClick={() => setConfirmClearBindings(true)} disabled={!canEdit || status.boundGroupCount === 0}>{t("清空全部落点")}</button>}
-          {session.drill && <button className="btn ghost" onClick={() => restoreFaultDrill()}>{t("还原演练状态")}</button>}
+          {session.drill && <button className="btn ghost" onClick={() => { restoreFaultDrill(); toast(t("已还原到演练前；可重新演练")); }}>{t("还原演练状态")}</button>}
         </div>
         <div className="fault-scope-summary">
           <span>{t("可定位的故障码")} {status.readyCodes}/{status.codeCount}</span>
@@ -415,7 +504,7 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
               </>
               : <>
                 <button className="btn ghost" onClick={() => focusObjects(selectedGroup.nodeIds, selectedGroup.pipeIds)}>{t("定位已绑定对象")}</button>
-                <button className="btn ghost" disabled={!canEdit} onClick={() => run(() => unbindGroup(selectedGroup.id))}>{t("解绑此组")}</button>
+                <button className="btn ghost" disabled={!canEdit} onClick={() => run(() => { unbindGroup(selectedGroup.id); toast(`${t("已解绑")}：${labelOfGroup(selectedGroup)}`); })}>{t("解绑此组")}</button>
               </>}
             <button className="btn ghost" onClick={() => { selectKbPart(null); setBindPreviewGroupId(null); }}>{t("取消选中")}</button>
           </div>
@@ -434,7 +523,7 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
                 {bound
                   ? <>
                     <button className="btn ghost mini" onClick={() => focusObjects(group.nodeIds, group.pipeIds)}>{t("定位")}</button>
-                    <button className="btn ghost mini" disabled={!canEdit} onClick={() => run(() => unbindGroup(group.id))}>{t("解绑")}</button>
+                    <button className="btn ghost mini" disabled={!canEdit} onClick={() => run(() => { unbindGroup(group.id); toast(`${t("已解绑")}：${labelOfGroup(group)}`); })}>{t("解绑")}</button>
                   </>
                   : <>
                     {count > 0
@@ -447,7 +536,21 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
           })}
           {!filteredGroups.length && <p className="fault-hint">{t("没有匹配的部件组。")}</p>}
         </div>
-        <div className="fault-actions"><button className="btn" onClick={() => setUI({ faultStep: 4 })}>{t("下一步：演练")} →</button></div>
+        <div className="bind-finish" data-testid="bind-finish">
+          <b>{unbound.length === 0 ? t("全部绑定完成") : runnable.length > 0 ? t("已经可以演练了") : t("先让至少一个代码可定位")}</b>
+          <p>{unbound.length === 0
+            ? t("绑定不是终点：接下来选一个代码 → 点「演练故障」→ 看新增停流（红）/恢复流动（绿）→ 点「还原演练」。")
+            : runnable.length > 0
+              ? `${t("当前可演练")} ${runnable.length} ${t("个代码（例如")} ${firstRunnable?.code}）。${t("可以先演练，也可以继续绑完剩余")} ${unbound.length} ${t("个组。")}`
+              : t("当前还没有代码能定位。先绑一个被代码引用的部件组，或从下面直接选一个代码去绑它的范围。")}</p>
+          {runnable.length === 0 && scopeLess.length > 0 && <div className="fault-actions">
+            {scopeLess.slice(0, 2).map(fault => <button key={fault.id} className="btn ghost mini" onClick={() => bindCodeScope(fault)}>{t("绑定")} {fault.code} {t("的范围")}</button>)}
+          </div>}
+          <div className="fault-actions">
+            <button className="btn" disabled={!canEdit || !firstRunnable} onClick={() => firstRunnable && goDrill(firstRunnable.id)}>{t("去演练")} {firstRunnable?.code} →</button>
+            <button className="btn ghost" disabled={!canEdit || unbound.length === 0} onClick={() => startBinding()}>{t("继续绑定剩余")} ({unbound.length})</button>
+          </div>
+        </div>
       </section>}
 
       {step === 4 && <div data-testid="fault-step-drill">
@@ -463,15 +566,22 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
           <section className="fault-card">
             <div className="fault-section-title"><strong>{t("④ 演练")} · {active.code}</strong><span className="fault-badge">{label(active)}</span></div>
             <p className="fault-hint">{t("什么时候用：机器出现该报警时，先看排查范围，再演练故障看水路会怎样变化；演练可一键还原。")}</p>
+            <ol className="drill-steps">
+              <li className={targets && targets.nodes.length + targets.pipes.length > 0 ? "done" : "current"}><i>1</i>{t("确认排查范围")}</li>
+              <li className={session.drill ? "done" : targets && targets.nodes.length + targets.pipes.length > 0 ? "current" : ""}><i>2</i>{t("演练故障")}</li>
+              <li className={session.drill ? "current" : ""}><i>3</i>{t("看差异并还原")}</li>
+            </ol>
             <div className="fault-actions">
               <button className="btn ghost" onClick={() => toggleInjectedFault(active.id)}>{t(session.injectedIds.includes(active.id) ? "清除范围高亮" : "只看排查范围")}</button>
               <button className="btn" onClick={() => launchDrill(active.id)}
                 title={active.drill?.actions?.length ? t("注入故障状态并在画布显示差异；可一键还原") : t("先在下方「故障演练配置」里添加注入动作")}>{t("演练故障")}</button>
-              {session.drill && <button className="btn ghost" onClick={() => restoreFaultDrill()}>{t("还原演练")}</button>}
+              {!active.drill?.actions?.length && <button className="btn ghost" onClick={() => { setDrillConfigOpen(true); toast(t("已展开「故障演练配置」：添加注入动作后再点「演练故障」")); }}>{t("配置演练")} →</button>}
+              {session.drill && <button className="btn" onClick={restoreAndNext}>{t("看完并还原")} →</button>}
             </div>
             {!targets?.nodes.length && !targets?.pipes.length && <div className="fault-scope-empty" role="status">
               <b>{t("该代码还没有画布落点，选中时不会高亮。")}</b>
-              <span>{t("去「画布落点」绑定对应部件组；或先执行「只看排查范围」。")}</span>
+              <span>{t("先绑定它引用的部件组，再回来演练。")}</span>
+              <button className="btn mini" disabled={!canEdit} onClick={() => bindCodeScope(active)}>{t("绑定此代码的范围")} →</button>
             </div>}
             {session.drill && <div className="fw-drill-live">
               <b>⚠ {t("演练进行中")} · {session.drill.faultCode}</b>
@@ -483,7 +593,7 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
             </div>
           </section>
 
-          <details className="fault-card">
+          <details className="fault-card" open={drillConfigOpen} onToggle={event => setDrillConfigOpen((event.target as HTMLDetailsElement).open)}>
             <summary>{t("故障演练配置")} · {active.drill?.actions?.length || active.drill?.conditionName ? t("已配置") : t("未配置")}</summary>
             <FaultDrillEditor fault={active} profile={profile} canEdit={canEdit} run={run} />
           </details>

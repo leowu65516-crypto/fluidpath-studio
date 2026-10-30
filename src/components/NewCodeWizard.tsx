@@ -14,7 +14,7 @@ export function NewCodeWizard({ canEdit, onStartBinding, onSave, onExport, onErr
   onSave: () => void;
   onExport: () => void;
   onError: (message: string) => void;
-  onDone?: () => void;
+  onDone?: (code?: string) => void;
 }) {
   const { t, lang } = useT();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -69,7 +69,7 @@ export function NewCodeWizard({ canEdit, onStartBinding, onSave, onExport, onErr
       <div className="fault-actions">
         <button className="btn" onClick={onSave}>{t("保存到本地")}</button>
         <button className="btn ghost" onClick={onExport}>{t("导出知识库")}</button>
-        <button className="btn ghost" onClick={() => { reset(); onDone?.(); }}>{t("完成")}</button>
+        <button className="btn ghost" onClick={() => { const finished = created?.code; reset(); onDone?.(finished); }}>{t("完成")}</button>
       </div>
     </div>}
   </section>;

@@ -3053,3 +3053,28 @@ button.smart-eng-item:hover { border-color: var(--accent); }
 .bind-group-actions { display: flex; gap: 3px; flex-shrink: 0; }
 .inline-confirm { display: inline-flex; gap: 6px; align-items: center; border: 1px dashed #b45309; border-radius: 8px; padding: 4px 8px; font-size: 11px; flex-wrap: wrap; }
 .bind-manual { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+
+/* ===== 1.50 下一步指引 / 操作闭环 ===== */
+.fw-next { display: flex; gap: 8px; align-items: center; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); border-radius: 8px; padding: 6px 8px; }
+.fw-next-label { flex: none; font-size: 10px; font-weight: 700; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: 999px; padding: 1px 7px; }
+.fw-next p { flex: 1; margin: 0; font-size: 11px; line-height: 1.5; }
+.fw-next button { flex: none; }
+.fw-next-needs-binding, .fw-next-needs-diagram, .fw-next-needs-library, .fw-next-no-scope, .fw-next-no-drill-config { border-color: color-mix(in srgb, #b45309 45%, var(--border)); background: color-mix(in srgb, #b45309 7%, var(--surface)); }
+.fw-next-drill-live { border-color: color-mix(in srgb, #b45309 55%, var(--border)); }
+.fw-next-drill-ready, .fw-next-drill-or-bind { border-color: color-mix(in srgb, #2f855a 45%, var(--border)); background: color-mix(in srgb, #2f855a 7%, var(--surface)); }
+
+.fault-outcome { border: 1px solid color-mix(in srgb, #2f855a 45%, var(--border)); background: color-mix(in srgb, #2f855a 7%, var(--surface)); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.fault-outcome b { font-size: 12px; }
+.fault-outcome p { margin: 0; font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+.bind-finish { border: 1px dashed var(--accent); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.bind-finish b { font-size: 12px; }
+.bind-finish p { margin: 0; font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+.drill-steps { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: 10.5px; flex-wrap: wrap; }
+.drill-steps li { display: flex; gap: 4px; align-items: center; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; color: var(--text-dim); }
+.drill-steps li i { font-style: normal; width: 14px; height: 14px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--surface); font-size: 9px; }
+.drill-steps li.current { border-color: var(--accent); color: var(--text); }
+.drill-steps li.done { color: #2f855a; border-color: color-mix(in srgb, #2f855a 40%, var(--border)); }
+.drill-steps li.done i { background: #2f855a; color: #fff; }
+.fault-scope-empty .btn { align-self: flex-start; }
+.kb-editor-footer { border-top: 1px dashed var(--border); padding-top: 8px; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.kb-editor-footer p { margin: 0; font-size: 11px; color: var(--text-dim); flex: 1; min-width: 220px; line-height: 1.5; }

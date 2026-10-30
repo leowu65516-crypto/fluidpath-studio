@@ -14,7 +14,8 @@ import { FaultWorkbench } from "../components/FaultWorkbench";
 import { FaultLeftPanel } from "../components/FaultLeftPanel";
 import { FaultCodePanel } from "../components/FaultCodePanel";
 import { FaultHighlightOverlay } from "../components/FaultHighlightOverlay";
-import { resetDiagnosticSession, setBindPreviewGroupId, setDrillSession } from "../fault-codes/session";
+import { diagnosticSession, resetDiagnosticSession, setBindPreviewGroupId, setDrillSession } from "../fault-codes/session";
+import { bindKbGroupTargets } from "../fault-codes/actions";
 import type { DiagnosticProfile } from "../fault-codes/types";
 
 const noop = () => undefined;
@@ -66,6 +67,24 @@ describe("FaultWorkbench 步骤导航", () => {
     const view = render(createElement(LangProvider, null, createElement(FaultWorkbench)));
     expect(view.getByTestId("fault-workbench").getAttribute("data-stage")).toBe("unbound");
     cleanup();
+  });
+
+  it("「下一步」直接执行动作：未绑定→开绑定向导；可演练→开始演练", () => {
+    const diagram = createMinimalBrewDiagram();
+    const profile = withGroups(diagram.nodes.map(node => node.id));
+    profile.highlightGroups[0].nodeIds = [];
+    profile.diagnostics[0].drill = { actions: [{ groupId: "g1", behavior: "stopped" }] };
+    diagram.settings.diagnosticProfile = profile;
+    loadDiagram(diagram);
+    setUI({ faultStep: 3 });
+    const view = render(createElement(LangProvider, null, createElement(FaultWorkbench)));
+    const strip = view.getByTestId("fault-next");
+    expect(strip.getAttribute("data-kind")).toBe("needs-binding");
+    act(() => { fireEvent.click(strip.querySelector("button")!); });
+    expect(store.get().ui.kbBinding).toBeTruthy();
+    expect(store.get().ui.faultStep).toBe(3);
+    cleanup();
+    act(() => { setUI({ kbBinding: null }); });
   });
 });
 
@@ -166,6 +185,23 @@ describe("FaultCodePanel 步骤内容", () => {
     expect(view.getByTestId("fault-step-diagram")).toBeTruthy();
     act(() => { fireEvent.click(view.getAllByRole("tab")[1]); });
     expect(view.getByTestId("fault-step-library")).toBeTruthy();
+    cleanup();
+    setUI({ faultStep: undefined });
+  });
+
+  it("最后一组绑定完成后自动进入演练并选中可用代码（闭环）", async () => {
+    const diagram = createMinimalBrewDiagram();
+    const profile = withGroups(diagram.nodes.map(node => node.id));
+    profile.highlightGroups[0].nodeIds = [diagram.nodes[0].id];
+    profile.highlightGroups[1].nodeIds = [];
+    diagram.settings.diagnosticProfile = profile;
+    loadDiagram(diagram);
+    setUI({ faultStep: 3 });
+    render(createElement(LangProvider, null, createElement(FaultCodePanel, { onClose: noop, onOpenJson: noop, onOpenSmart: noop, onLoadDemo: noop })));
+    await act(async () => { bindKbGroupTargets("g2", { nodes: [diagram.nodes[1].id], pipes: [] }); });
+    await act(async () => { await Promise.resolve(); });
+    expect(store.get().ui.faultStep).toBe(4);
+    expect(diagnosticSession.get().selectedIds).toContain("f1");
     cleanup();
     setUI({ faultStep: undefined });
   });

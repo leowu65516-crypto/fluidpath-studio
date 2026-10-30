@@ -7,10 +7,11 @@ import type { DiagnosticProfile, LocalizedText } from "../fault-codes/types";
  * 自建知识库编辑器（1.49.0）：症状 / 原因 / 排查要点。
  * 面向"没有现成库、想自己配"的用户：表单化录入，不要求手写 JSON。
  */
-export function FaultKnowledgeEditor({ profile, canEdit, onError }: {
+export function FaultKnowledgeEditor({ profile, canEdit, onError, onGoBinding }: {
   profile: DiagnosticProfile;
   canEdit: boolean;
   onError: (message: string) => void;
+  onGoBinding?: () => void;
 }) {
   const { t, lang } = useT();
   const [symptomZh, setSymptomZh] = useState("");
@@ -164,5 +165,9 @@ export function FaultKnowledgeEditor({ profile, canEdit, onError }: {
         <button className="btn mini" disabled={!canEdit || !guideGroup || !guideZh.trim() || !guideEn.trim()} onClick={createGuide}>＋ {t("保存排查要点")}</button>
       </div>
     </section>
+    <footer className="kb-editor-footer">
+      <p>{t("内容添加后：去画布落点把部件组绑到本图，代码才能高亮与演练。")}</p>
+      {onGoBinding && <button className="btn mini" onClick={onGoBinding}>{t("去画布落点")} →</button>}
+    </footer>
   </div>;
 }

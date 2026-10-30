@@ -607,6 +607,7 @@ GitHub Pages URL: https://<user>.github.io/<repo>/
 
 ### 9.7 发布记录（滚动最近一条）
 
+- 2026-10-30 发布 **1.47.0**（故障工作台 + 绑定向导 + 故障演练与差异视觉）：`origin/main` = `263b39f`（**本次 git push 网络不可用**：`Empty reply from server`/超时；按 AGENTS §7 兜底通道用 GitHub REST API 建 blob→tree→commit→PATCH ref 发布，本地用同一 tree/父提交/作者与消息重建 commit 对象对齐到 `263b39f`）；Check + Deploy 均 **success**；线上 bundle `assets/index-BT4LNjLu.js` 与本地构建 sha256 完全一致（`f8c80edc…`），线上版本常量 1.47.0；DMG：`release/FluidPath Studio-1.47.0-arm64.dmg`（挂载后 CFBundleShortVersionString = 1.47.0，asar 内 bundle sha256 一致 `f8c80edc…`，`verify:asar` 通过）。
 - 2026-10-30 发布 **1.46.0**（知识库咨询台可用化：绑定工作台/导入合并/删除引用清理/空态示例/配色与定位/i18n/工具栏换行）：`origin/main` = `efae255`；Check + Deploy 均 **success**；线上 bundle `assets/index-BPqUfKBk.js` 与本地构建 sha256 完全一致（`b0c1f0c4…`，下载比对），线上版本常量 1.46.0、无 1.45.0 残留；DMG：`release/FluidPath Studio-1.46.0-arm64.dmg`（挂载后 CFBundleShortVersionString = 1.46.0，asar 内 bundle sha256 与本地一致 `b0c1f0c4…`，`verify:asar` 通过）。注：本次补齐了 1.43.1–1.45.0 从未发布的事实——线上此前停留 1.43.1，1.44/1.45 只在本地；1.31–1.45 期间 §9.7 未逐版记录（版本表见 §8）。
 - 2026-10-13 发布 **1.30.7**（工况重命名 + 快照含介质 + 演示闪烁差异 + 隐藏验收入口）：`origin/main` = `be5a61f`；Check + Deploy 均 **success**；线上 bundle `assets/index-CqMUD0l-.js` 与本地构建 sha256 一致（`ce21260b…`，完整下载比对），线上版本常量 1.30.7；DMG：`release/FluidPath Studio-1.30.7-arm64.dmg`（包内提取 bundle sha256 与本地一致，`verify:asar` 通过）。注：当晚 GitHub 连接仍间歇不通，推送与核对均经重试完成。
 - 2026-10-13 发布 **1.30.6**（修复演示模式自定义场景不进入步骤界面）：线上 bundle `assets/index-07jXpuuG.js`（`48670206…`）；网页端 + DMG 均已发布。

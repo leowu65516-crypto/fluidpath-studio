@@ -3028,3 +3028,28 @@ button.smart-eng-item:hover { border-color: var(--accent); }
 .ncw-steps li { border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; }
 .ncw-steps li.current { border-color: var(--accent); color: var(--text); }
 .ncw-steps li.done { color: #2f855a; border-color: color-mix(in srgb, #2f855a 40%, var(--border)); }
+
+/* ===== 1.49 自建知识库编辑器 / 落点分组列表 ===== */
+.kb-editor { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.kb-editor-block { border-top: 1px dashed var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+.kb-editor-list { display: flex; flex-direction: column; gap: 3px; max-height: 160px; overflow-y: auto; }
+.kb-editor-item { display: flex; align-items: center; gap: 6px; font-size: 11px; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+.kb-editor-item span { font-weight: 600; white-space: nowrap; }
+.kb-editor-item small { flex: 1; min-width: 0; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-editor-form { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; align-items: start; }
+.kb-editor-form input, .kb-editor-form select, .kb-editor-form textarea { font-size: 11.5px; min-width: 0; }
+.kb-editor-form textarea { min-height: 44px; resize: vertical; }
+.kb-editor-form button { grid-column: span 2; justify-self: start; }
+
+.bind-group-card { border: 1px solid var(--accent); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 5px; background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.bind-group-list { display: flex; flex-direction: column; gap: 3px; max-height: 320px; overflow-y: auto; }
+.bind-group-row { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+.bind-group-row.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.bind-group-row.bound .bind-group-name { opacity: 0.82; }
+.bind-group-name { all: unset; cursor: pointer; flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bind-group-name i { font-style: normal; color: #b45309; flex: none; }
+.bind-group-row.bound .bind-group-name i { color: #2f855a; }
+.bind-group-name em { font-style: normal; color: var(--text-dim); font-size: 10px; white-space: nowrap; flex: none; }
+.bind-group-actions { display: flex; gap: 3px; flex-shrink: 0; }
+.inline-confirm { display: inline-flex; gap: 6px; align-items: center; border: 1px dashed #b45309; border-radius: 8px; padding: 4px 8px; font-size: 11px; flex-wrap: wrap; }
+.bind-manual { font-size: 10px; color: var(--text-dim); white-space: nowrap; }

@@ -1,6 +1,6 @@
 import { store, updateDiagram } from "../store";
 import { uid } from "../types";
-import type { DiagnosticProfile, FaultCode, HighlightGroup, TroubleshootingStep } from "./types";
+import type { Cause, CheckGuide, DiagnosticProfile, FaultCode, HighlightGroup, LocalizedText, TroubleshootingStep } from "./types";
 import { EMPTY_PROFILE, bindSelection, detachProfileTargets, mergeProfileBindings, parseDiagnosticProfile } from "./profile";
 import { codeReferences } from "./consult";
 // 静态内联：本项目的离线文件夹版要求单文件 IIFE 产物（file-protocol 测试锁定），不能代码分割。
@@ -229,4 +229,91 @@ export function importFaultCatalog(raw: string): { conflicts: string[]; preserve
 /** 内置黄金样例（奶泵模组 V7，0.3-draft）——先经导入预览确认，再写入图纸。 */
 export function sampleKnowledgeBase(): DiagnosticProfile {
   return parseDiagnosticProfile(MILK_KB_SAMPLE);
+}
+
+/** 把当前 profile 升级为可编辑的 0.4 知识库（空症状/原因/要点 + kb 元数据）。 */
+export function upgradeToKnowledgeBase(): void {
+  editDiagnosticProfile(profile => { ensureKnowledgeBase(profile); });
+}
+
+function ensureKnowledgeBase(profile: DiagnosticProfile): void {
+  if (profile.version !== "0.4-draft") profile.version = "0.4-draft";
+  profile.kb = profile.kb ?? {
+    kbVersion: 1,
+    source: { zh: "自建故障库", en: "Custom fault library" },
+    updatedAt: new Date().toISOString().slice(0, 10),
+  };
+  profile.symptoms = profile.symptoms ?? [];
+  profile.causes = profile.causes ?? [];
+  profile.checkGuides = profile.checkGuides ?? [];
+}
+
+export function addSymptom(label: LocalizedText, group?: LocalizedText): string {
+  const id = uid("symptom");
+  editDiagnosticProfile(profile => {
+    ensureKnowledgeBase(profile);
+    profile.symptoms!.push({ id, label, ...(group ? { group } : {}) });
+  });
+  return id;
+}
+
+export function removeSymptom(id: string): void {
+  editDiagnosticProfile(profile => {
+    profile.symptoms = (profile.symptoms ?? []).filter(symptom => symptom.id !== id);
+    profile.causes = (profile.causes ?? []).filter(cause => cause.symptomId !== id);
+  });
+}
+
+export interface NewCauseInput {
+  symptomId: string;
+  partGroupId: string;
+  pr: 1 | 2 | 3;
+  own: "store" | "svc" | "both";
+  codes: string[];
+  why: LocalizedText;
+  act: LocalizedText;
+  ref?: string;
+}
+
+export function addCause(input: NewCauseInput): string {
+  const id = uid("cause");
+  editDiagnosticProfile(profile => {
+    ensureKnowledgeBase(profile);
+    const cause: Cause = {
+      id, symptomId: input.symptomId, partGroupId: input.partGroupId, pr: input.pr, own: input.own,
+      codes: [...new Set(input.codes)], why: input.why, act: input.act,
+      ...(input.ref ? { ref: input.ref } : {}),
+    };
+    profile.causes!.push(cause);
+  });
+  return id;
+}
+
+export function removeCause(id: string): void {
+  editDiagnosticProfile(profile => { profile.causes = (profile.causes ?? []).filter(cause => cause.id !== id); });
+}
+
+/** 每个部件组最多一条排查要点：已存在则覆盖。 */
+export function setCheckGuide(groupId: string, text: LocalizedText): void {
+  editDiagnosticProfile(profile => {
+    ensureKnowledgeBase(profile);
+    const guide: CheckGuide = { groupId, text };
+    const index = (profile.checkGuides ?? []).findIndex(item => item.groupId === groupId);
+    if (index >= 0) profile.checkGuides![index] = guide;
+    else profile.checkGuides!.push(guide);
+  });
+}
+
+export function removeCheckGuide(groupId: string): void {
+  editDiagnosticProfile(profile => { profile.checkGuides = (profile.checkGuides ?? []).filter(guide => guide.groupId !== groupId); });
+}
+
+/** 解绑单个部件组（可撤销）。 */
+export function unbindGroup(groupId: string): void {
+  editDiagnosticProfile(profile => {
+    const group = profile.highlightGroups.find(item => item.id === groupId);
+    if (!group) throw new Error("Part group no longer exists");
+    group.nodeIds = [];
+    group.pipeIds = [];
+  });
 }

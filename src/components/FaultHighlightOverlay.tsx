@@ -5,6 +5,7 @@ import { resolveFaultTargets, resolveHighlightGroupTargets } from "../fault-code
 import { suspectsForSymptom } from "../fault-codes/consult";
 import { useDiagnosticView } from "../fault-codes/session";
 import { BEHAVIOR_META } from "../fault-codes/drill";
+import { suggestGroupTargets } from "../fault-codes/binding";
 import type { DrillBehavior, DiagnosticProfile } from "../fault-codes/types";
 import type { DrillSession } from "../fault-codes/session";
 
@@ -159,13 +160,26 @@ export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagr
       })}
     </g>}
     {view.bindPreviewGroupId && (() => {
-      const targets = resolveHighlightGroupTargets(diagram, profile, view.bindPreviewGroupId);
-      if (!targets.nodes.length && !targets.pipes.length) return null;
       const group = profile.highlightGroups.find(item => item.id === view.bindPreviewGroupId);
-      return <g data-bind-preview="1" stroke={KB_ACTIVE_COLOR} opacity={0.95} className={animationClass(view.animation, "breathe")} strokeDasharray="4 6">
-        <title>{group ? `${group.label.zh || group.label.en} · 绑定预览` : "绑定预览"}</title>
-        <TargetOutline diagram={diagram} nodeIds={targets.nodes} pipeIds={targets.pipes} visibleNodes={visibleNodes} visiblePipes={visiblePipes} index={0} strong />
-      </g>;
+      if (!group) return null;
+      const targets = resolveHighlightGroupTargets(diagram, profile, group.id);
+      const bound = group.nodeIds.length + group.pipeIds.length > 0;
+      if (bound && (targets.nodes.length || targets.pipes.length)) {
+        return <g data-bind-preview="1" stroke={KB_ACTIVE_COLOR} opacity={0.95} className={animationClass(view.animation, "breathe")} strokeDasharray="4 6">
+          <title>{`${group.label.zh || group.label.en} · 绑定预览`}</title>
+          <TargetOutline diagram={diagram} nodeIds={targets.nodes} pipeIds={targets.pipes} visibleNodes={visibleNodes} visiblePipes={visiblePipes} index={0} strong />
+        </g>;
+      }
+      // 未绑定：用名称建议画一层"幽灵落点"，让用户在画布上看到会绑到哪里。
+      if (!bound) {
+        const suggestions = suggestGroupTargets(diagram, group);
+        if (!suggestions.nodes.length && !suggestions.pipes.length) return null;
+        return <g data-bind-preview="suggest" data-bind-suggest="1" stroke="#b45309" opacity={0.6} strokeDasharray="6 6">
+          <title>{`${group.label.zh || group.label.en} · 建议落点（${suggestions.nodes.length + suggestions.pipes.length}）`}</title>
+          <TargetOutline diagram={diagram} nodeIds={suggestions.nodes} pipeIds={suggestions.pipes} visibleNodes={visibleNodes} visiblePipes={visiblePipes} index={0} />
+        </g>;
+      }
+      return null;
     })()}
     {view.drill && <DrillLayer diagram={diagram} profile={profile} drill={view.drill} visibleNodes={visibleNodes} visiblePipes={visiblePipes} animation={view.animation} />}
     {showFaultNotes && <FaultNotesLayer diagram={diagram} visibleNodes={visibleNodes} visiblePipes={visiblePipes} />}

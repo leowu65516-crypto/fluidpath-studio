@@ -98,7 +98,7 @@ describe("BindingWizard", () => {
     const view = render(createElement(LangProvider, null, createElement(BindingWizard, { onError: noop })));
     expect(view.getByTestId("bind-wizard").textContent).toContain("1 / 2");
     act(() => { setSelection({ nodes: [diagram.nodes[0].id], pipes: [] }); });
-    await act(async () => { fireEvent.click(view.getByRole("button", { name: "Confirm binding" })); });
+    await act(async () => { fireEvent.click(view.getByRole("button", { name: /Confirm binding/ })); });
     expect(store.get().diagram.settings.diagnosticProfile!.highlightGroups[0].nodeIds).toEqual([diagram.nodes[0].id]);
     expect(view.getByTestId("bind-wizard").textContent).toContain("2 / 2");
     cleanup();
@@ -112,7 +112,7 @@ describe("BindingWizard", () => {
     loadDiagram(diagram);
     startBindingWizard();
     const view = render(createElement(LangProvider, null, createElement(BindingWizard, { onError: noop })));
-    await act(async () => { fireEvent.click(view.getByRole("button", { name: "Skip" })); });
+    await act(async () => { fireEvent.click(view.getByRole("button", { name: /^Skip/ })); });
     expect(view.getByTestId("bind-wizard").textContent).toContain("2 / 2");
     await act(async () => { fireEvent.click(view.getByRole("button", { name: "Exit binding wizard" })); });
     expect(store.get().ui.kbBinding).toBeNull();

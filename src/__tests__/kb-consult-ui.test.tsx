@@ -101,7 +101,7 @@ describe("KB 部件组孤儿保护", () => {
 
 describe("1.46.0 咨询台联动与引导", () => {
   it("点故障码会反查知识库症状与部件", () => {
-    const view = render(createElement(LangProvider, null, createElement(FaultCodePanel, { onClose: () => undefined })));
+    const view = render(createElement(LangProvider, null, createElement(FaultCodePanel, { onClose: () => undefined, onOpenJson: () => undefined, onOpenSmart: () => undefined, onLoadDemo: () => undefined })));
     const list = view.container.querySelector(".fault-code-list")!;
     const codeButton = [...list.querySelectorAll("button")].find(button => button.textContent?.includes("E045"));
     expect(codeButton).toBeTruthy();

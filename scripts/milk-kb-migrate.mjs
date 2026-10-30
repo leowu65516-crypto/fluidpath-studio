@@ -48,7 +48,7 @@ function partForCode(code) {
 
 const kb = {
   format: "fluidpath.diagnostic-profile",
-  version: "0.3-draft",
+  version: "0.4-draft",
   namespace: "caye.milk",
   source: { kind: "userDeclared", appliesToRealMachine: true },
   kb: {

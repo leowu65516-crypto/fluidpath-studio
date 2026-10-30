@@ -415,6 +415,8 @@ export interface UIState {
   clipboard?: { nodes: DiagramNode[]; pipes: Pipe[] } | null;
   /** 样式刷模式是否开启 */
   styleBrush?: boolean;
+  /** 0.4 故障演练绑定向导：队列与当前位置（null = 未开启）。 */
+  kbBinding?: { queue: string[]; index: number } | null;
   /** 撤销历史列表（供面板使用） */
   undoCount?: number;
   redoCount?: number;

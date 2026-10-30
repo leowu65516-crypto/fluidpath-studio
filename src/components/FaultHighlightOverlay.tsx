@@ -4,6 +4,9 @@ import { nodeBBox, pipePolyline, pathD, smoothPath } from "../geometry";
 import { resolveFaultTargets, resolveHighlightGroupTargets } from "../fault-codes/profile";
 import { suspectsForSymptom } from "../fault-codes/consult";
 import { useDiagnosticView } from "../fault-codes/session";
+import { BEHAVIOR_META } from "../fault-codes/drill";
+import type { DrillBehavior, DiagnosticProfile } from "../fault-codes/types";
+import type { DrillSession } from "../fault-codes/session";
 
 function animationClass(enabled: boolean, animation: "none" | "breathe" | "flash") {
   if (!enabled || animation === "none") return undefined;
@@ -37,6 +40,51 @@ const KB_TIER: Record<3 | 2 | 1, { color: string; width: number; dash: string; o
   1: { color: "#fbbf24", width: 2, dash: "3 7", opacity: 0.25, zh: "罕见排除", en: "Rare" },
 };
 const KB_ACTIVE_COLOR = "#2563eb";
+
+/** 0.4 差异视觉：演练注入后"新增停流 / 恢复流动 / 注入元件徽标 / 编号标注"。 */
+function DrillLayer({ diagram, profile, drill, visibleNodes, visiblePipes, animation }: {
+  diagram: Diagram; profile: DiagnosticProfile; drill: DrillSession; visibleNodes: Set<string>; visiblePipes: Set<string>; animation: boolean;
+}) {
+  const pipePath = (id: string) => {
+    const pipe = diagram.pipes.find(item => item.id === id);
+    if (!pipe) return null;
+    const points = pipePolyline(pipe, diagram.nodes);
+    if (!points) return null;
+    return { d: pipe.routing === "curved" ? smoothPath(points) : pathD(points), width: pipe.visualDiameter + 10, label: pipe.label };
+  };
+  const labels = new Map(profile.highlightGroups.map(group => [group.id, group.label]));
+  return <g data-drill-overlay="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <g className={animationClass(animation, "breathe")}>
+    {drill.changes.stoppedPipes.filter(id => visiblePipes.has(id)).map(id => {
+      const path = pipePath(id);
+      return path ? <path key={`stop-${id}`} data-drill-stopped={id} d={path.d} stroke="#dc2626" strokeWidth={path.width} strokeDasharray="10 6" opacity={0.92}><title>{path.label} · 故障导致停流</title></path> : null;
+    })}
+    </g>
+    {drill.changes.flowingPipes.filter(id => visiblePipes.has(id)).map(id => {
+      const path = pipePath(id);
+      return path ? <path key={`flow-${id}`} data-drill-flowing={id} d={path.d} stroke="#16a34a" strokeWidth={path.width} strokeDasharray="10 6" opacity={0.92}><title>{path.label} · 故障后恢复流动</title></path> : null;
+    })}
+    {drill.injected.map((target, index) => {
+      if (!visibleNodes.has(target.nodeId)) return null;
+      const node = diagram.nodes.find(item => item.id === target.nodeId);
+      if (!node) return null;
+      const box = nodeBBox(node);
+      const meta = BEHAVIOR_META[target.behavior as DrillBehavior] ?? BEHAVIOR_META.disabled;
+      const groupLabel = labels.get(target.groupId);
+      const title = `${groupLabel ? (groupLabel.zh || groupLabel.en) : target.groupId} · ${meta.zh} / ${meta.en}`;
+      const badgeX = box.x + box.w - 6, badgeY = box.y - 14;
+      const labelX = box.x + box.w + 18, labelY = box.y - 14;
+      return <g key={`inject-${target.nodeId}`} data-drill-node={target.nodeId} data-drill-behavior={target.behavior}>
+        <title>{title}</title>
+        <path d={`M${badgeX + 8} ${badgeY + 4} L${labelX} ${labelY + 8}`} stroke="#b45309" strokeWidth={1.2} opacity={0.85} />
+        <circle cx={labelX} cy={labelY + 8} r={9} fill="#fff7ed" stroke="#b45309" strokeWidth={1.6} />
+        <text x={labelX} y={labelY + 12} textAnchor="middle" fontSize={11} fontWeight={700} fill="#b45309" stroke="none">{index + 1}</text>
+        <rect x={badgeX} y={badgeY} width={18} height={18} rx={5} fill="#fff7ed" stroke="#b45309" strokeWidth={1.4} opacity={0.95} />
+        <text x={badgeX + 9} y={badgeY + 13} textAnchor="middle" fontSize={11} fill="#b45309" stroke="none">{meta.glyph}</text>
+      </g>;
+    })}
+  </g>;
+}
 
 export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagram, visibleNodes, visiblePipes }: { diagram: Diagram; visibleNodes: Set<string>; visiblePipes: Set<string> }) {
   const view = useDiagnosticView();
@@ -80,5 +128,15 @@ export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagr
         </g>;
       })}
     </g>}
+    {view.bindPreviewGroupId && (() => {
+      const targets = resolveHighlightGroupTargets(diagram, profile, view.bindPreviewGroupId);
+      if (!targets.nodes.length && !targets.pipes.length) return null;
+      const group = profile.highlightGroups.find(item => item.id === view.bindPreviewGroupId);
+      return <g data-bind-preview="1" stroke={KB_ACTIVE_COLOR} opacity={0.95} className={animationClass(view.animation, "breathe")} strokeDasharray="4 6">
+        <title>{group ? `${group.label.zh || group.label.en} · 绑定预览` : "绑定预览"}</title>
+        <TargetOutline diagram={diagram} nodeIds={targets.nodes} pipeIds={targets.pipes} visibleNodes={visibleNodes} visiblePipes={visiblePipes} index={0} strong />
+      </g>;
+    })()}
+    {view.drill && <DrillLayer diagram={diagram} profile={profile} drill={view.drill} visibleNodes={visibleNodes} visiblePipes={visiblePipes} animation={view.animation} />}
   </g>;
 });

@@ -36,6 +36,26 @@ export interface HighlightGroup {
   pipeIds: string[];
 }
 export type FaultHighlightAnimation = "none" | "breathe" | "flash";
+
+/** 0.4+：演练注入动作（按部件组表达，运行时解析到已绑定的元件/管路）。 */
+export const DRILL_BEHAVIORS = ["stopped", "running", "stuckClosed", "stuckOpen", "disabled", "enabled"] as const;
+export type DrillBehavior = typeof DRILL_BEHAVIORS[number];
+export interface DrillAction {
+  /** 引用 highlightGroups（部件组）——用组而不是 nodeId，知识库才能跨图纸复用。 */
+  groupId: string;
+  behavior: DrillBehavior;
+}
+/**
+ * 0.4+：故障演练——"把这个故障演出来"所需的最小声明。
+ * 只声明基线工况与注入行为；停流传播、差异集合由引擎和 Studio 负责，不写死结果。
+ */
+export interface FaultDrill {
+  /** 基线工况名（引用 settings.workConditions）；缺省则在当前状态上直接注入。 */
+  conditionName?: string;
+  /** 一句话说明（双语）。 */
+  note?: LocalizedText;
+  actions?: DrillAction[];
+}
 /**
  * A user-authored investigation checkpoint. It may describe a pipe/component
  * scope, signal evidence, or both. It never drives the simulated machine.
@@ -60,6 +80,8 @@ export interface FaultCode {
   presentation: { style: "outline"; color: string; animation: FaultHighlightAnimation };
   /** Ordered, configurable checks used by Fault mode. */
   troubleshooting?: TroubleshootingStep[];
+  /** 0.4+：故障演练配置（可选）。 */
+  drill?: FaultDrill;
   controlActions: never[];
   rootCauseStatus: "notDetermined";
 }
@@ -104,7 +126,7 @@ export interface KbMeta {
 
 export interface DiagnosticProfile {
   format: "fluidpath.diagnostic-profile";
-  version: "0.1-draft" | "0.2-draft" | "0.3-draft";
+  version: "0.1-draft" | "0.2-draft" | "0.3-draft" | "0.4-draft";
   namespace: string;
   source: { kind: "userDeclared" | "illustrative"; appliesToRealMachine: boolean };
   diagramBinding?: { sourceFile: string; sourceSha256: string };

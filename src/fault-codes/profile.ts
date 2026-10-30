@@ -1,4 +1,5 @@
 import type { Diagram, Selection } from "../types";
+import { DRILL_BEHAVIORS } from "./types";
 import type { Condition, DiagnosticProfile, FaultCode, HighlightGroup, SignalDefinition } from "./types";
 
 export const EMPTY_PROFILE: DiagnosticProfile = {
@@ -57,11 +58,12 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
   }
   const o = object(raw, "profile");
   enumeration(o.format, ["fluidpath.diagnostic-profile"], "format");
-  enumeration(o.version, ["0.1-draft", "0.2-draft", "0.3-draft"], "version"); str(o.namespace, "namespace", 160);
-  // 0.3+ 才接受故障知识库扩展字段；旧版本出现这些字段一律拒绝（版本门控，不做静默迁移）
+  enumeration(o.version, ["0.1-draft", "0.2-draft", "0.3-draft", "0.4-draft"], "version"); str(o.namespace, "namespace", 160);
+  // 0.3+ 才接受故障知识库扩展字段；0.4+ 才接受故障演练（drill）。旧版本出现这些字段一律拒绝（版本门控）。
   const kbFields = ["kb", "symptoms", "causes", "checkGuides"];
+  const kbVersion = o.version === "0.3-draft" || o.version === "0.4-draft";
   const baseKeys = ["format", "version", "namespace", "source", "diagramBinding", "signalDefinitions", "highlightGroups", "diagnostics"];
-  keys(o, o.version === "0.3-draft" ? [...baseKeys, ...kbFields] : baseKeys, "profile");
+  keys(o, kbVersion ? [...baseKeys, ...kbFields] : baseKeys, "profile");
   const source = object(o.source, "source"); keys(source, ["kind", "appliesToRealMachine"], "source");
   enumeration(source.kind, ["userDeclared", "illustrative"], "source.kind");
   if (typeof source.appliesToRealMachine !== "boolean") fail("source.appliesToRealMachine", "expected boolean");
@@ -121,7 +123,9 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
   const ids = new Set<string>(), codes = new Set<string>();
   for (const [i, value] of list(o.diagnostics, "diagnostics", 500).entries()) {
     const p = `diagnostics[${i}]`, f = object(value, p);
-    keys(f, ["id", "code", "label", "description", "definitionStatus", "detection", "highlightBindings", "presentation", "troubleshooting", "controlActions", "rootCauseStatus"], p);
+    keys(f, o.version === "0.4-draft"
+      ? ["id", "code", "label", "description", "definitionStatus", "detection", "highlightBindings", "presentation", "troubleshooting", "drill", "controlActions", "rootCauseStatus"]
+      : ["id", "code", "label", "description", "definitionStatus", "detection", "highlightBindings", "presentation", "troubleshooting", "controlActions", "rootCauseStatus"], p);
     str(f.id, `${p}.id`, 160); str(f.code, `${p}.code`, 120);
     if (ids.has(f.id) || codes.has(f.code)) fail(p, "duplicate fault ID/code in namespace"); ids.add(f.id); codes.add(f.code);
     textPair(f.label, `${p}.label`); if (f.description !== undefined) textPair(f.description, `${p}.description`);
@@ -133,7 +137,7 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
       if (!groups.has(binding.groupId as string)) fail(p, "unknown highlight group");
       enumeration(binding.meaning, ["inspectionScope", "observedAt", "affectedCircuit"], p);
     }
-    if (f.troubleshooting !== undefined && o.version !== "0.3-draft" && o.version !== "0.2-draft") fail(`${p}.troubleshooting`, "requires diagnostic profile 0.2-draft");
+    if (f.troubleshooting !== undefined && o.version !== "0.4-draft" && o.version !== "0.3-draft" && o.version !== "0.2-draft") fail(`${p}.troubleshooting`, "requires diagnostic profile 0.2-draft");
     const stepIds = new Set<string>();
     for (const [stepIndex, stepValue] of list(f.troubleshooting ?? [], `${p}.troubleshooting`, 100).entries()) {
       const stepPath = `${p}.troubleshooting[${stepIndex}]`, step = object(stepValue, stepPath);
@@ -153,6 +157,22 @@ export function parseDiagnosticProfile(raw: unknown): DiagnosticProfile {
         const stepStyle = object(step.presentation, `${stepPath}.presentation`); keys(stepStyle, ["color", "animation"], `${stepPath}.presentation`);
         if (typeof stepStyle.color !== "string" || !/^#[a-f0-9]{6}$/i.test(stepStyle.color)) fail(`${stepPath}.presentation.color`, "invalid color");
         enumeration(stepStyle.animation, ["none", "breathe", "flash"], `${stepPath}.presentation.animation`);
+      }
+    }
+    if (f.drill !== undefined) {
+      if (o.version !== "0.4-draft") fail(`${p}.drill`, "requires diagnostic profile 0.4-draft");
+      const drill = object(f.drill, `${p}.drill`); keys(drill, ["conditionName", "note", "actions"], `${p}.drill`);
+      if (drill.conditionName !== undefined) str(drill.conditionName, `${p}.drill.conditionName`, 160);
+      if (drill.note !== undefined) textPair(drill.note, `${p}.drill.note`);
+      const actionGroupIds = new Set<string>();
+      for (const [actionIndex, actionValue] of list(drill.actions ?? [], `${p}.drill.actions`, 200).entries()) {
+        const actionPath = `${p}.drill.actions[${actionIndex}]`, action = object(actionValue, actionPath);
+        keys(action, ["groupId", "behavior"], actionPath);
+        str(action.groupId, `${actionPath}.groupId`, 160);
+        if (!groups.has(action.groupId)) fail(`${actionPath}.groupId`, "unknown highlight group");
+        if (actionGroupIds.has(action.groupId)) fail(actionPath, "duplicate drill action for part group");
+        actionGroupIds.add(action.groupId);
+        if (!DRILL_BEHAVIORS.includes(action.behavior as never)) fail(`${actionPath}.behavior`, "unknown drill behavior");
       }
     }
     const style = object(f.presentation, `${p}.presentation`); keys(style, ["style", "color", "animation"], p);

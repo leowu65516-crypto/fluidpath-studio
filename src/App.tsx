@@ -21,11 +21,14 @@ import { ConditionPanel } from "./components/ConditionPanel";
 import { smartViewProjection } from "./smart-draw/view";
 import { SmartBlockDialog } from "./components/SmartBlockDialog";
 import { SaveNudge, type SaveNudgeKind } from "./components/SaveNudge";
-import { selectFaultCodes, setSimulationRunning } from "./fault-codes/session";
+import { selectFaultCodes, setSimulationRunning, useDiagnosticSession } from "./fault-codes/session";
+import { restoreFaultDrill } from "./fault-codes/drill";
+import { bindKbGroupTargets, importFaultCatalog, sampleKnowledgeBase } from "./fault-codes/actions";
+import BCMTS_SAMPLE from "../BCMTS.json";
 import { PasswordGate } from "./components/PasswordGate";
 import { shouldGate, gateAuthed, setGateAuthed } from "./gate";
 import { deleteSelection, duplicateSelection, groupSelection, nudgeSelection, redo, undo, ungroupSelection, copyToClipboard, pasteFromClipboard, exitScenario, hasActiveScenario, setWorkMode, useAppState } from "./store";
-import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath, insertSmartDrawing, fitToScreen, fitToNodeIds, toastWithFocus } from "./store";
+import { loadDiagram, newDiagram, insertTemplate, store, setSourceFilePath, insertSmartDrawing, fitToScreen, fitToNodeIds, toastWithFocus, saveWorkCondition, updateDiagram } from "./store";
 import { pendingAutosave, restoreAutosaveVersion, clearAutosave, lastEditedDiagramId, flushAutosave, recordSavedAt } from "./store";
 import type { AutosaveVersion } from "./store";
 import { decompressDiagram, parseDiagramJSON, saveJSONFile } from "./export";
@@ -49,7 +52,7 @@ const HELP_SEEN_KEY = "fluidpath.help.seen.v1";
 const RECOVERY_DISMISSED_KEY = (id: string) => `fluidpath.autosave.dismissed.v1.${id}`;
 
 export default function App() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const appState = useAppState();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -544,6 +547,42 @@ export default function App() {
     setSaveNudge({ kind: "first-edit" });
   }, [appState.ui.dirty, saveNudge, showSmartWizard, showSmartPanel, pendingBlock, closePrompt]);
 
+  const diagnosticState = useDiagnosticSession();
+
+  // 离开故障模式时自动还原演练，避免把演练状态误当成图纸状态继续编辑。
+  useEffect(() => {
+    if (mode !== "fault" && diagnosticState.drill) restoreFaultDrill();
+  }, [mode, diagnosticState.drill]);
+
+  // 故障工作台的一键示例：BCMTS 图纸 + 奶泵知识库 → 故障模式。
+  // 同时建立「运行基线」工况并预绑定 3 个关键部件组，保证点开 E045 就能看到停流差异。
+  const loadFaultDemo = () => {
+    try {
+      setWorkMode("fault");
+      setSmartView("all");
+      loadDiagram(parseDiagramJSON(JSON.stringify(BCMTS_SAMPLE)));
+      updateDiagram(draft => {
+        for (const node of draft.nodes) {
+          if (node.type === "milkPump") node.pumpOn = true;
+          if (node.type === "solenoid3" && /奶|牛奶/.test(node.label)) node.valvePath = "A";
+        }
+      });
+      saveWorkCondition("奶路运行基线（示例）");
+      importFaultCatalog(JSON.stringify(sampleKnowledgeBase()));
+      const nodes = store.get().diagram.nodes;
+      const pumpId = nodes.find(node => node.type === "milkPump")?.id;
+      const cleanId = nodes.find(node => node.type === "solenoid3" && /清洗/.test(node.label))?.id;
+      const drainId = nodes.find(node => node.type === "solenoid3" && /排废/.test(node.label))?.id;
+      if (pumpId) bindKbGroupTargets("part-pump", { nodes: [pumpId], pipes: [] });
+      if (cleanId) bindKbGroupTargets("part-cleanValve", { nodes: [cleanId], pipes: [] });
+      if (drainId) bindKbGroupTargets("part-drain", { nodes: [drainId], pipes: [] });
+      setSourceFilePath(null);
+      toast(t("已载入示例：BCMTS 图纸 + 奶泵知识库（预绑定奶泵/清洗阀/排废阀，含运行基线）。选 E045 点「演练故障」即可看到停流差异。"));
+    } catch (error) {
+      toast(`${t("载入示例失败")}：${(error as Error).message}`, "error");
+    }
+  };
+
   // 工具栏高度会随窗口宽度/语言换行变化：把实测高度暴露给浮层定位（模式横幅等），避免遮挡工具栏
   useEffect(() => {
     const toolbar = document.querySelector<HTMLElement>(".toolbar");
@@ -562,7 +601,12 @@ export default function App() {
   // 右栏只有一个活动面板：模式面板优先，其次 AI 绘图，再是回路诊断，最后属性检查器。
   // 用显式变量替代嵌套三元，新增面板时只需要插入一层判断。
   const rightPanel = mode === "fault" ? (
-    <FaultCodePanel onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }} />
+    <FaultCodePanel
+      onClose={() => { selectFaultCodes([]); setSimulationRunning(false); setWorkMode("edit"); }}
+      onOpenJson={() => welcomeFileRef.current?.click()}
+      onOpenSmart={openSmartWizard}
+      onLoadDemo={loadFaultDemo}
+    />
   ) : mode === "verify" ? (
     <ValidationPanel onClose={() => setWorkMode("edit")} />
   ) : showConditions ? (
@@ -610,6 +654,17 @@ export default function App() {
           <div className={`mode-banner mode-${modeNotice}${modeNoticeLeaving ? " leaving" : ""}`} data-ui="1" data-testid="mode-banner" role="status" aria-live="polite">
             <span className="mode-banner-main"><b>{modeInfo.icon} {modeInfo.title}</b><span>{modeInfo.summary}</span></span>
             <span className="mode-banner-lock">{modeInfo.lock}</span>
+          </div>
+        )}
+        {diagnosticState.drill && (
+          <div className="drill-banner" data-ui="1" data-testid="drill-banner" role="status" aria-live="polite">
+            <b>⚠ {t("故障演练中")} · {diagnosticState.drill.faultCode}</b>
+            {diagnosticState.drill.note && <span className="drill-note">{lang === "en" ? diagnosticState.drill.note.en : diagnosticState.drill.note.zh}</span>}
+            <span className="drill-legend"><i className="stop" />{t("新增停流")} {diagnosticState.drill.changes.stoppedPipes.length}</span>
+            <span className="drill-legend"><i className="flow" />{t("恢复流动")} {diagnosticState.drill.changes.flowingPipes.length}</span>
+            <span className="drill-legend"><i className="inject" />{t("注入元件")} {diagnosticState.drill.injected.length}</span>
+            {diagnosticState.drill.changes.stoppedPipes.length === 0 && diagnosticState.drill.changes.flowingPipes.length === 0 && <span className="drill-zero">{t("当前状态没有可见变化：可能已停流或部件组未绑定；可先切换运行工况再演练。")}</span>}
+            <button className="btn mini" onClick={() => restoreFaultDrill()}>{t("还原演练")}</button>
           </div>
         )}
         <Toolbar svgRef={svgRef} collapsed={collapsed.toolbar} onToggle={togglePanel("toolbar")} onOpenShortcutSettings={() => { emitPopupClose("shortcutSettings"); setShowShortcutSettings(true); }} onOpenScenario={() => { if (mode === "present") setShowScenario((v) => !v); else setWorkMode("present"); }} onOpenHelp={openHelp} onOpenAdvice={() => { setShowAi(false); if (mode === "fault") { setWorkMode("edit"); window.setTimeout(() => setShowAdvice(true), 0); } else { setShowAdvice((v) => !v); } }} onOpenSmart={openSmartWizard} onOpenConditions={openConditions} conditionsOpen={showConditions} />

@@ -1065,7 +1065,7 @@ body {
 /* ===== 文件加载引导提示条 ===== */
 .file-tip-toast {
   position: fixed;
-  top: 88px;
+  top: calc(var(--toolbar-h, 113px) + 8px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--panel);
@@ -1191,7 +1191,7 @@ body {
 /* ===== 轻量 toast 提示条 ===== */
 .fp-toast-container {
   position: fixed;
-  top: 84px;
+  top: calc(var(--toolbar-h, 113px) + 8px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 20000;
@@ -2933,3 +2933,57 @@ button.smart-eng-item:hover { border-color: var(--accent); }
 .kb-conflicts ul, .kb-delete-confirm ul { margin: 4px 0; padding-left: 18px; font-size: 11.5px; }
 .kb-delete-confirm { border: 1px solid color-mix(in srgb, #c53030 40%, var(--border)); background: color-mix(in srgb, #c53030 6%, var(--surface)); border-radius: 8px; padding: 8px; margin-top: 8px; }
 .kb-empty .fault-hint { margin: 6px 0; }
+
+/* ===== 1.47 故障工作台 / 绑定向导 / 演练差异 ===== */
+.fault-workbench { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+.fw-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.fw-head strong { font-size: 13px; }
+.fw-stage { margin-left: auto; font-size: 10.5px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.fw-steps { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; }
+.fw-steps li { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
+.fw-steps li i { font-style: normal; width: 14px; height: 14px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9.5px; background: var(--surface-2); }
+.fw-steps li.done { color: #2f855a; border-color: color-mix(in srgb, #2f855a 40%, var(--border)); }
+.fw-steps li.done i { background: #2f855a; color: #fff; }
+.fw-steps li.current { color: var(--text); border-color: var(--accent); }
+.fw-steps li.current i { background: var(--accent); color: #fff; }
+.fw-steps li em { font-style: normal; font-size: 10px; opacity: 0.75; }
+.fw-card { display: flex; flex-direction: column; gap: 6px; }
+.fw-card b { font-size: 12px; }
+.fw-hint { margin: 0; font-size: 11px; color: var(--text-dim); }
+.fw-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.fw-footer { display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px dashed var(--border); padding-top: 6px; }
+.fw-drill-live { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 11.5px; border: 1px solid color-mix(in srgb, #b45309 40%, var(--border)); background: color-mix(in srgb, #b45309 7%, transparent); border-radius: 8px; padding: 6px 8px; }
+
+/* 绑定向导条：粘在故障面板滚动区顶部 */
+.bind-wizard { position: sticky; top: 0; z-index: 6; background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+.bind-wizard-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.bind-wizard-head b { white-space: nowrap; }
+.bind-wizard-progress { color: var(--accent); }
+.bind-wizard-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.bind-wizard-hint { margin: 0; font-size: 11px; color: var(--text-dim); }
+.bind-wizard-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.bind-wizard-sel { font-size: 11px; color: var(--text-dim); }
+
+/* 演练横幅 */
+.drill-banner { position: fixed; top: calc(var(--toolbar-h, 113px) + 8px); left: 16px; z-index: 705; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; max-width: min(760px, calc(100vw - 420px)); background: color-mix(in srgb, #b45309 12%, var(--panel)); border: 1px solid color-mix(in srgb, #b45309 45%, var(--border)); border-radius: 12px; padding: 8px 14px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.16); }
+.drill-banner b { color: #b45309; }
+.drill-banner .drill-note { color: var(--text-dim); max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drill-legend { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.drill-legend i { width: 14px; height: 0; border-top: 3px dashed; display: inline-block; }
+.drill-legend i.stop { border-color: #dc2626; }
+.drill-legend i.flow { border-color: #16a34a; }
+.drill-legend i.inject { border-top: 3px solid #b45309; }
+
+/* 排查范围缺失 / 代码项警示 */
+.fault-code-item.scope-missing { border-left: 3px solid #b45309; }
+.fault-scope-warn { color: #b45309; font-size: 12px; }
+.fault-scope-empty { border: 1px dashed #b45309; background: color-mix(in srgb, #b45309 6%, transparent); border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; }
+.fault-scope-empty b { font-size: 11.5px; color: #b45309; }
+.fault-scope-empty span { font-size: 11px; color: var(--text-dim); }
+
+/* 演练编辑器 */
+.drill-editor .drill-actions { display: flex; flex-direction: column; gap: 5px; }
+.drill-action-row { display: flex; gap: 6px; align-items: center; }
+.drill-action-row select { flex: 1; min-width: 0; }
+.drill-editor select, .drill-editor input { font-size: 12px; }
+.drill-zero { color: #b45309; font-weight: 600; }

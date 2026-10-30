@@ -1,4 +1,4 @@
-/** 故障知识库 0.3-draft：解析、版本门控、双语完整性、引用完整性 */
+/** 故障知识库 0.4-draft：解析、版本门控、双语完整性、引用完整性、演练引用 */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -13,11 +13,11 @@ const textOk = (t: unknown) => !!t && typeof t === "object" && typeof (t as { zh
   && (t as { zh: string }).zh.trim().length > 0 && typeof (t as { en?: string }).en === "string"
   && (t as { en: string }).en.trim().length > 0;
 
-describe("0.3 golden knowledge base (MILK-KB)", () => {
+describe("0.4 golden knowledge base (MILK-KB)", () => {
   const kb = parseDiagnosticProfile(structuredClone(GOLDEN));
 
-  it("通过 0.3 解析且规模符合奶路手册", () => {
-    expect(kb.version).toBe("0.3-draft");
+  it("通过 0.4 解析且规模符合奶路手册", () => {
+    expect(kb.version).toBe("0.4-draft");
     expect(kb.kb?.kbVersion).toBe(7);
     expect(kb.highlightGroups!.length).toBeGreaterThanOrEqual(15);
     expect(kb.symptoms!.length).toBe(9);
@@ -47,6 +47,19 @@ describe("0.3 golden knowledge base (MILK-KB)", () => {
     for (const g of kb.checkGuides!) expect(groups.has(g.groupId)).toBe(true);
     for (const d of kb.diagnostics) {
       for (const b of d.highlightBindings) expect(groups.has(b.groupId)).toBe(true);
+    }
+  });
+
+  it("演练配置（0.4）引用已存在部件组、行为合法、说明双语", () => {
+    const groups = new Set(kb.highlightGroups!.map((g) => g.id));
+    const withDrill = kb.diagnostics.filter((d) => d.drill);
+    expect(withDrill.map((d) => d.code).sort()).toEqual(["E037", "E041", "E045", "E048"]);
+    for (const code of withDrill) {
+      for (const action of code.drill!.actions ?? []) {
+        expect(groups.has(action.groupId)).toBe(true);
+        expect(["stopped", "running", "stuckClosed", "stuckOpen", "disabled", "enabled"]).toContain(action.behavior);
+      }
+      expect(textOk(code.drill!.note)).toBe(true);
     }
   });
 

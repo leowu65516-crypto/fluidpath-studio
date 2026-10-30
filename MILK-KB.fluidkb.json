@@ -1,6 +1,6 @@
 {
   "format": "fluidpath.diagnostic-profile",
-  "version": "0.3-draft",
+  "version": "0.4-draft",
   "namespace": "caye.milk",
   "source": {
     "kind": "userDeclared",
@@ -268,7 +268,20 @@
         "animation": "none"
       },
       "controlActions": [],
-      "rootCauseStatus": "notDetermined"
+      "rootCauseStatus": "notDetermined",
+      "drill": {
+        "note": {
+          "zh": "奶泵模组未安装/未就位：奶路无动力，出奶与清洗都会失效。",
+          "en": "Milk-pump module missing/not seated: no suction, so milk delivery and cleaning both fail."
+        },
+        "actions": [
+          {
+            "groupId": "part-pump",
+            "behavior": "disabled"
+          }
+        ],
+        "conditionName": "奶路运行基线（示例）"
+      }
     },
     {
       "id": "code-E038",
@@ -356,7 +369,20 @@
         "animation": "none"
       },
       "controlActions": [],
-      "rootCauseStatus": "notDetermined"
+      "rootCauseStatus": "notDetermined",
+      "drill": {
+        "note": {
+          "zh": "牛奶清洗电磁阀卡关：清洗支路停流，但正常出奶支路仍可能工作。",
+          "en": "Milk cleaning valve stuck closed: the cleaning branch stops while normal milk delivery may still work."
+        },
+        "actions": [
+          {
+            "groupId": "part-cleanValve",
+            "behavior": "stuckClosed"
+          }
+        ],
+        "conditionName": "奶路运行基线（示例）"
+      }
     },
     {
       "id": "code-E043",
@@ -422,7 +448,20 @@
         "animation": "none"
       },
       "controlActions": [],
-      "rootCauseStatus": "notDetermined"
+      "rootCauseStatus": "notDetermined",
+      "drill": {
+        "note": {
+          "zh": "奶泵故障：奶路全链停流，蒸汽/热水支路不受影响。",
+          "en": "Milk pump failure: the whole milk path stops; steam/hot-water branches are unaffected."
+        },
+        "actions": [
+          {
+            "groupId": "part-pump",
+            "behavior": "stopped"
+          }
+        ],
+        "conditionName": "奶路运行基线（示例）"
+      }
     },
     {
       "id": "code-E046",
@@ -488,7 +527,20 @@
         "animation": "none"
       },
       "controlActions": [],
-      "rootCauseStatus": "notDetermined"
+      "rootCauseStatus": "notDetermined",
+      "drill": {
+        "note": {
+          "zh": "排废三通阀卡关：排废支路停流，主路仍可出液。",
+          "en": "Drain 3-way valve stuck closed: the drain branch stops while the main path still flows."
+        },
+        "actions": [
+          {
+            "groupId": "part-drain",
+            "behavior": "stuckClosed"
+          }
+        ],
+        "conditionName": "奶路运行基线（示例）"
+      }
     }
   ],
   "symptoms": [

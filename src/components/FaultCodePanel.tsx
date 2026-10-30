@@ -11,6 +11,11 @@ import { buildFaultReport, downloadText } from "../fault-codes/report";
 import { FaultRuleEditor } from "./FaultRuleEditor";
 import { FaultSignalInput } from "./FaultSignalInput";
 import { KbConsultPanel } from "./KbConsultPanel";
+import { BindingWizard, startBindingWizard } from "./BindingWizard";
+import { FaultWorkbench } from "./FaultWorkbench";
+import { FaultDrillEditor } from "./FaultDrillEditor";
+import { startFaultDrill } from "../fault-codes/drill";
+import { toast } from "../toast";
 
 const STATUS: Record<string, string> = { notApplicable: "不适用或宽限中", normal: "正常", pending: "等待持续条件", triggered: "已触发", unknown: "无法判断", invalid: "规则无效", clear: "无活动报警", active: "活动报警", recoveredAwaitingReset: "已恢复，等待复位" };
 
@@ -63,7 +68,12 @@ function TroubleshootingStepEditor({
   </section>;
 }
 
-export function FaultCodePanel({ onClose }: { onClose: () => void }) {
+export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }: {
+  onClose: () => void;
+  onOpenJson: () => void;
+  onOpenSmart: () => void;
+  onLoadDemo: () => void;
+}) {
   const { diagram, ui } = useAppState();
   const session = useDiagnosticSession();
   const { t, lang } = useT();
@@ -127,11 +137,34 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
     const right = Math.max(...boxes.map(b => b.x + b.w)), bottom = Math.max(...boxes.map(b => b.y + b.h));
     focusRectAnimated(left, top, right, bottom, [...targets.nodes, ...targets.pipes]);
   }
+  function startBinding() {
+    if (!startBindingWizard()) toast(t("没有未绑定的部件组"));
+  }
+  function launchDrill(faultId: string) {
+    const result = startFaultDrill(faultId);
+    if (!result.ok) {
+      if (result.reason === "no-drill") setError(t("该故障码还没有演练配置：请在下方「故障演练」里添加注入动作后重试。"));
+      return;
+    }
+    if (result.missingCondition) toast(t("演练引用的基线工况不存在，已按当前状态注入"));
+    if (result.missingGroups?.length) toast(`${t("部分部件组未绑定，演练可能不完整")}：${result.missingGroups.length}`);
+    toast(t("已开始演练：画布显示新增停流/恢复流动差异；点顶部「还原演练」恢复"));
+  }
   const editText = (field: "label" | "description", language: "zh" | "en", value: string) => active && run(() => patchFaultCode(active.id, { [field]: { zh: "", en: "", ...active[field], [language]: value } }));
   return <aside className="fault-panel" aria-label={t("故障码与关联水路")} data-ui="1">
     <header className="fault-header"><div><strong>{t("故障代码")}</strong><span>{profile.namespace}</span></div><button className="btn ghost sq" onClick={onClose} aria-label={t("关闭故障代码")}>×</button></header>
     <div className="fault-scroll">
-      <p className="fault-intro">{t("选择代码查看关联水路；高亮不改变泵阀、介质或工程流动。")}</p>
+      <BindingWizard onError={setError} />
+      <FaultWorkbench
+        onOpenJson={onOpenJson}
+        onOpenSmart={onOpenSmart}
+        onLoadDemo={onLoadDemo}
+        onLoadSample={() => run(() => setPendingImport(sampleKnowledgeBase()))}
+        onImport={() => inputRef.current?.click()}
+        onStartBinding={startBinding}
+        onStartDrill={() => { const id = session.selectedIds[0]; if (id) launchDrill(id); }}
+      />
+      <p className="fault-intro">{t("选择代码查看排查范围；高亮和演练不改变已保存图纸的工程状态（演练可一键还原）。")}</p>
       <KbConsultPanel profile={profile} canEdit={canEdit} onError={setError}
         onImport={() => inputRef.current?.click()}
         onLoadSample={() => run(() => setPendingImport(sampleKnowledgeBase()))} />
@@ -189,13 +222,18 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
         <button className="btn" type="submit" disabled={!canEdit}>{t("添加代码")}</button>
       </form></details>
       <input className="fault-search" aria-label={t("搜索代码或名称")} placeholder={t("搜索代码或名称")} value={query} onChange={e => setQuery(e.target.value)} />
-      <small className="fault-hint">{t("选择多个代码可叠加查看。")}</small>
+      <small className="fault-hint">{t("可同时勾选多个代码叠加显示各自排查范围（仅对照，不做共同原因分析）。")}</small>
       <div className="fault-code-list">
-        {profile.diagnostics.filter(f => `${f.code} ${f.label.zh} ${f.label.en}`.toLowerCase().includes(query.toLowerCase())).map(f => <div className={`fault-code-item${active?.id === f.id ? " selected" : ""}`} key={f.id}>
-          <input type="checkbox" aria-label={`${t("关联水路")} ${f.code}`} checked={session.selectedIds.includes(f.id)} onChange={() => select(f, true)} />
-          <button onClick={() => select(f)}><b>{f.code}</b><span>{label(f)}</span></button>
-          {session.results[f.id]?.alarmState === "active" && <span className="fault-active-dot" title={t("活动报警")}>●</span>}
-        </div>)}
+        {profile.diagnostics.filter(f => `${f.code} ${f.label.zh} ${f.label.en}`.toLowerCase().includes(query.toLowerCase())).map(f => {
+          const faultTargets = resolveFaultTargets(diagram, profile, f);
+          const scopeMissing = faultTargets.nodes.length + faultTargets.pipes.length === 0;
+          return <div className={`fault-code-item${active?.id === f.id ? " selected" : ""}${scopeMissing ? " scope-missing" : ""}`} key={f.id}>
+            <input type="checkbox" aria-label={`${t("排查范围")} ${f.code}`} checked={session.selectedIds.includes(f.id)} onChange={() => select(f, true)} />
+            <button onClick={() => select(f)}><b>{f.code}</b><span>{label(f)}</span></button>
+            {scopeMissing && <span className="fault-scope-warn" title={t("该代码的排查范围还没有绑定到画布，选中时不会高亮；点开详情绑定。")}>⚠</span>}
+            {session.results[f.id]?.alarmState === "active" && <span className="fault-active-dot" title={t("活动报警")}>●</span>}
+          </div>;
+        })}
         {!profile.diagnostics.length && <p className="fault-hint">{t("暂无故障码，先添加一个代码。")}</p>}
       </div>
       {active && <div key={active.id} className="fault-detail">
@@ -208,10 +246,13 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
           </div>
         </section>
         <section className="fault-card">
-          <strong>{t("关联水路")}</strong><p>{t("元件")} {targets?.nodes.length} · {t("管段")} {targets?.pipes.length}</p>
+          <strong>{t("排查范围")}</strong><p>{t("元件")} {targets?.nodes.length} · {t("管段")} {targets?.pipes.length}</p>
           <small>{t("画布选择")}: {ui.selection.nodes.length} + {ui.selection.pipes.length}</small>
-          <div className="fault-actions">{(["replace", "add", "remove"] as const).map((mode, i) => <button key={mode} className="btn" disabled={!canEdit || !ui.selection.nodes.length && !ui.selection.pipes.length} onClick={() => run(() => bindFaultSelection(active.id, mode))}>{t(["替换为当前选择", "追加当前选择", "移除当前选择"][i])}</button>)}</div>
-          {!targets?.nodes.length && !targets?.pipes.length && <p className="fault-hint">{t("暂无关联，请先框选元件或管路。")}</p>}
+          {!targets?.nodes.length && !targets?.pipes.length && <div className="fault-scope-empty" role="status">
+            <b>{t("该代码还没有画布落点，选中时不会高亮。")}</b>
+            <span>{t("在画布上框选元件/管路后点「绑定当前选择」；也可以在咨询台的绑定工作台里成组绑定。")}</span>
+          </div>}
+          <div className="fault-actions">{(["replace", "add", "remove"] as const).map((mode, i) => <button key={mode} className="btn" disabled={!canEdit || !ui.selection.nodes.length && !ui.selection.pipes.length} onClick={() => run(() => bindFaultSelection(active.id, mode))}>{t(["绑定当前选择", "追加当前选择", "移除当前选择"][i])}</button>)}</div>
           {!!targets?.missing.length && <div className="fault-error" role="alert">{t("关联对象被删除，请重新绑定。")}<details><summary>{t("失效引用")} ({targets.missing.length})</summary>{targets.missing.join(", ")}</details></div>}
           <details><summary>{t("当前目标列表")}</summary><ul>{targets?.nodes.map(id => <li key={id}>{diagram.nodes.find(n => n.id === id)?.label || id}</li>)}{targets?.pipes.map(id => <li key={id}>{diagram.pipes.find(p => p.id === id)?.label || id}</li>)}</ul></details>
           <div className="fault-actions"><button className="btn" onClick={focusTargets}>{t("定位关联范围")}</button><button className="btn ghost" onClick={() => selectFaultCodes([])}>{t("清除高亮")}</button></div>
@@ -226,11 +267,16 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
           {steps.map((step, index) => <TroubleshootingStepEditor key={step.id} diagram={diagram} profile={profile} fault={active} step={step} index={index} activeIndex={activeStepIndex} lang={lang} canEdit={canEdit} selection={ui.selection} run={run} onSelect={nextIndex => selectFaultStep(active.id, nextIndex)} />)}
           <div className="fault-actions"><button className="btn" disabled={!canEdit} onClick={() => run(() => { const stepId = addTroubleshootingStep(active.id, lang); const next = (active.troubleshooting?.length ?? 0); selectFaultStep(active.id, next); return stepId; })}>{t("新增步骤")}</button>{steps.length > 0 && <button className="btn ghost" onClick={() => selectFaultStep(active.id, activeStepIndex)}>{t("定位当前步骤")}</button>}</div>
         </section>
+        <FaultDrillEditor fault={active} profile={profile} canEdit={canEdit} run={run} />
         <section className="fault-card"><strong>{t("检测规则")}</strong>
           {active.detection ? <pre className="fault-rule-summary">{JSON.stringify(active.detection, null, 2)}</pre> : <p className="fault-hint">{t("仅查阅，无自动检测规则")}</p>}
           {canEdit && <details><summary>{t("配置数值规则")}</summary><FaultRuleEditor fault={active} onError={setError} /></details>}
           {active.detection && canEdit && <button className="btn ghost" onClick={() => run(() => editDiagnosticProfile(p => { delete p.diagnostics.find(f => f.id === active.id)!.detection; }))}>{t("移除检测规则")}</button>}
-          <button className="btn" onClick={() => toggleInjectedFault(active.id)}>{t(session.injectedIds.includes(active.id) ? "清除教学注入" : "模拟此代码")}</button>
+          <div className="fault-actions">
+            <button className="btn ghost" onClick={() => toggleInjectedFault(active.id)}>{t(session.injectedIds.includes(active.id) ? "清除范围高亮" : "只看排查范围")}</button>
+            <button className="btn" onClick={() => launchDrill(active.id)}
+              title={active.drill && ((active.drill.actions?.length ?? 0) > 0 || active.drill.conditionName) ? t("注入故障状态并在画布显示差异；可一键还原") : t("先在下方「故障演练」里配置基线/注入动作")}>{t("演练故障")}</button>
+          </div>
           <button className="btn ghost" disabled={!canEdit} onClick={requestDelete}>{t("删除此代码")}</button>
           {pendingDelete?.id === active.id && <div className="kb-delete-confirm" role="alert">
             <b>{t("该代码被知识库原因引用，不能直接删除：")}</b>

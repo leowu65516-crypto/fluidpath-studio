@@ -42,7 +42,7 @@ export function SaveNudge({
           <button className="btn ghost" onClick={onDismiss}>{t("以后再说")}</button>
         </div>
       </div>
-      <button className="save-nudge-close" onClick={onDismiss} aria-label={t("关闭")}>×</button>
+      <button className="save-nudge-close" onClick={onDismiss} aria-label={t("关闭面板")}>×</button>
     </div>
   );
 }

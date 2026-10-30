@@ -127,7 +127,7 @@ export function SmartDrawingPanel({
     <aside className="fault-panel smart-panel" data-ui="1" aria-label={t("继续完善")}>
       <header className="fault-header">
         <div><strong>{t("继续完善")}</strong><span>{t("这张图还缺什么")}</span></div>
-        <button className="btn ghost sq" onClick={onClose} aria-label={t("关闭")}>×</button>
+        <button className="btn ghost sq" onClick={onClose} aria-label={t("关闭面板")}>×</button>
       </header>
       <div className="fault-scroll">
         {showTip && (

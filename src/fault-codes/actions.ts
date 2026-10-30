@@ -1,7 +1,10 @@
 import { store, updateDiagram } from "../store";
 import { uid } from "../types";
 import type { DiagnosticProfile, FaultCode, HighlightGroup, TroubleshootingStep } from "./types";
-import { EMPTY_PROFILE, bindSelection, detachProfileTargets, parseDiagnosticProfile } from "./profile";
+import { EMPTY_PROFILE, bindSelection, detachProfileTargets, mergeProfileBindings, parseDiagnosticProfile } from "./profile";
+import { codeReferences } from "./consult";
+// 静态内联：本项目的离线文件夹版要求单文件 IIFE 产物（file-protocol 测试锁定），不能代码分割。
+import MILK_KB_SAMPLE from "../../MILK-KB.fluidkb.json";
 
 export function editDiagnosticProfile(edit: (draft: DiagnosticProfile) => void) {
   const mode = store.get().ui.mode ?? "edit";
@@ -37,9 +40,23 @@ export function patchFaultCode(id: string, patch: Partial<FaultCode>) {
   });
 }
 
-export function deleteFaultCode(id: string) {
+/**
+ * 删除故障码。被知识库 causes 引用时默认拒绝（parser 会拒绝悬空 code 引用），
+ * UI 先展示引用清单，用户确认后用 removeReferences 级联清理 codes（可撤销）。
+ */
+export function deleteFaultCode(id: string, options: { removeReferences?: boolean } = {}) {
   editDiagnosticProfile(p => {
     const removed = p.diagnostics.find(f => f.id === id);
+    if (!removed) throw new Error("Fault code no longer exists");
+    const references = codeReferences(p, removed.code);
+    if (references.length && !options.removeReferences) {
+      throw new Error(`Referenced by ${references.length} knowledge-base cause(s); remove references first`);
+    }
+    if (references.length) {
+      p.causes = (p.causes ?? []).map(cause => cause.codes.includes(removed.code)
+        ? { ...cause, codes: cause.codes.filter(code => code !== removed.code) }
+        : cause);
+    }
     p.diagnostics = p.diagnostics.filter(f => f.id !== id);
     const used = referencedGroupIds(p);
     const orphaned = new Set([...(removed?.highlightBindings.map(b => b.groupId) ?? []), ...(removed?.troubleshooting?.flatMap(step => step.highlightBinding ? [step.highlightBinding.groupId] : []) ?? [])].filter(g => !used.has(g)));
@@ -90,6 +107,16 @@ export function bindKbGroupSelection(groupId: string, mode: "replace" | "add" | 
     const next = bindSelection(group, selection, mode);
     group.nodeIds = next.nodeIds;
     group.pipeIds = next.pipeIds;
+  });
+}
+
+/** 0.3 知识库：用显式给定的落点绑定（仅供用户确认名称建议后调用，绝不静默执行）。 */
+export function bindKbGroupTargets(groupId: string, targets: { nodes: string[]; pipes: string[] }, mode: "replace" | "add" = "replace") {
+  editDiagnosticProfile(p => {
+    const group = p.highlightGroups.find(g => g.id === groupId);
+    if (!group) throw new Error("Part group no longer exists");
+    group.nodeIds = mode === "replace" ? [...new Set(targets.nodes)] : [...new Set([...group.nodeIds, ...targets.nodes])];
+    group.pipeIds = mode === "replace" ? [...new Set(targets.pipes)] : [...new Set([...group.pipeIds, ...targets.pipes])];
   });
 }
 
@@ -164,8 +191,32 @@ export function bindTroubleshootingStepSelection(faultId: string, stepId: string
   });
 }
 
-export function importFaultCatalog(raw: string) {
-  const profile = detachProfileTargets(parseDiagnosticProfile(raw));
-  // Replacement is explicit in the UI; caller must preview before this transaction.
-  editDiagnosticProfile(p => { Object.assign(p, profile); delete p.diagramBinding; });
+/**
+ * 导入知识库 / 故障码库。
+ * - 同 namespace 且带 KB 元数据的升级导入：按协议 §18.5 保留同名部件组的画布绑定，返回冲突清单；
+ * - 跨机型 / 无 KB 元数据：仍走 detachProfileTargets，避免旧 ID 误绑（可撤销）。
+ */
+export function importFaultCatalog(raw: string): { conflicts: string[]; preservedBindings: boolean } {
+  const next = parseDiagnosticProfile(raw);
+  let conflicts: string[] = [];
+  let preservedBindings = false;
+  editDiagnosticProfile(p => {
+    const sameNamespace = p.namespace === next.namespace;
+    const hasKb = !!(p.kb || next.kb);
+    if (sameNamespace && hasKb) {
+      const merged = mergeProfileBindings(next, p);
+      conflicts = merged.conflicts;
+      preservedBindings = true;
+      Object.assign(p, merged.profile);
+    } else {
+      Object.assign(p, detachProfileTargets(next));
+    }
+    delete p.diagramBinding;
+  });
+  return { conflicts, preservedBindings };
+}
+
+/** 内置黄金样例（奶泵模组 V7，0.3-draft）——先经导入预览确认，再写入图纸。 */
+export function sampleKnowledgeBase(): DiagnosticProfile {
+  return parseDiagnosticProfile(MILK_KB_SAMPLE);
 }

@@ -2105,6 +2105,15 @@ function easeOutSoft(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+/** 多对象范围的取景（纯函数）：允许放大小目标、限制极端放大，沿用画布 20% 下限。 */
+export function computeRectFocus(
+  left: number, top: number, right: number, bottom: number, w: number, h: number,
+): { zoom: number; panX: number; panY: number } {
+  const fit = Math.min(w / (Math.max(0, right - left) + 100), h / (Math.max(0, bottom - top) + 100));
+  const zoom = Math.min(1.8, Math.max(0.2, fit));
+  return { zoom, panX: w / 2 - (left + right) / 2 * zoom, panY: h / 2 - (top + bottom) / 2 * zoom };
+}
+
 const VIEW_ANIM_MS = 260; // 略高于 --motion-base：视口级平移比控件反馈慢半拍才顺
 let viewAnimToken = 0;
 /** 用户手动接管视图（拖画布/滚轮）时终止进行中的聚焦动画 */
@@ -2166,6 +2175,44 @@ export function focusNodeAnimated(id: string) {
     });
     if (t < 1) requestAnimationFrame(step);
     else blinkElements([id]);
+  };
+  requestAnimationFrame(step);
+}
+
+/**
+ * 多对象范围的平滑聚焦（部件组/故障排查范围共用）：与 focusNodeAnimated 同一动效管线，
+ * 到位后闪烁范围内对象。偏好减弱动效、无 rAF 或距离可忽略时退化为瞬时定位。
+ */
+export function focusRectAnimated(left: number, top: number, right: number, bottom: number, blinkIds: string[] = []) {
+  const svg = document.querySelector(".main-canvas") as SVGSVGElement | null;
+  const w = svg?.clientWidth ?? 1200;
+  const h = svg?.clientHeight ?? 800;
+  const target = computeRectFocus(left, top, right, bottom, w, h);
+  const delta = Math.abs(target.panX - state.ui.panX) + Math.abs(target.panY - state.ui.panY) + Math.abs(target.zoom - state.ui.zoom) * 400;
+  const reduced = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (reduced || typeof requestAnimationFrame === "undefined" || delta < 4) {
+    setUI({ panX: target.panX, panY: target.panY, zoom: target.zoom });
+    if (blinkIds.length) blinkElements(blinkIds);
+    return;
+  }
+  viewAnimToken++;
+  const token = viewAnimToken;
+  const from = { panX: state.ui.panX, panY: state.ui.panY, zoom: state.ui.zoom };
+  const cancel = () => cancelViewAnimation();
+  window.addEventListener("pointerdown", cancel, { once: true, passive: true });
+  window.addEventListener("wheel", cancel, { once: true, passive: true });
+  const t0 = performance.now();
+  const step = (now: number) => {
+    if (token !== viewAnimToken) return;
+    const t = Math.min(1, (now - t0) / VIEW_ANIM_MS);
+    const k = easeOutSoft(t);
+    setUI({
+      panX: from.panX + (target.panX - from.panX) * k,
+      panY: from.panY + (target.panY - from.panY) * k,
+      zoom: from.zoom + (target.zoom - from.zoom) * k,
+    });
+    if (t < 1) requestAnimationFrame(step);
+    else if (blinkIds.length) blinkElements(blinkIds);
   };
   requestAnimationFrame(step);
 }

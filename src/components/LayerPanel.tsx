@@ -27,7 +27,7 @@ export function LayerPanel({ onClose }: { onClose: () => void }) {
     <div className="layer-dropdown" onClick={(e) => e.stopPropagation()}>
       <div className="layer-head">
         <span>🗂 {t("图层")}</span>
-        <button className="layer-close" onClick={onClose} aria-label={t("关闭")}>✕</button>
+        <button className="layer-close" onClick={onClose} aria-label={t("关闭面板")}>✕</button>
       </div>
       <div className="layer-list">
         {layers.map((l) => {

@@ -147,7 +147,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
           </div>
           <div className="scenario-panel-actions">
             <button className="scenario-icon-btn" title={collapsed ? t("展开") : t("折叠")} aria-label={collapsed ? t("展开") : t("折叠")} onClick={() => setCollapsed((value) => !value)}>{collapsed ? "▸" : "▾"}</button>
-            <button className="scenario-icon-btn" onClick={onClose} title={t("关闭")}>✕</button>
+            <button className="scenario-icon-btn" onClick={onClose} title={t("关闭面板")}>✕</button>
           </div>
         </div>
         {!collapsed && <div className="scenario-picker-body">

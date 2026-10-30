@@ -30,6 +30,14 @@ function TargetOutline({
   </>;
 }
 
+/** 0.3 概率分档视觉：与故障码高亮区分——分档用固定橙色系 + 虚线节奏，故障码保持用户设定色（多为实线）。 */
+const KB_TIER: Record<3 | 2 | 1, { color: string; width: number; dash: string; opacity: number; zh: string; en: string }> = {
+  3: { color: "#ea580c", width: 4, dash: "12 6", opacity: 0.9, zh: "首要排查", en: "Primary" },
+  2: { color: "#f59e0b", width: 3, dash: "8 6", opacity: 0.55, zh: "次要排查", en: "Secondary" },
+  1: { color: "#fbbf24", width: 2, dash: "3 7", opacity: 0.25, zh: "罕见排除", en: "Rare" },
+};
+const KB_ACTIVE_COLOR = "#2563eb";
+
 export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagram, visibleNodes, visiblePipes }: { diagram: Diagram; visibleNodes: Set<string>; visiblePipes: Set<string> }) {
   const view = useDiagnosticView();
   const profile = diagram.settings.diagnosticProfile;
@@ -56,12 +64,17 @@ export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagr
       {kbSuspects.map(({ groupId, pr }) => {
         const targets = resolveHighlightGroupTargets(diagram, profile, groupId);
         const isActive = view.kbPartGroupId === groupId;
+        const tier = KB_TIER[pr];
         const label = profile.highlightGroups.find(g => g.id === groupId)?.label;
-        const title = `${label ? (label.zh || label.en) : groupId} · ${pr === 3 ? "首要排查" : pr === 2 ? "次要排查" : "罕见排除"}`;
-        // 分档视觉：pr3 橙色呼吸 / pr2 橙色静态细描 / pr1 极弱虚线；选中部件组叠加蓝色强调
-        return <g key={groupId} data-kb-suspect={pr} stroke={isActive ? "#2563eb" : "#d97706"} opacity={pr === 3 ? 0.9 : pr === 2 ? 0.5 : 0.22}>
+        const title = `${label ? (label.zh || label.en) : groupId} · ${tier.zh} / ${tier.en}`;
+        // 分档：pr3 橙色呼吸、pr2 静态细描、pr1 弱虚线；选中部件组叠加蓝色强调（提高不透明度，避免 pr1 看不见）
+        return <g key={groupId} data-kb-suspect={pr} data-kb-active={isActive ? "1" : undefined}
+          stroke={isActive ? KB_ACTIVE_COLOR : tier.color}
+          opacity={isActive ? 0.95 : tier.opacity}>
           <title>{title}</title>
-          <g className={pr === 3 ? animationClass(view.animation, "breathe") : undefined} strokeWidth={pr === 3 ? 4 : pr === 2 ? 3 : 2} strokeDasharray={pr === 1 ? "3 7" : undefined}>
+          <g className={pr === 3 && !isActive ? animationClass(view.animation, "breathe") : undefined}
+            strokeWidth={isActive ? tier.width + 1 : tier.width}
+            strokeDasharray={tier.dash}>
             <TargetOutline diagram={diagram} nodeIds={targets.nodes} pipeIds={targets.pipes} visibleNodes={visibleNodes} visiblePipes={visiblePipes} index={0} strong={pr === 3 || isActive} />
           </g>
         </g>;

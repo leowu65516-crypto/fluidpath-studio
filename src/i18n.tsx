@@ -1055,7 +1055,34 @@ const EN: Record<string, string> = {
   "替换绑定": "Replace binding",
   "追加绑定": "Add binding",
   "移除绑定": "Remove binding",
-  "把当前画布选择绑定为该部件在本图中的落点": "Bind the current canvas selection as this part's location in the drawing"
+  "把当前画布选择绑定为该部件在本图中的落点": "Bind the current canvas selection as this part's location in the drawing",
+  // 1.46.0 知识库咨询台 / 绑定工作台
+  "关闭面板": "Close",
+  "故障知识库": "Fault knowledge base",
+  "当前图纸未加载 0.3 故障知识库（症状/原因/排查要点）。可导入 .fluidkb.json，或先用示例奶泵知识库试用。": "This drawing has no 0.3 fault knowledge base (symptoms / causes / check guides). Import a .fluidkb.json, or try the sample milk-pump library.",
+  "加载示例知识库": "Load sample knowledge base",
+  "导入知识库": "Import knowledge base",
+  "导出知识库": "Export knowledge base",
+  "导入预览": "Import preview",
+  "症状": "Symptom",
+  "原因": "Cause",
+  "部件组": "Part group",
+  "部件组绑定": "Part-group binding",
+  "全部部件组已绑定。": "All part groups are bound.",
+  "先在画布选中元件/管路，再点「替换绑定」；绑定成功后会自动跳到下一个未绑定组。": "Select components or pipes on the canvas, then click Replace binding. After binding, the next unbound group is selected automatically.",
+  "采用名称建议": "Use name suggestions",
+  "按部件名匹配，可再用追加/移除微调": "Matched by part name; fine-tune with Add / Remove.",
+  "该症状首要怀疑": "Top suspect for symptom",
+  "未标注 KB 版本": "No KB version",
+  "这是最后一个未绑定部件组；绑定后即全部完成。": "This is the last unbound part group; binding it completes the work.",
+  "导入会替换当前故障库与知识库定义；同名部件组的画布绑定会保留，其余部件组需重新绑定。可撤销。": "Importing replaces the current fault library and KB definitions. Canvas bindings of same-ID part groups are preserved; other part groups must be rebound. Undo is available.",
+  "当前图纸已绑定": "Currently bound on this drawing",
+  "导入并应用": "Import and apply",
+  "以下已绑定部件组在新知识库中不存在，绑定已解除：": "These bound part groups no longer exist in the new library; their bindings were removed:",
+  "未知部件组": "Unknown part group",
+  "该代码被知识库原因引用，不能直接删除：": "This code is referenced by knowledge-base causes and cannot be deleted directly:",
+  "删除并清理引用": "Delete and remove references",
+  "删除代码会同时从这些原因中移除该报警码，可用一次撤销恢复。": "Deleting the code also removes it from these causes; a single undo restores it."
 };
 
 const LangContext = createContext<{ lang: Lang; t: (zh: string) => string; setLang: (l: Lang) => void }>({

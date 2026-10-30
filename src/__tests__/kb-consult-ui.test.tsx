@@ -6,11 +6,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { KbConsultPanel } from "../components/KbConsultPanel";
 import { FaultHighlightOverlay } from "../components/FaultHighlightOverlay";
+import { FaultCodePanel } from "../components/FaultCodePanel";
 import { LangProvider } from "../i18n";
 import { loadDiagram, setWorkMode, store, updateDiagram } from "../store";
-import { parseDiagnosticProfile } from "../fault-codes/profile";
+import { EMPTY_PROFILE, parseDiagnosticProfile } from "../fault-codes/profile";
 import { createFaultCode, deleteFaultCode } from "../fault-codes/actions";
-import { selectKbSymptom, selectKbPart, resetDiagnosticSession } from "../fault-codes/session";
+import { selectKbSymptom, selectKbPart, resetDiagnosticSession, diagnosticSession } from "../fault-codes/session";
 import { suspectsForSymptom } from "../fault-codes/consult";
 import { createEmptyDiagram } from "../sample";
 import type { DiagnosticProfile } from "../fault-codes/types";
@@ -34,10 +35,10 @@ beforeEach(() => { setWorkMode("fault"); resetDiagnosticSession(); loadKbDiagram
 
 describe("KbConsultPanel", () => {
   it("症状 chips 按分组渲染；点症状出现嫌疑分档并按 pr 排序", () => {
-    const view = render(createElement(LangProvider, null, createElement(KbConsultPanel, { profile: store.get().diagram.settings.diagnosticProfile!, canEdit: true })));
+    const view = render(createElement(LangProvider, null, createElement(KbConsultPanel, { profile: store.get().diagram.settings.diagnosticProfile!, canEdit: true, onError: () => undefined, onImport: () => undefined, onLoadSample: () => undefined })));
     const chips = view.getAllByRole("button", { name: /Outlet temp too high|No milk/i });
     expect(chips.length).toBeGreaterThanOrEqual(2);
-    act(() => { fireEvent.click(view.getByRole("button", { name: "No milk / steam only" })); });
+    act(() => { fireEvent.click(view.getByRole("button", { name: /No milk \/ steam only/ })); });
     const suspects = view.getByTestId("kb-suspects");
     const first = suspects.firstElementChild!;
     expect(first.className).toContain("pr3");
@@ -48,8 +49,8 @@ describe("KbConsultPanel", () => {
   });
 
   it("点部件出现详情卡：排查要点 + 为什么/对策 + 绑定按钮", () => {
-    const view = render(createElement(LangProvider, null, createElement(KbConsultPanel, { profile: store.get().diagram.settings.diagnosticProfile!, canEdit: true })));
-    act(() => { fireEvent.click(view.getByRole("button", { name: "No milk / steam only" })); });
+    const view = render(createElement(LangProvider, null, createElement(KbConsultPanel, { profile: store.get().diagram.settings.diagnosticProfile!, canEdit: true, onError: () => undefined, onImport: () => undefined, onLoadSample: () => undefined })));
+    act(() => { fireEvent.click(view.getByRole("button", { name: /No milk \/ steam only/ })); });
     // 选一个带排查要点的实体件（奶箱），而非首个嫌疑（清洗阀组无 guide）
     const rows = [...view.getByTestId("kb-suspects").querySelectorAll<HTMLButtonElement>(".kb-suspect-head")];
     const tankRow = rows.find(r => r.textContent?.includes("Milk Tank")) ?? rows[0];
@@ -95,5 +96,47 @@ describe("KB 部件组孤儿保护", () => {
     act(() => { deleteFaultCode(id); });
     const after = store.get().diagram.settings.diagnosticProfile!;
     expect(after.highlightGroups.map(g => g.id).sort().join(",")).toBe(groupsBefore);
+  });
+});
+
+describe("1.46.0 咨询台联动与引导", () => {
+  it("点故障码会反查知识库症状与部件", () => {
+    const view = render(createElement(LangProvider, null, createElement(FaultCodePanel, { onClose: () => undefined })));
+    const list = view.container.querySelector(".fault-code-list")!;
+    const codeButton = [...list.querySelectorAll("button")].find(button => button.textContent?.includes("E045"));
+    expect(codeButton).toBeTruthy();
+    act(() => { fireEvent.click(codeButton!); });
+    expect(diagnosticSession.get().kbSymptomId).toBeTruthy();
+    expect(diagnosticSession.get().kbPartGroupId).toBeTruthy();
+    expect(view.getByTestId("kb-status").textContent).not.toContain("None");
+    cleanup();
+  });
+
+  it("无知识库时给出示例/导入引导，点击示例走预览回调", () => {
+    const d = createEmptyDiagram();
+    d.settings.diagnosticProfile = structuredClone(EMPTY_PROFILE);
+    loadDiagram(d);
+    let sampleClicked = 0;
+    const view = render(createElement(LangProvider, null, createElement(KbConsultPanel, {
+      profile: store.get().diagram.settings.diagnosticProfile!,
+      canEdit: true, onError: () => undefined, onImport: () => undefined,
+      onLoadSample: () => { sampleClicked += 1; },
+    })));
+    expect(view.container.querySelector('[data-kb-empty="1"]')).toBeTruthy();
+    act(() => { fireEvent.click(view.getByRole("button", { name: "Load sample knowledge base" })); });
+    expect(sampleClicked).toBe(1);
+    cleanup();
+  });
+
+  it("绑定工作台列出未绑定部件组并显示计数", () => {
+    const view = render(createElement(LangProvider, null, createElement(KbConsultPanel, {
+      profile: store.get().diagram.settings.diagnosticProfile!,
+      canEdit: true, onError: () => undefined, onImport: () => undefined, onLoadSample: () => undefined,
+    })));
+    const bindBox = view.container.querySelector(".kb-bind-box");
+    expect(bindBox).toBeTruthy();
+    expect(bindBox!.textContent).toContain("Unbound");
+    expect(view.container.querySelectorAll(".kb-unbound")).toHaveLength(GOLDEN.highlightGroups.length);
+    cleanup();
   });
 });

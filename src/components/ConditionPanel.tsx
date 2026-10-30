@@ -51,7 +51,7 @@ export function ConditionPanel({ onClose, embedded = false }: { onClose: () => v
         <h3>💾 {t("工况 · 完整状态")}</h3>
         <div className="cond-panel-actions">
           <button className="cond-panel-toggle" onClick={() => setCollapsed((value) => !value)} title={collapsed ? t("展开") : t("折叠")} aria-label={collapsed ? t("展开") : t("折叠")}>{collapsed ? "▸" : "▾"}</button>
-          <button className="cond-panel-close" onClick={onClose} title={t("关闭")}>✕</button>
+          <button className="cond-panel-close" onClick={onClose} title={t("关闭面板")}>✕</button>
         </div>
       </div>
 

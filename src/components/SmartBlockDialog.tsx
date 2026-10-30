@@ -52,7 +52,7 @@ export function SmartBlockDialog({
             <div className="smart-modal-title">+ {t(block.titleZh)}</div>
             <div className="smart-modal-sub">{t(block.descZh)}</div>
           </div>
-          <button className="btn ghost sq" onClick={onCancel} aria-label={t("关闭")}>×</button>
+          <button className="btn ghost sq" onClick={onCancel} aria-label={t("关闭面板")}>×</button>
         </header>
         <div className="smart-block-preview">
           <DiagramPreview nodes={preview.nodes} pipes={preview.pipes} showLabels />

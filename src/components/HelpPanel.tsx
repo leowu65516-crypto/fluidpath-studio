@@ -35,7 +35,7 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
         <div className="help-content">
           <div className="help-content-head">
             <h2>{localized.icon} {localized.title}</h2>
-            <button className="help-close" onClick={onClose} aria-label={t("关闭")}>✕</button>
+            <button className="help-close" onClick={onClose} aria-label={t("关闭面板")}>✕</button>
           </div>
           <div className="help-scroll">
             {localized.blocks.map((b, i) => {

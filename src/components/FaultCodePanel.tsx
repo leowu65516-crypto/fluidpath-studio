@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useAppState, setUI } from "../store";
+import { useAppState, computeRectFocus, focusRectAnimated } from "../store";
 import { nodeBBox, pipePolyline, polylineBBox } from "../geometry";
 import { useT } from "../i18n";
-import { createFaultCode, patchFaultCode, deleteFaultCode, bindFaultSelection, editDiagnosticProfile, importFaultCatalog, addTroubleshootingStep, patchTroubleshootingStep, deleteTroubleshootingStep, moveTroubleshootingStep, bindTroubleshootingStepSelection } from "../fault-codes/actions";
+import { createFaultCode, patchFaultCode, deleteFaultCode, bindFaultSelection, editDiagnosticProfile, importFaultCatalog, sampleKnowledgeBase, addTroubleshootingStep, patchTroubleshootingStep, deleteTroubleshootingStep, moveTroubleshootingStep, bindTroubleshootingStepSelection } from "../fault-codes/actions";
 import { EMPTY_PROFILE, MAX_PROFILE_BYTES, parseDiagnosticProfile, resolveFaultTargets, resolveHighlightGroupTargets } from "../fault-codes/profile";
-import { useDiagnosticSession, selectFaultCodes, selectFaultStep, setDiagnosticView, prepareDiagnosticSimulation, setSimulationRunning, advanceDiagnostics, setSimulationValue, acknowledgeFault, resetFault, toggleInjectedFault, diagnosticSession } from "../fault-codes/session";
+import { useDiagnosticSession, selectFaultCodes, selectFaultStep, setDiagnosticView, prepareDiagnosticSimulation, setSimulationRunning, advanceDiagnostics, setSimulationValue, acknowledgeFault, resetFault, toggleInjectedFault, diagnosticSession, selectKbSymptom, selectKbPart } from "../fault-codes/session";
+import { codeReferences, symptomLabelOf, strongestCauseForCode } from "../fault-codes/consult";
 import type { DiagnosticProfile, FaultCode, Observation, TroubleshootingStep } from "../fault-codes/types";
 import { buildFaultReport, downloadText } from "../fault-codes/report";
 import { FaultRuleEditor } from "./FaultRuleEditor";
@@ -13,12 +14,8 @@ import { KbConsultPanel } from "./KbConsultPanel";
 
 const STATUS: Record<string, string> = { notApplicable: "不适用或宽限中", normal: "正常", pending: "等待持续条件", triggered: "已触发", unknown: "无法判断", invalid: "规则无效", clear: "无活动报警", active: "活动报警", recoveredAwaitingReset: "已恢复，等待复位" };
 
-/** 关联范围适配：允许放大小目标，限制极端放大，并沿用画布 20%–400% 的缩放边界。 */
-export function focusTargetViewport(left: number, top: number, right: number, bottom: number, w: number, h: number) {
-  const fit = Math.min(w / (Math.max(0, right - left) + 100), h / (Math.max(0, bottom - top) + 100));
-  const zoom = Math.min(1.8, Math.max(0.2, fit));
-  return { zoom, panX: w / 2 - (left + right) / 2 * zoom, panY: h / 2 - (top + bottom) / 2 * zoom };
-}
+/** 关联范围适配：允许放大小目标，限制极端放大，并沿用画布 20%–400% 的缩放边界（纯函数，单测直接覆盖）。 */
+export const focusTargetViewport = computeRectFocus;
 
 function TroubleshootingStepEditor({
   diagram, profile, fault, step, index, activeIndex, lang, canEdit, selection, run, onSelect,
@@ -76,6 +73,8 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
   const [code, setCode] = useState(""), [title, setTitle] = useState(""), [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [pendingImport, setPendingImport] = useState<DiagnosticProfile | null>(null);
+  const [importConflicts, setImportConflicts] = useState<{ id: string; label: string }[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; code: string; refs: { label: string; count: number }[]; total: number } | null>(null);
   const [advanced, setAdvanced] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const canEdit = !["present", "verify"].includes(ui.mode ?? "edit");
@@ -86,10 +85,36 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
   useEffect(() => () => { setSimulationRunning(false); }, []);
   const run = (fn: () => void) => { try { fn(); setError(""); } catch (e) { setError((e as Error).message); } };
   const label = (f: FaultCode) => f.label[lang] || f.label.zh || f.label.en || f.code;
+  const labelOfGroup = (group?: { id: string; label: { zh?: string; en?: string } }) =>
+    group ? group.label[lang] || group.label.zh || group.label.en || group.id : t("未知部件组");
   function select(fault: FaultCode, additive = false) {
     setActiveId(fault.id);
     selectFaultCodes(additive ? session.selectedIds.includes(fault.id) ? session.selectedIds.filter(id => id !== fault.id) : [...session.selectedIds, fault.id] : [fault.id]);
     if (!additive && fault.troubleshooting?.length) selectFaultStep(fault.id, 0);
+    // 0.3 知识库反查：点故障码 → 定位到最高概率的部件与对应症状（与咨询台三向联动）。
+    if (!additive && profile.symptoms?.length) {
+      const strongest = strongestCauseForCode(profile, fault.code);
+      if (strongest) {
+        selectKbSymptom(strongest.symptomId);
+        selectKbPart(strongest.groupId);
+      }
+    }
+  }
+  function requestDelete() {
+    if (!active) return;
+    const references = codeReferences(profile, active.code);
+    if (!references.length) {
+      run(() => { deleteFaultCode(active.id); setActiveId(""); });
+      return;
+    }
+    const bySymptom = new Map<string, number>();
+    for (const cause of references) bySymptom.set(cause.symptomId, (bySymptom.get(cause.symptomId) ?? 0) + 1);
+    setPendingDelete({
+      id: active.id,
+      code: active.code,
+      refs: [...bySymptom.entries()].map(([symptomId, count]) => ({ label: symptomLabelOf(profile, symptomId, lang), count })),
+      total: references.length,
+    });
   }
   function focusTargets() {
     if (!targets) return;
@@ -100,27 +125,62 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
     if (!boxes.length) return;
     const left = Math.min(...boxes.map(b => b.x)), top = Math.min(...boxes.map(b => b.y));
     const right = Math.max(...boxes.map(b => b.x + b.w)), bottom = Math.max(...boxes.map(b => b.y + b.h));
-    const svg = document.querySelector(".main-canvas"), w = svg?.clientWidth || 800, h = svg?.clientHeight || 600;
-    setUI(focusTargetViewport(left, top, right, bottom, w, h));
+    focusRectAnimated(left, top, right, bottom, [...targets.nodes, ...targets.pipes]);
   }
   const editText = (field: "label" | "description", language: "zh" | "en", value: string) => active && run(() => patchFaultCode(active.id, { [field]: { zh: "", en: "", ...active[field], [language]: value } }));
   return <aside className="fault-panel" aria-label={t("故障码与关联水路")} data-ui="1">
     <header className="fault-header"><div><strong>{t("故障代码")}</strong><span>{profile.namespace}</span></div><button className="btn ghost sq" onClick={onClose} aria-label={t("关闭故障代码")}>×</button></header>
     <div className="fault-scroll">
       <p className="fault-intro">{t("选择代码查看关联水路；高亮不改变泵阀、介质或工程流动。")}</p>
-      <KbConsultPanel profile={profile} canEdit={canEdit} />
+      <KbConsultPanel profile={profile} canEdit={canEdit} onError={setError}
+        onImport={() => inputRef.current?.click()}
+        onLoadSample={() => run(() => setPendingImport(sampleKnowledgeBase()))} />
       {!canEdit && <p className="fault-hint">{t("先在编辑或故障模式配置代码；演示和验收模式可查阅、模拟。")}</p>}
       {error && <div className="fault-error" role="alert">{t("配置错误")}: {error}</div>}
+      {importConflicts.length > 0 && <section className="fault-card kb-conflicts" role="status">
+        <strong>{t("以下已绑定部件组在新知识库中不存在，绑定已解除：")}</strong>
+        <ul>{importConflicts.map(item => <li key={item.id}>{item.label}</li>)}</ul>
+        <button className="btn ghost" onClick={() => setImportConflicts([])}>{t("知道了")}</button>
+      </section>}
       <div className="fault-actions">
-        <button className="btn" disabled={!profile.diagnostics.length} onClick={() => downloadText(`${diagram.name}-fault-codes.json`, JSON.stringify(profile, null, 2), "application/json")}>{t("导出代码库")}</button>
-        <button className="btn" disabled={!canEdit} onClick={() => inputRef.current?.click()}>{t("导入代码库")}</button>
+        <button className="btn" disabled={!profile.diagnostics.length} onClick={() => downloadText(`${diagram.name}-fault-codes.json`, JSON.stringify(profile, null, 2), "application/json")}>{t("导出知识库")}</button>
+        <button className="btn" disabled={!canEdit} onClick={() => inputRef.current?.click()}>{t("导入知识库")}</button>
       </div>
-      <input ref={inputRef} type="file" accept=".json,application/json" hidden onChange={async e => {
+      <input ref={inputRef} type="file" accept=".json,application/json,.fluidkb.json" hidden onChange={async e => {
         const file = e.target.files?.[0]; e.target.value = "";
         if (!file) return;
         try { if (file.size > MAX_PROFILE_BYTES) throw new Error("File too large"); setPendingImport(parseDiagnosticProfile(await file.text())); setError(""); } catch (err) { setError((err as Error).message); }
       }} />
-      {pendingImport && <section className="fault-card"><strong>{t("导入配置预览")} · {pendingImport.diagnostics.length}</strong><p>{t("导入会替换当前代码库。为避免同名或旧 ID 误绑，导入后所有目标需重新关联。可撤销。")}</p><div className="fault-actions"><button className="btn" disabled={!canEdit} onClick={() => run(() => { importFaultCatalog(JSON.stringify(pendingImport)); setPendingImport(null); setActiveId(""); })}>{t("替换代码库并重新绑定")}</button><button className="btn ghost" onClick={() => setPendingImport(null)}>{t("取消导入")}</button></div></section>}
+      {pendingImport && (() => {
+        const symptomCount = pendingImport.symptoms?.length ?? 0;
+        const causeCount = pendingImport.causes?.length ?? 0;
+        const guideCount = pendingImport.checkGuides?.length ?? 0;
+        const groupCount = pendingImport.highlightGroups.length;
+        const boundNow = profile.highlightGroups.filter(g => g.nodeIds.length + g.pipeIds.length > 0).length;
+        return <section className="fault-card kb-import-preview" data-testid="kb-import-preview">
+          <strong>{t("导入预览")}</strong>
+          <ul className="kb-import-summary">
+            <li>{t("故障码")} {pendingImport.diagnostics.length}</li>
+            {symptomCount > 0 && <li>{t("症状")} {symptomCount}</li>}
+            {causeCount > 0 && <li>{t("原因")} {causeCount}</li>}
+            <li>{t("部件组")} {groupCount}</li>
+            {guideCount > 0 && <li>{t("排查要点")} {guideCount}</li>}
+          </ul>
+          {symptomCount > 0
+            ? <p>{t("导入会替换当前故障库与知识库定义；同名部件组的画布绑定会保留，其余部件组需重新绑定。可撤销。")}</p>
+            : <p>{t("导入会替换当前代码库。为避免同名或旧 ID 误绑，导入后所有目标需重新关联。可撤销。")}</p>}
+          {boundNow > 0 && <p className="fault-hint">{t("当前图纸已绑定")} {boundNow} / {groupCount}</p>}
+          <div className="fault-actions">
+            <button className="btn" disabled={!canEdit} onClick={() => run(() => {
+              const before = new Map(profile.highlightGroups.map(group => [group.id, group]));
+              const result = importFaultCatalog(JSON.stringify(pendingImport));
+              setImportConflicts(result.conflicts.map(id => ({ id, label: labelOfGroup(before.get(id)) })));
+              setPendingImport(null); setActiveId("");
+            })}>{t("导入并应用")}</button>
+            <button className="btn ghost" onClick={() => setPendingImport(null)}>{t("取消导入")}</button>
+          </div>
+        </section>;
+      })()}
       <details className="fault-card" open={!profile.diagnostics.length}><summary>{t("新建代码")}</summary><form className="fault-form" onSubmit={e => {
         e.preventDefault(); run(() => { const id = createFaultCode(code, title, lang); setActiveId(id); selectFaultCodes([id]); setCode(""); setTitle(""); });
       }}>
@@ -171,7 +231,16 @@ export function FaultCodePanel({ onClose }: { onClose: () => void }) {
           {canEdit && <details><summary>{t("配置数值规则")}</summary><FaultRuleEditor fault={active} onError={setError} /></details>}
           {active.detection && canEdit && <button className="btn ghost" onClick={() => run(() => editDiagnosticProfile(p => { delete p.diagnostics.find(f => f.id === active.id)!.detection; }))}>{t("移除检测规则")}</button>}
           <button className="btn" onClick={() => toggleInjectedFault(active.id)}>{t(session.injectedIds.includes(active.id) ? "清除教学注入" : "模拟此代码")}</button>
-          <button className="btn ghost" disabled={!canEdit} onClick={() => run(() => { deleteFaultCode(active.id); setActiveId(""); })}>{t("删除此代码")}</button>
+          <button className="btn ghost" disabled={!canEdit} onClick={requestDelete}>{t("删除此代码")}</button>
+          {pendingDelete?.id === active.id && <div className="kb-delete-confirm" role="alert">
+            <b>{t("该代码被知识库原因引用，不能直接删除：")}</b>
+            <ul>{pendingDelete.refs.map(ref => <li key={ref.label}>{ref.label} · {ref.count}</li>)}</ul>
+            <p className="fault-hint">{t("删除代码会同时从这些原因中移除该报警码，可用一次撤销恢复。")}</p>
+            <div className="fault-actions">
+              <button className="btn" onClick={() => { const id = pendingDelete.id; run(() => { deleteFaultCode(id, { removeReferences: true }); setActiveId(""); setPendingDelete(null); }); }}>{t("删除并清理引用")}</button>
+              <button className="btn ghost" onClick={() => setPendingDelete(null)}>{t("取消")}</button>
+            </div>
+          </div>}
         </section>
       </div>}
       {!!profile.diagnostics.some(f => f.detection) && <section className="fault-card fault-simulator"><strong>{t("模拟检测")}</strong><p className="fault-hint">{t("输入按仿真时钟持续采样；这些是教学数值，不是实机读数。")}</p>

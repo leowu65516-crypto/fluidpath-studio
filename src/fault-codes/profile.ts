@@ -245,6 +245,36 @@ export function detachProfileTargets(profile: DiagnosticProfile): DiagnosticProf
   return next;
 }
 
+export interface ProfileBindingMerge {
+  profile: DiagnosticProfile;
+  /** 旧库里仍绑定画布、但新库已删除的部件组 ID（手册升版冲突清单，供 UI 明确告知）。 */
+  conflicts: string[];
+}
+
+/**
+ * 手册升版合并（协议 §18.5）：同 namespace 且带 KB 元数据的升级导入，
+ * 定义类内容整体刷新，但「部件组 → 本图节点」绑定按部件组 id 保留；
+ * 新库删除了仍被绑定的部件组时，把 id 列入 conflicts，由 UI 显式告知（不静默丢弃）。
+ * 绑定是否仍有意义交给 resolveHighlightGroupTargets 的 missing 判定（对象被删会显示失效引用）。
+ */
+export function mergeProfileBindings(next: DiagnosticProfile, previous?: DiagnosticProfile): ProfileBindingMerge {
+  const merged = structuredClone(next);
+  delete merged.diagramBinding;
+  if (!previous) return { profile: merged, conflicts: [] };
+  const previousGroups = new Map(previous.highlightGroups.map(g => [g.id, g]));
+  for (const group of merged.highlightGroups) {
+    const old = previousGroups.get(group.id);
+    if (!old) continue;
+    if (!old.nodeIds.length && !old.pipeIds.length) continue;
+    group.nodeIds = [...new Set(old.nodeIds)];
+    group.pipeIds = [...new Set(old.pipeIds)];
+  }
+  const conflicts = previous.highlightGroups
+    .filter(g => (g.nodeIds.length > 0 || g.pipeIds.length > 0) && !merged.highlightGroups.some(nextGroup => nextGroup.id === g.id))
+    .map(g => g.id);
+  return { profile: merged, conflicts };
+}
+
 export function bindSelection(group: HighlightGroup, selection: Selection, mode: "replace" | "add" | "remove"): HighlightGroup {
   const merge = (old: string[], next: string[]) => mode === "replace" ? [...new Set(next)] : mode === "add" ? [...new Set([...old, ...next])] : old.filter(id => !next.includes(id));
   return { ...group, nodeIds: merge(group.nodeIds, selection.nodes), pipeIds: merge(group.pipeIds, selection.pipes) };

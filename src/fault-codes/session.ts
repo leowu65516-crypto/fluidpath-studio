@@ -114,11 +114,19 @@ export function toggleInjectedFault(id: string) {
   state = { ...state, injectedIds: removing ? state.injectedIds.filter(x => x !== id) : [...state.injectedIds, id], events: [...state.events, { faultId: id, atMs: state.nowMs, kind: removing ? "injectionCleared" : "teachingInjection", observations: {} }].slice(-1000) }; emit();
 }
 
-/** Definitions changed: stop the old clock and invalidate results, preserving only existing lookup. */
-export function invalidateDiagnosticSimulation(existingIds: string[]) {
-  const selected = state.selectedIds.filter(id => existingIds.includes(id));
+/**
+ * Definitions changed: stop the old clock and invalidate results, preserving only existing lookup.
+ * 0.3 咨询层：症状/部件选择与仿真无关，只要 id 在新 profile 中仍存在就保留——
+ * 否则每次「替换绑定」都会清空咨询台，批量绑定时无法连续作业（1.46.0）。
+ */
+export function invalidateDiagnosticSimulation(profile: DiagnosticProfile | null) {
+  const selected = state.selectedIds.filter(id => (profile?.diagnostics ?? []).some(f => f.id === id));
   const animation = state.animation;
-  resetDiagnosticSession(); state = { ...state, selectedIds: selected, animation }; emit();
+  const kbSymptomId = state.kbSymptomId && (profile?.symptoms ?? []).some(s => s.id === state.kbSymptomId) ? state.kbSymptomId : null;
+  const kbPartGroupId = state.kbPartGroupId && (profile?.highlightGroups ?? []).some(g => g.id === state.kbPartGroupId) ? state.kbPartGroupId : null;
+  resetDiagnosticSession();
+  state = { ...state, selectedIds: selected, animation, kbSymptomId, kbPartGroupId };
+  emit();
 }
 
 export function diagnosticContextKey(diagram: Diagram): string {
@@ -131,6 +139,6 @@ export function diagnosticContextKey(diagram: Diagram): string {
 
 export function syncDiagnosticDiagram(previous: Diagram, next: Diagram) {
   if (diagnosticContextKey(previous) !== diagnosticContextKey(next)) {
-    invalidateDiagnosticSimulation(next.settings.diagnosticProfile?.diagnostics.map(f => f.id) ?? []);
+    invalidateDiagnosticSimulation(next.settings.diagnosticProfile ?? null);
   }
 }

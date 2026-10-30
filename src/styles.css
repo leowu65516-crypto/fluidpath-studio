@@ -133,16 +133,16 @@ body {
   flex-shrink: 0;
 }
 
-/* 工具栏固定两行：第一行文件/编辑/视图，第二行样式/诊断/导出 */
+/* 工具栏两行：窗口足够宽时各占一行；变窄时自动换行，避免把左右两端按钮裁掉（1.46.0） */
 .toolbar .tb-row {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  row-gap: 4px;
   width: 100%;
   min-height: 32px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
 }
 
 .tb-flow-inline { flex: 0 0 auto; }
@@ -2303,7 +2303,7 @@ body[data-theme="dark"] .welcome-overlay {
 /* ===== 模式切换确认（工具栏/状态栏保留当前模式；此横幅仅短暂出现） ===== */
 .mode-banner {
   position: fixed;
-  top: 92px;
+  top: calc(var(--toolbar-h, 113px) + 8px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 700;
@@ -2909,8 +2909,27 @@ button.smart-eng-item:hover { border-color: var(--accent); }
 .kb-tag.own-both { color: #b7791f; border-color: color-mix(in srgb, #b7791f 40%, var(--border)); }
 .kb-tag.code { font-family: ui-monospace, monospace; color: var(--text); }
 .kb-tag.ref { font-style: italic; }
-.kb-statusbar { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin-top: 8px; padding: 7px 8px; border-radius: 8px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--border); backdrop-filter: blur(4px); }
+.kb-statusbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 3px 10px; margin-top: 8px; padding: 7px 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
 .kb-stat { display: flex; gap: 6px; align-items: baseline; min-width: 0; font-size: 11px; }
 .kb-stat i { font-style: normal; color: var(--text-dim); font-size: 10px; white-space: nowrap; }
 .kb-stat b { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kb-source { color: var(--text-dim); margin-top: 4px; }
+.kb-source { color: var(--text-dim); margin-top: 4px; display: block; }
+
+/* 1.46.0 绑定工作台 / 导入预览 / 删除确认 */
+.kb-chip-n { margin-left: 4px; font-size: 9.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.kb-chip.on .kb-chip-n { color: var(--accent); }
+.kb-bind-box { border: 1px dashed var(--border); border-radius: 8px; padding: 6px 8px; margin-top: 8px; }
+.kb-bind-box summary { display: flex; gap: 8px; align-items: baseline; cursor: pointer; font-size: 11.5px; list-style: none; }
+.kb-bind-box summary b { font-size: 12px; }
+.kb-bind-warn { color: #b7791f; font-weight: 650; }
+.kb-unbound-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; max-height: 132px; overflow-y: auto; }
+.kb-unbound { border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 6px; padding: 2px 8px; font-size: 11px; cursor: pointer; }
+.kb-unbound:hover { border-color: var(--accent); }
+.kb-unbound.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); font-weight: 650; }
+.kb-suggest { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.kb-suggest .fault-hint { margin: 0; }
+.kb-import-summary { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0; padding-left: 16px; font-size: 11.5px; }
+.kb-import-preview p { margin: 4px 0; font-size: 11.5px; }
+.kb-conflicts ul, .kb-delete-confirm ul { margin: 4px 0; padding-left: 18px; font-size: 11.5px; }
+.kb-delete-confirm { border: 1px solid color-mix(in srgb, #c53030 40%, var(--border)); background: color-mix(in srgb, #c53030 6%, var(--surface)); border-radius: 8px; padding: 8px; margin-top: 8px; }
+.kb-empty .fault-hint { margin: 6px 0; }

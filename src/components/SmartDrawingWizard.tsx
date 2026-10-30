@@ -133,7 +133,7 @@ export function SmartDrawingWizard({
             <div className="smart-modal-sub">{t("描述或选择模板，快速得到可编辑液路图")}</div>
             <div className="smart-head-rule" aria-hidden="true" />
           </div>
-          <button className="btn ghost sq" onClick={onClose} aria-label={t("关闭")}>×</button>
+          <button className="btn ghost sq" onClick={onClose} aria-label={t("关闭面板")}>×</button>
         </header>
 
         <div className="smart-steps" aria-label={t("步骤")}>

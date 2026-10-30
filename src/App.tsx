@@ -544,6 +544,18 @@ export default function App() {
     setSaveNudge({ kind: "first-edit" });
   }, [appState.ui.dirty, saveNudge, showSmartWizard, showSmartPanel, pendingBlock, closePrompt]);
 
+  // 工具栏高度会随窗口宽度/语言换行变化：把实测高度暴露给浮层定位（模式横幅等），避免遮挡工具栏
+  useEffect(() => {
+    const toolbar = document.querySelector<HTMLElement>(".toolbar");
+    if (!toolbar) return;
+    const apply = () => document.documentElement.style.setProperty("--toolbar-h", `${Math.round(toolbar.getBoundingClientRect().height)}px`);
+    apply();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
+    observer?.observe(toolbar);
+    window.addEventListener("resize", apply);
+    return () => { observer?.disconnect(); window.removeEventListener("resize", apply); };
+  }, [gateOk]);
+
   if (!gateOk) {
     return <PasswordGate onPass={() => { setGateAuthed(); setGateOk(true); }} />;
   }
@@ -690,7 +702,7 @@ export default function App() {
           <button className="btn" onClick={() => { restoreAutosaveVersion(recover.id, 0); clearAutosave(recover.id); setRecover(null); }}>{t("恢复最新")}</button>
           <button className="btn ghost" onClick={() => setRecoverHistory(true)}>{t("查看历史")}</button>
           <button className="btn ghost" onClick={() => { clearAutosave(recover.id); setRecover(null); }}>{t("丢弃")}</button>
-          <button className="recover-dismiss" onClick={dismissRecovery} title={t("本次关闭恢复提示")} aria-label={t("关闭")}>×</button>
+          <button className="recover-dismiss" onClick={dismissRecovery} title={t("本次关闭恢复提示")} aria-label={t("关闭面板")}>×</button>
         </div>
       )}
       {/* 自动保存版本历史（预留：最多 5 份） */}

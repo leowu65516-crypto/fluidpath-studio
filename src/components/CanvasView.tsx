@@ -1694,7 +1694,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn" onClick={() => { focusElement(stopCause.ids[0] ?? stopCause.pipeId); blinkElements(stopCause.ids); showChainPath(stopCause.ids.filter((id) => diagram.pipes.some((pp) => pp.id === id))); setStopCause(null); }}>📍 {t("定位根因")}</button>
-              <button className="btn ghost" onClick={() => setStopCause(null)}>{t("关闭")}</button>
+              <button className="btn ghost" onClick={() => setStopCause(null)}>{t("关闭面板")}</button>
             </div>
           </div>
         </>

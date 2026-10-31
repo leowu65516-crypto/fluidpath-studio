@@ -1061,6 +1061,10 @@ const EN: Record<string, string> = {
   "以全通基线重演": "Rerun on full-flow baseline",
   "创建基线工况并重演": "Create baseline condition and rerun: ",
   "已创建并应用全通基线工况，演练重新开始": "Full-flow baseline condition created and applied; the drill restarted",
+  "检测到演练残留": "Unrestored drill injection detected",
+  "处故障注入未还原（演练中刷新或退出会保留在图纸上）": "fault injection(s) left on the drawing (refreshing or leaving during a drill persists them)",
+  "一键清除": "Clear now",
+  "已清除演练残留": "Drill residue cleared",
   // 1.46.0 知识库咨询台 / 绑定工作台
   "关闭面板": "Close",
   "故障知识库": "Fault knowledge base",

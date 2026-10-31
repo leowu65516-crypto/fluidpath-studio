@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.51.0";
+export const APP_VERSION = "1.51.1";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.51.1",
+    date: "2026-10-31",
+    highlights: [
+      "演练残留检测与清除：演练中刷新/退出会把注入的故障随自动保存留在图纸上（会话丢失、还原入口消失）——演练步现在检测属于演练配置目标的未还原 fault 注入并提示数量，提供「一键清除」（只清演练目标上的 fault，不动用户的工程禁用）",
+      "全通基线重演先清残留：工况快照虽含 fault，但残留态下重演会以「已停链路」为基线演不出差异——restartDrillWithBaseline 现在先清除演练残留再建全通基线重演，闭环成立",
+      "新增回归：残留检测/清除/重演前清理（含模拟演练中刷新场景）；全量 96 文件 / 651 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.51.0",
     date: "2026-10-31",

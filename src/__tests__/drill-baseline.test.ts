@@ -1,8 +1,8 @@
 /** 演练基线闭环：全通基线工况生成、缺基线一键重演出差异、0 差异提示与数字定位入口 */
 import { describe, expect, it, beforeEach } from "vitest";
-import { loadDiagram, setWorkMode, store } from "../store";
+import { loadDiagram, setWorkMode, store, updateDiagram } from "../store";
 import { createEmptyDiagram } from "../sample";
-import { createRunBaselineCondition, restartDrillWithBaseline, startFaultDrill, restoreFaultDrill } from "../fault-codes/drill";
+import { createRunBaselineCondition, restartDrillWithBaseline, startFaultDrill, restoreFaultDrill, drillResidueIds, clearDrillResidue } from "../fault-codes/drill";
 import { resetDiagnosticSession, diagnosticSession } from "../fault-codes/session";
 import { parseDiagnosticProfile } from "../fault-codes/profile";
 import type { DiagnosticProfile } from "../fault-codes/types";
@@ -68,3 +68,25 @@ describe("restartDrillWithBaseline", () => {
     expect(third.missingCondition).toBe(false);
   });
 });
+
+describe("drill residue", () => {
+  it("演练残留可检测与清除；残留下重演先清残留，正常还原不残留", () => {
+    const d = miniDiagram();
+    loadDiagram(d);
+    // 模拟演练中刷新：注入留在图上、会话丢失
+    startFaultDrill("f1");
+    resetDiagnosticSession();
+    expect(drillResidueIds(store.get().diagram, store.get().diagram.settings.diagnosticProfile!).nodes.length).toBe(1);
+    // 残留不清则重演无意义：restart 内部先清残留再以全通基线重演
+    const again = restartDrillWithBaseline("f1", "运行基线");
+    expect(again.ok).toBe(true);
+    expect(diagnosticSession.get().drill).not.toBeNull(); // 演练进行中（注入在图上属正常）
+    restoreFaultDrill(); // 工况快照含全属性（含 fault）：正常还原不残留
+    expect(drillResidueIds(store.get().diagram, store.get().diagram.settings.diagnosticProfile!).nodes.length).toBe(0);
+    // 独立清除入口：手工注入残留后可一键清
+    updateDiagram(draft => { draft.nodes.find(n => n.id === "n-p")!.fault = "pumpStuck"; });
+    expect(clearDrillResidue(store.get().diagram, store.get().diagram.settings.diagnosticProfile!)).toBe(1);
+    expect(store.get().diagram.nodes.find(n => n.id === "n-p")?.fault).toBeUndefined();
+  });
+});
+

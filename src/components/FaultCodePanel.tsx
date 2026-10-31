@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { blinkElements, computeRectFocus, focusRectAnimated, setSelection, setUI, store, useAppState } from "../store";
 import { nodeBBox, pipePolyline, polylineBBox } from "../geometry";
 import { useT } from "../i18n";
@@ -15,7 +15,7 @@ import {
 } from "../fault-codes/session";
 import { codeReferences, symptomLabelOf } from "../fault-codes/consult";
 import { codePartGroups, firstRunnableCode, runnableCodes } from "../fault-codes/journey";
-import { startFaultDrill, restoreFaultDrill, restartDrillWithBaseline } from "../fault-codes/drill";
+import { startFaultDrill, restoreFaultDrill, restartDrillWithBaseline, drillResidueIds, clearDrillResidue } from "../fault-codes/drill";
 import { faultWorkbenchStatus } from "../fault-codes/workbench";
 import { suggestGroupTargets, unboundGroups } from "../fault-codes/binding";
 import type { DiagnosticProfile, FaultCode, Observation, TroubleshootingStep } from "../fault-codes/types";
@@ -226,6 +226,9 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
   }
   /** 基线缺失或 0 差异时，给「以全通基线重演」的一键出口。null=不显示。 */
   const [drillOffer, setDrillOffer] = useState<string | null>(null);
+  // 演练残留：会话丢失（刷新/退出后重进）但注入仍挂在图上——提示并给一键清除
+  const residueIds = useMemo(() => drillResidueIds(diagram, profile), [diagram, profile]);
+  const residueCount = session.drill ? 0 : residueIds.nodes.length + residueIds.pipes.length;
   function rerunWithBaseline() {
     if (!active) return;
     const name = drillOffer || "运行基线（自动）";
@@ -626,6 +629,10 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
               {drillOffer !== null && <button type="button" className="btn mini" onClick={rerunWithBaseline}>
                 {drillOffer ? `${t("创建基线工况并重演")}「${drillOffer}」` : t("以全通基线重演")}
               </button>}
+            </div>}
+            {residueCount > 0 && !session.drill && <div className="fw-drill-residue" role="alert" data-testid="drill-residue">
+              <span>⚠ {t("检测到演练残留")}：{residueCount} {t("处故障注入未还原（演练中刷新或退出会保留在图纸上）")}</span>
+              <button type="button" className="btn mini" onClick={() => { run(() => { const d = store.get().diagram; const p = d.settings.diagnosticProfile; if (!p) return; const n = clearDrillResidue(d, p); toast(t("已清除演练残留") + `：${n}`); }); }}>{t("一键清除")}</button>
             </div>}
             <div className="fault-actions">
               <button className="btn ghost mini" onClick={focusTargets} disabled={!targets || targets.nodes.length + targets.pipes.length === 0}>{t("定位排查范围")}</button>

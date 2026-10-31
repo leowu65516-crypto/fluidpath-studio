@@ -187,9 +187,49 @@ export function createRunBaselineCondition(diagram: Diagram, name: string): Work
   return { name, ...snapshot };
 }
 
-/** 基线工况缺失时的一键重演：先还原当前演练，创建全通基线工况，再以它为基线重演。 */
+/**
+ * 演练残留：图上仍挂着属于某演练配置目标的 fault 注入（演练中刷新/崩溃后，
+ * 会话丢失但注入已被自动保存持久化）。工况快照只含泵/阀态，不清 fault，
+ * 所以全通基线重演前必须显式清除，否则"注入已停的链路"演不出差异。
+ */
+export function drillResidueIds(diagram: Diagram, profile: DiagnosticProfile): { nodes: string[]; pipes: string[] } {
+  const nodes: string[] = [], pipes: string[] = [];
+  for (const fault of profile.diagnostics) {
+    for (const action of fault.drill?.actions ?? []) {
+      const targets = resolveHighlightGroupTargets(diagram, profile, action.groupId);
+      for (const id of targets.nodes) {
+        const node = diagram.nodes.find(item => item.id === id);
+        if (node?.fault && !nodes.includes(id)) nodes.push(id);
+      }
+      for (const id of targets.pipes) {
+        const pipe = diagram.pipes.find(item => item.id === id);
+        if (pipe?.fault && !pipes.includes(id)) pipes.push(id);
+      }
+    }
+  }
+  return { nodes, pipes };
+}
+
+/** 清除演练残留（仅 drill 目标上的 fault，不动用户的工程禁用）。返回清除数量。 */
+export function clearDrillResidue(diagram: Diagram, profile: DiagnosticProfile): number {
+  const residue = drillResidueIds(diagram, profile);
+  for (const id of residue.nodes) {
+    const node = diagram.nodes.find(item => item.id === id);
+    if (node?.fault) delete node.fault;
+  }
+  for (const id of residue.pipes) {
+    const pipe = diagram.pipes.find(item => item.id === id);
+    if (pipe?.fault) delete pipe.fault;
+  }
+  return residue.nodes.length + residue.pipes.length;
+}
+
+/** 基线工况缺失时的一键重演：清除演练残留，创建全通基线工况，再以它为基线重演。 */
 export function restartDrillWithBaseline(faultId: string, conditionName: string): DrillStartResult {
   restoreFaultDrill();
+  const diagram = store.get().diagram;
+  const profile = diagram.settings.diagnosticProfile;
+  if (profile) updateDiagram(draft => { clearDrillResidue(draft, profile); });
   const created = createRunBaselineCondition(store.get().diagram, conditionName);
   updateDiagram(draft => {
     if (!draft.settings.workConditions) draft.settings.workConditions = [];

@@ -3078,3 +3078,9 @@ button.smart-eng-item:hover { border-color: var(--accent); }
 .fault-scope-empty .btn { align-self: flex-start; }
 .kb-editor-footer { border-top: 1px dashed var(--border); padding-top: 8px; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .kb-editor-footer p { margin: 0; font-size: 11px; color: var(--text-dim); flex: 1; min-width: 220px; line-height: 1.5; }
+
+/* 演练 live 条：差异数字可点 + 0 差异提示 + 基线重演入口 */
+.drill-count { all: unset; cursor: pointer; font: inherit; color: inherit; border-bottom: 1px dashed currentColor; padding: 0 1px; }
+.drill-count:disabled { cursor: default; border-bottom: none; opacity: .75; }
+.drill-count:not(:disabled):hover { color: var(--accent); }
+.drill-zero { margin: 4px 0 0; font-size: 11px; color: var(--warning-text); }

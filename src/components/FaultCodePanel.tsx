@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { computeRectFocus, focusRectAnimated, setSelection, setUI, store, useAppState } from "../store";
+import { blinkElements, computeRectFocus, focusRectAnimated, setSelection, setUI, store, useAppState } from "../store";
 import { nodeBBox, pipePolyline, polylineBBox } from "../geometry";
 import { useT } from "../i18n";
 import {
@@ -15,7 +15,7 @@ import {
 } from "../fault-codes/session";
 import { codeReferences, symptomLabelOf } from "../fault-codes/consult";
 import { codePartGroups, firstRunnableCode, runnableCodes } from "../fault-codes/journey";
-import { startFaultDrill, restoreFaultDrill } from "../fault-codes/drill";
+import { startFaultDrill, restoreFaultDrill, restartDrillWithBaseline } from "../fault-codes/drill";
 import { faultWorkbenchStatus } from "../fault-codes/workbench";
 import { suggestGroupTargets, unboundGroups } from "../fault-codes/binding";
 import type { DiagnosticProfile, FaultCode, Observation, TroubleshootingStep } from "../fault-codes/types";
@@ -219,9 +219,38 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
       if (result.reason === "no-drill") setError(t("该故障码还没有演练配置：请在下方「故障演练配置」里添加注入动作后重试。"));
       return;
     }
-    if (result.missingCondition) toast(t("演练引用的基线工况不存在，已按当前状态注入"));
+    if (result.missingCondition) toast(t("演练剧本的基线工况不存在，已按当前状态注入；若现象不明显可用下方「以全通基线重演」"));
     if (result.missingGroups?.length) toast(`${t("部分部件组未绑定，演练可能不完整")}：${result.missingGroups.length}`);
     toast(t("已开始演练：画布显示新增停流/恢复流动差异；点顶部「还原演练」恢复"));
+    setDrillOffer(result.missingConditionName ?? (result.session && result.session.changes.stoppedPipes.length + result.session.changes.flowingPipes.length === 0 ? "" : null));
+  }
+  /** 基线缺失或 0 差异时，给「以全通基线重演」的一键出口。null=不显示。 */
+  const [drillOffer, setDrillOffer] = useState<string | null>(null);
+  function rerunWithBaseline() {
+    if (!active) return;
+    const name = drillOffer || "运行基线（自动）";
+    const result = restartDrillWithBaseline(active.id, name);
+    if (result.ok) {
+      setDrillOffer(null);
+      toast(t("已创建并应用全通基线工况，演练重新开始"));
+    }
+  }
+  /** 点差异数字：列出涉及的管路并定位闪烁。 */
+  function showDrillChanges(kind: "stopped" | "flowing") {
+    const drill = session.drill;
+    if (!drill) return;
+    const ids = kind === "stopped" ? drill.changes.stoppedPipes : drill.changes.flowingPipes;
+    if (!ids.length) return;
+    const names = ids.map(id => diagram.pipes.find(p => p.id === id)?.label ?? id).slice(0, 6).join("、");
+    const nodeIds = [...new Set(ids.flatMap(id => {
+      const pipe = diagram.pipes.find(p => p.id === id);
+      const ids2: string[] = [];
+      if (pipe?.fromPortId) { const n = diagram.nodes.find(node => node.ports.some(pt => pt.id === pipe.fromPortId)); if (n) ids2.push(n.id); }
+      if (pipe?.toPortId) { const n = diagram.nodes.find(node => node.ports.some(pt => pt.id === pipe.toPortId)); if (n) ids2.push(n.id); }
+      return ids2;
+    }))];
+    blinkElements([...ids, ...nodeIds]);
+    toast(`${kind === "stopped" ? t("新增停流") : t("恢复流动")}（${ids.length}）：${names}${ids.length > 6 ? " …" : ""}`);
   }
   function requestDelete() {
     if (!active) return;
@@ -269,6 +298,7 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
   function restoreAndNext() {
     const currentId = active?.id;
     restoreFaultDrill();
+    setDrillOffer(null);
     const next = runnable.find(code => code.id !== currentId);
     if (next) selectFaultCodes([next.id]);
     toast(next ? `${t("已还原；下一个")}：${next.code}（${t("已选中")}）` : t("已还原到演练前状态；可继续选下一个代码"));
@@ -583,9 +613,19 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
               <span>{t("先绑定它引用的部件组，再回来演练。")}</span>
               <button className="btn mini" disabled={!canEdit} onClick={() => bindCodeScope(active)}>{t("绑定此代码的范围")} →</button>
             </div>}
-            {session.drill && <div className="fw-drill-live">
+            {session.drill && <div className="fw-drill-live" data-testid="drill-live">
               <b>⚠ {t("演练进行中")} · {session.drill.faultCode}</b>
-              <span>{t("新增停流")} {session.drill.changes.stoppedPipes.length} · {t("恢复流动")} {session.drill.changes.flowingPipes.length} · {t("注入元件")} {session.drill.injected.length}</span>
+              <span>
+                <button type="button" className="drill-count" disabled={!session.drill.changes.stoppedPipes.length} onClick={() => showDrillChanges("stopped")}>{t("新增停流")} {session.drill.changes.stoppedPipes.length}</button>
+                ·
+                <button type="button" className="drill-count" disabled={!session.drill.changes.flowingPipes.length} onClick={() => showDrillChanges("flowing")}>{t("恢复流动")} {session.drill.changes.flowingPipes.length}</button>
+                · {t("注入元件")} {session.drill.injected.length}
+              </span>
+              {session.drill.changes.stoppedPipes.length + session.drill.changes.flowingPipes.length === 0
+                && <p className="drill-zero">{t("当前基线下该注入没有引起流动变化——故障现象可能被基线状态掩盖。")}</p>}
+              {drillOffer !== null && <button type="button" className="btn mini" onClick={rerunWithBaseline}>
+                {drillOffer ? `${t("创建基线工况并重演")}「${drillOffer}」` : t("以全通基线重演")}
+              </button>}
             </div>}
             <div className="fault-actions">
               <button className="btn ghost mini" onClick={focusTargets} disabled={!targets || targets.nodes.length + targets.pipes.length === 0}>{t("定位排查范围")}</button>

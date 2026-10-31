@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.50.0";
+export const APP_VERSION = "1.51.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.51.0",
+    date: "2026-10-31",
+    highlights: [
+      "演练基线闭环：知识库演练剧本声明的基线工况在目标图纸缺失时，演练 live 条给出一键「创建基线工况「X」并重演」——自动生成全通基线工况（泵开/两通开/三通 A/清除故障注入）存入图纸（可撤销可编辑），再以它为基线重演；startFaultDrill 返回缺失工况名供 UI 消费",
+      "演练 0 差异提示：注入在当前基线下未引起任何流动变化时，live 条明确说明「故障现象可能被基线状态掩盖」并提供全通基线重演入口——不再让 0/0 数字无声通过",
+      "差异数字可点：live 条的「新增停流 N / 恢复流动 N」变为可点按钮——点击列出涉及管路名称并闪烁定位其端点元件，把计数变成可核查的证据",
+      "新增回归：全通基线工况生成（泵开/两通开/三通 A 且不改原图）、缺基线一键重演（工况入图纸、演练重挂、二次演练不再缺）；全量 96 文件 / 650 通过 + 4 跳过",
+    ],
+  },
   {
     version: "1.50.0",
     date: "2026-10-30",

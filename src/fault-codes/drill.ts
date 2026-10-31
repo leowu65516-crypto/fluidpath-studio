@@ -132,6 +132,8 @@ export interface DrillStartResult {
   session?: DrillSession;
   missingGroups?: string[];
   missingCondition?: boolean;
+  /** 剧本声明的基线工况名（缺失时用于给出一键创建入口）。 */
+  missingConditionName?: string;
 }
 
 /** 开始演练：记录基线 → 注入 → 计算差异 → 写入图纸并挂载会话。 */
@@ -164,7 +166,36 @@ export function startFaultDrill(faultId: string): DrillStartResult {
     note: drill.note,
   };
   setDrillSession(session);
-  return { ok: true, session, missingGroups: applied.missingGroups, missingCondition: applied.missingCondition };
+  return { ok: true, session, missingGroups: applied.missingGroups, missingCondition: applied.missingCondition, missingConditionName: applied.missingCondition ? drill.conditionName : undefined };
+}
+
+/**
+ * "全通基线"工况：泵全开、两通阀全开、三通置 A、清除教学故障注入。
+ * KB 演练剧本声明的基线工况在目标图纸缺失时，用它一键补齐——保证演练有现象可看；
+ * 工况保存进图纸 workConditions（可撤销、可再编辑），不是隐藏状态。
+ */
+export function createRunBaselineCondition(diagram: Diagram, name: string): WorkCondition {
+  const draft = structuredClone(diagram);
+  for (const node of draft.nodes) {
+    if (PUMP_TYPES.has(node.type)) node.pumpOn = true;
+    else if (TWO_STATE_VALVES.has(node.type)) node.valveState = "open";
+    else if (THREE_STATE_VALVES.has(node.type)) node.valvePath = "A";
+    if (node.fault) delete node.fault;
+  }
+  for (const pipe of draft.pipes) if (pipe.fault) delete pipe.fault;
+  const snapshot = snapshotWorkCondition(draft);
+  return { name, ...snapshot };
+}
+
+/** 基线工况缺失时的一键重演：先还原当前演练，创建全通基线工况，再以它为基线重演。 */
+export function restartDrillWithBaseline(faultId: string, conditionName: string): DrillStartResult {
+  restoreFaultDrill();
+  const created = createRunBaselineCondition(store.get().diagram, conditionName);
+  updateDiagram(draft => {
+    if (!draft.settings.workConditions) draft.settings.workConditions = [];
+    if (!draft.settings.workConditions.some(item => item.name === conditionName)) draft.settings.workConditions.push(created);
+  });
+  return startFaultDrill(faultId);
 }
 
 /** 还原演练前的状态（等价于一次显式 undo），并退出演练会话。 */

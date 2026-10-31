@@ -1056,6 +1056,11 @@ const EN: Record<string, string> = {
   "追加绑定": "Add binding",
   "移除绑定": "Remove binding",
   "把当前画布选择绑定为该部件在本图中的落点": "Bind the current canvas selection as this part's location in the drawing",
+  "演练剧本的基线工况不存在，已按当前状态注入；若现象不明显可用下方「以全通基线重演」": "The drill's baseline condition is missing; injected on current state. If symptoms look muted, rerun on the full-flow baseline below.",
+  "当前基线下该注入没有引起流动变化——故障现象可能被基线状态掩盖。": "This injection caused no flow change on the current baseline — the symptom may be masked by the baseline state.",
+  "以全通基线重演": "Rerun on full-flow baseline",
+  "创建基线工况并重演": "Create baseline condition and rerun: ",
+  "已创建并应用全通基线工况，演练重新开始": "Full-flow baseline condition created and applied; the drill restarted",
   // 1.46.0 知识库咨询台 / 绑定工作台
   "关闭面板": "Close",
   "故障知识库": "Fault knowledge base",

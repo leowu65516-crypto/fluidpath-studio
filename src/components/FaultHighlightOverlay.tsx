@@ -174,7 +174,7 @@ export const FaultHighlightOverlay = memo(function FaultHighlightOverlay({ diagr
       if (!bound) {
         const suggestions = suggestGroupTargets(diagram, group);
         if (!suggestions.nodes.length && !suggestions.pipes.length) return null;
-        return <g data-bind-preview="suggest" data-bind-suggest="1" stroke="#b45309" opacity={0.6} strokeDasharray="6 6">
+        return <g data-bind-preview="suggest" data-bind-suggest="1" className="fault-suggest-pulse" stroke="#b45309" strokeDasharray="7 5">
           <title>{`${group.label.zh || group.label.en} · 建议落点（${suggestions.nodes.length + suggestions.pipes.length}）`}</title>
           <TargetOutline diagram={diagram} nodeIds={suggestions.nodes} pipeIds={suggestions.pipes} visibleNodes={visibleNodes} visiblePipes={visiblePipes} index={0} />
         </g>;

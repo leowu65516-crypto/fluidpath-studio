@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { blinkElements, computeRectFocus, focusRectAnimated, setSelection, setUI, store, useAppState } from "../store";
+import { blinkElements, computeRectFocus, focusRectAnimated, setUI, store, useAppState } from "../store";
 import { nodeBBox, pipePolyline, polylineBBox } from "../geometry";
 import { useT } from "../i18n";
 import {
@@ -150,8 +150,13 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
   const label = (fault: FaultCode) => fault.label[lang] || fault.label.zh || fault.label.en || fault.code;
   const labelOfGroup = (group?: { id: string; label: { zh?: string; en?: string } }) =>
     group ? group.label[lang] || group.label.zh || group.label.en || group.id : t("未知部件组");
+  const textOf = (pair?: { zh?: string; en?: string }) => (pair ? (lang === "en" ? pair.en || pair.zh : pair.zh || pair.en) : "");
   const status = faultWorkbenchStatus(diagram, profile);
-  const step = ui.faultStep ?? (status.stage === "no-diagram" ? 1 : status.stage === "no-library" ? 2 : status.stage === "unbound" ? 3 : 4);
+  const noLibrary = status.codeCount === 0;
+  const derivedStep: 1 | 2 | 3 | 4 = status.stage === "no-diagram" ? 1 : status.stage === "no-library" ? 2 : status.stage === "unbound" ? 3 : 4;
+  const requestedStep: 1 | 2 | 3 | 4 = ui.faultStep ?? derivedStep;
+  // 不允许停在不可能的前置步骤：无图只能①；无库至少②（刷新/换图后 faultStep 可能过期）。
+  const step: 1 | 2 | 3 | 4 = !status.hasDiagram ? 1 : !status.hasLibrary ? (requestedStep <= 2 ? requestedStep : 2) : requestedStep;
   const targets = active ? resolveFaultTargets(diagram, profile, active) : null;
   const result = active ? session.results[active.id] : undefined;
   const steps = active?.troubleshooting ?? [];
@@ -167,6 +172,8 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
   const suggestedNames = selectedGroupSuggestions
     ? [...selectedGroupSuggestions.nodes.map(id => diagram.nodes.find(node => node.id === id)?.label ?? id), ...selectedGroupSuggestions.pipes.map(id => diagram.pipes.find(pipe => pipe.id === id)?.label ?? id)]
     : [];
+  const suggestedCounts = suggestedNames.reduce((map, name) => map.set(name, (map.get(name) ?? 0) + 1), new Map<string, number>());
+  const suggestionText = [...suggestedCounts.entries()].map(([name, count]) => count > 1 ? `${name} ×${count}` : name).join(lang === "zh" ? "、" : ", ");
   const runnable = runnableCodes(diagram, profile);
   const firstRunnable = runnable[0] ?? null;
   const scopeLess = profile.diagnostics.filter(fault => resolveFaultTargets(diagram, profile, fault).nodes.length + resolveFaultTargets(diagram, profile, fault).pipes.length === 0);
@@ -189,6 +196,10 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
     prevUnbound.current = unbound.length;
   }, [unbound.length, status.groupCount, diagram, profile, t]);
 
+  // 图纸/库被清空后，把过期的 faultStep 拉回合法步骤（否则会出现"未准备图纸却在③落点"）。
+  useEffect(() => {
+    if (ui.faultStep && ui.faultStep !== step) setUI({ faultStep: step });
+  }, [ui.faultStep, step]);
   // 切换步骤时把工作区滚回顶部，避免上一组操作的滚动位置遮住当前步骤标题。
   useEffect(() => {
     const el = scrollRef.current;
@@ -298,6 +309,29 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
     setUI({ faultStep: 3 });
     if (!startBindingWizard(groups.length ? groups : undefined)) toast(t("该代码引用的部件组都已绑定"));
   }
+  function selectGroup(groupId: string) {
+    selectKbPart(groupId);
+    setBindPreviewGroupId(groupId);
+    const group = profile.highlightGroups.find(item => item.id === groupId);
+    if (!group) return;
+    const count = group.nodeIds.length + group.pipeIds.length;
+    if (count > 0) {
+      focusObjects(group.nodeIds, group.pipeIds);
+      blinkElements([...group.nodeIds, ...group.pipeIds]);
+      return;
+    }
+    const suggestions = suggestGroupTargets(diagram, group);
+    if (suggestions.nodes.length + suggestions.pipes.length > 0) {
+      focusObjects(suggestions.nodes, suggestions.pipes);
+      blinkElements([...suggestions.nodes, ...suggestions.pipes]);
+    }
+  }
+  function bindCurrentSelection() {
+    if (!selectedGroup || !selectedGroupUnbound) return;
+    if (!ui.selection.nodes.length && !ui.selection.pipes.length) { toast(t("先在画布点选元件/管路")); return; }
+    run(() => bindKbGroupTargets(selectedGroup.id, { nodes: ui.selection.nodes, pipes: ui.selection.pipes }));
+    toast(`${t("已绑定")} ${labelOfGroup(selectedGroup)}：${ui.selection.nodes.length + ui.selection.pipes.length} ${t("个对象")}`);
+  }
   function restoreAndNext() {
     const currentId = active?.id;
     restoreFaultDrill();
@@ -369,25 +403,31 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
     const guideCount = pendingImport.checkGuides?.length ?? 0;
     const groupCount = pendingImport.highlightGroups.length;
     const newGroups = pendingImport.highlightGroups.filter(group => !profile.highlightGroups.some(old => old.id === group.id)).length;
-    return <section className="fault-card kb-import-preview" data-testid="kb-import-preview">
-      <div className="fault-section-title"><strong>{t("导入预览")}</strong><span className="fault-badge">{pendingImport.version}</span></div>
+    const codeNames = pendingImport.diagnostics.slice(0, 3).map(fault => `${fault.code} ${textOf(fault.label)}`).join(lang === "zh" ? "、" : ", ");
+    const symptomNames = (pendingImport.symptoms ?? []).slice(0, 3).map(item => textOf(item.label)).join(lang === "zh" ? "、" : ", ");
+    const groupNames = pendingImport.highlightGroups.slice(0, 3).map(group => textOf(group.label)).join(lang === "zh" ? "、" : ", ");
+    return <section className="kb-import-preview" data-testid="kb-import-preview">
+      <div className="kb-preview-head"><b>{t("这个文件里有什么")}</b><span className="fault-badge">{pendingImport.version}</span></div>
       {pendingImportName && <p className="fault-hint">📄 {pendingImportName} · namespace {pendingImport.namespace}</p>}
-      <ul className="kb-import-summary">
-        <li>{t("故障码")} {pendingImport.diagnostics.length}</li>
-        {symptomCount > 0 && <li>{t("症状")} {symptomCount}</li>}
-        {causeCount > 0 && <li>{t("原因")} {causeCount}</li>}
-        <li>{t("部件组")} {groupCount}{newGroups > 0 ? `（${t("新")} ${newGroups}）` : ""}</li>
-        {guideCount > 0 && <li>{t("排查要点")} {guideCount}</li>}
-      </ul>
-      {symptomCount > 0
-        ? <p>{t("导入会替换当前故障库与知识库定义；同名部件组的画布绑定会保留，其余部件组需重新绑定。可撤销。")}</p>
-        : <p>{t("导入会替换当前代码库。为避免同名或旧 ID 误绑，导入后所有目标需重新关联。可撤销。")}</p>}
-      <p className="fault-hint">{t("导入后：可定位的代码取决于部件组是否已绑定；建议直接去绑定向导。")}</p>
-      <div className="fault-actions">
-        <button className="btn" disabled={!canEdit} onClick={() => applyImport(true)}>{t("导入并去绑定")}</button>
-        <button className="btn ghost" disabled={!canEdit} onClick={() => applyImport(false)}>{t("仅导入")}</button>
-        <button className="btn ghost" onClick={() => { setPendingImport(null); setPendingImportName(""); }}>{t("取消导入")}</button>
+      <div className="kb-preview-content">
+        <p><b>{t("故障码")} {pendingImport.diagnostics.length}</b><span>{codeNames}{pendingImport.diagnostics.length > 3 ? " …" : ""}</span></p>
+        {symptomCount > 0 && <p><b>{t("症状")} {symptomCount}</b><span>{symptomNames}{symptomCount > 3 ? " …" : ""}</span></p>}
+        {causeCount > 0 && <p><b>{t("原因")} {causeCount}</b><span>{t("症状 × 部件组，含概率/处置/关联码/对策")}</span></p>}
+        <p><b>{t("部件组")} {groupCount}{newGroups > 0 ? `（${t("新")} ${newGroups}）` : ""}</b><span>{groupNames}{groupCount > 3 ? " …" : ""}</span></p>
+        {guideCount > 0 && <p><b>{t("排查要点")} {guideCount}</b><span>{t("每个部件组的检查提示")}</span></p>}
       </div>
+      <p className="fault-hint">{t("导入会替换当前故障库；同名部件组的画布绑定会保留，其余部件组需重新绑定。可撤销。")}</p>
+      <div className="kb-import-actions">
+        <button className="kb-import-choice primary" disabled={!canEdit} onClick={() => applyImport(true)}>
+          <b>{t("导入并开始绑定")}</b>
+          <small>{t("推荐：导入后自动打开绑定向导，把文件里的部件组指到本图。")}</small>
+        </button>
+        <button className="kb-import-choice" disabled={!canEdit} onClick={() => applyImport(false)}>
+          <b>{t("仅导入")}</b>
+          <small>{t("只替换故障库，不改画布；稍后回第③步自己绑。")}</small>
+        </button>
+      </div>
+      <div className="fault-actions"><button className="btn ghost mini" onClick={() => { setPendingImport(null); setPendingImportName(""); }}>{t("取消导入")}</button></div>
     </section>;
   })();
 
@@ -396,23 +436,6 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
     <div className="fault-scroll" ref={scrollRef}>
       <FaultWorkbench />
       <BindingWizard onError={setError} />
-      {showNewCode && canEdit && <NewCodeWizard canEdit={canEdit} onError={setError}
-        onStartBinding={groupId => startBinding([groupId])}
-        onSave={saveDiagram}
-        onExport={() => { downloadText(`${diagram.name}-fault-library.fluidkb.json`, JSON.stringify(profile, null, 2), "application/json"); toast(t("已导出知识库：可发给同事导入")); }}
-        onDone={code => {
-        setShowNewCode(false); stopBindingWizard();
-        if (code) {
-          const latest = store.get().diagram.settings.diagnosticProfile;
-          const fault = latest?.diagnostics.find(item => item.code === code);
-          if (fault) {
-            setCreatedCode({ code, faultId: fault.id, groupId: codePartGroups(latest!, fault)[0] });
-            setImportSummary(null);
-            setUI({ faultStep: 3 });
-            toast(`${t("新代码")} ${code} ${t("已创建：下一步绑定它的排查范围")}`);
-          }
-        }
-      }} />}
       {error && <div className="fault-error" role="alert">{t("配置错误")}: {error}</div>}
       {importConflicts.length > 0 && <section className="fault-card kb-conflicts" role="status">
         <strong>{t("以下已绑定部件组在新知识库中不存在，绑定已解除：")}</strong>
@@ -438,46 +461,90 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
             </div></>}
       </section>}
 
-      {step === 2 && <section className="fault-card" data-testid="fault-step-library">
+      {step === 2 && <section className="fault-card fault-library-step" data-testid="fault-step-library">
         <div className="fault-section-title"><strong>{t("② 故障库")}</strong><span className="fault-badge">{status.codeCount} {t("故障码")} · {status.symptomCount} {t("症状")}</span></div>
-        <div className="step-question">
-          <b>{t("有现成的故障库文件吗？")}</b>
-          <p className="fault-hint">{t("支持 .fluidkb.json 知识库或 .json 故障码库；导入会替换当前故障库，可撤销。")}</p>
-          <div className="fault-actions">
-            <button className="btn" disabled={!canEdit} onClick={() => inputRef.current?.click()}>{t("导入知识库")}</button>
-            <button className="btn ghost" disabled={!canEdit} onClick={() => run(() => setPendingImport(sampleKnowledgeBase()))}>{t("加载示例知识库")}</button>
-            <button className="btn ghost" onClick={() => { downloadText("fault-library-template.fluidkb.json", JSON.stringify(buildLibraryTemplate(), null, 2), "application/json"); toast(t("模板已下载：填好后回到这里导入")); }}>{t("下载空白模板")}</button>
-          </div>
+        <div className="step-choices-head">
+          <b>{t("先选一条路")}</b>
+          <span>{noLibrary ? t("第一次用：推荐先导入或加载示例；也可以自己建一个。") : t("已有故障库：可直接「下一步：画布落点」，或在这里补充内容。")}</span>
         </div>
-        <div className="step-question">
-          <b>{t("没有现成库，想自己配？")}</b>
-          <p className="fault-hint">{t("新建故障码分 3 步：填写编码与名称 → 在画布绑定排查范围 → 保存文件或导出知识库。")}</p>
-          <div className="fault-actions">
-            <button className="btn" disabled={!canEdit} onClick={() => setShowNewCode(value => !value)}>{showNewCode ? t("收起新建向导") : t("新建故障码（3 步）")}</button>
-          </div>
+        <div className="step-choices" data-testid="fault-library-choices">
+          <section className={`step-choice choice-import${noLibrary ? " recommended" : ""}`} data-testid="choice-import">
+            <div className="choice-head"><i>1</i><b>{t("导入现成故障库")}</b>{noLibrary && <em>{t("推荐")}</em>}</div>
+            <p>{t("支持 .fluidkb.json 知识库或 .json 故障码库；导入会替换当前故障库，可撤销。")}</p>
+            <div className="fault-actions">
+              <button className="btn" disabled={!canEdit} onClick={() => inputRef.current?.click()}>{t("导入知识库")}</button>
+              <button className="btn ghost" disabled={!canEdit} onClick={() => run(() => setPendingImport(sampleKnowledgeBase()))}>{t("加载示例知识库")}</button>
+              <button className="btn ghost" onClick={() => { downloadText("fault-library-template.fluidkb.json", JSON.stringify(buildLibraryTemplate(), null, 2), "application/json"); toast(t("模板已下载：填好后回到这里导入")); }}>{t("下载空白模板")}</button>
+            </div>
+            {importPreview}
+          </section>
+          <section className="step-choice choice-new" data-testid="choice-new">
+            <div className="choice-head"><i>2</i><b>{t("新建一个故障码")}</b></div>
+            <p>{t("没有现成库时最快的开始：先建一个报警码，再把它绑到画布。")}</p>
+            <div className="fault-actions">
+              <button className="btn" disabled={!canEdit} onClick={() => setShowNewCode(value => !value)}>{showNewCode ? t("收起新建向导") : t("新建故障码（3 步）")}</button>
+            </div>
+            {showNewCode && canEdit && <NewCodeWizard canEdit={canEdit} onError={setError}
+              onCreated={info => setCreatedCode(info)}
+              onStartBinding={groupId => { setShowNewCode(false); startBinding([groupId]); }}
+              onSave={saveDiagram}
+              onExport={() => { downloadText(`${diagram.name}-fault-library.fluidkb.json`, JSON.stringify(profile, null, 2), "application/json"); toast(t("已导出知识库：可发给同事导入")); }}
+              onDone={code => {
+                setShowNewCode(false); stopBindingWizard();
+                if (code) {
+                  const latest = store.get().diagram.settings.diagnosticProfile;
+                  const fault = latest?.diagnostics.find(item => item.code === code);
+                  if (fault) {
+                    setCreatedCode({ code, faultId: fault.id, groupId: codePartGroups(latest!, fault)[0] });
+                    setImportSummary(null);
+                    setUI({ faultStep: 3 });
+                    toast(`${t("新代码")} ${code} ${t("已创建：下一步绑定它的排查范围")}`);
+                  }
+                }
+              }} />}
+          </section>
+          <section className="step-choice choice-kb" data-testid="choice-kb">
+            <div className="choice-head"><i>3</i><b>{t("编辑知识库内容")}</b></div>
+            <p>{t("症状、原因（概率/处置归属/关联报警码/机理与对策）和排查要点；适合已有诊断手册要录入。")}</p>
+            <div className="fault-actions">
+              <button className="btn" disabled={!canEdit} onClick={() => setShowKbEditor(value => !value)}>{showKbEditor ? t("收起知识库编辑器") : t("编辑知识库内容")}</button>
+              <button className="btn ghost" disabled={!canEdit} onClick={() => { downloadText("fault-library-template.fluidkb.json", JSON.stringify(buildLibraryTemplate(), null, 2), "application/json"); toast(t("模板已下载：填好后回到这里导入")); }}>{t("下载模板参考")}</button>
+            </div>
+            {showKbEditor && <FaultKnowledgeEditor profile={profile} canEdit={canEdit} onError={setError} onGoBinding={() => { setUI({ faultStep: 3 }); }} />}
+          </section>
+          <details className="step-choice choice-handoff">
+            <summary><i>4</i>{t("备份或交给别人")}</summary>
+            <p>{t("导出知识库会把故障码、症状、原因、排查要点与演练配置一起存成 .fluidkb.json。")}</p>
+            <div className="fault-actions">
+              <button className="btn ghost" disabled={!profile.diagnostics.length} onClick={() => { downloadText(`${diagram.name}-fault-library.fluidkb.json`, JSON.stringify(profile, null, 2), "application/json"); toast(t("已导出知识库：可发给同事导入")); }}>{t("导出知识库")}</button>
+            </div>
+          </details>
         </div>
-        <div className="step-question">
-          <b>{t("想自己配知识库内容？")}</b>
-          <p className="fault-hint">{t("可以表单化添加症状、原因（概率/处置归属/关联报警码/机理与对策）和排查要点；也可以先只建故障码。")}</p>
-          <div className="fault-actions">
-            <button className="btn" disabled={!canEdit} onClick={() => setShowKbEditor(value => !value)}>{showKbEditor ? t("收起知识库编辑器") : t("编辑知识库内容")}</button>
-            <button className="btn ghost" disabled={!canEdit} onClick={() => { downloadText("fault-library-template.fluidkb.json", JSON.stringify(buildLibraryTemplate(), null, 2), "application/json"); toast(t("模板已下载：填好后回到这里导入")); }}>{t("下载模板参考")}</button>
-          </div>
-          {showKbEditor && <FaultKnowledgeEditor profile={profile} canEdit={canEdit} onError={setError} onGoBinding={() => { setUI({ faultStep: 3 }); }} />}
+        <div className="step-footer">
+          <span>{t("库准备好了？")}</span>
+          <button className="btn" onClick={() => setUI({ faultStep: 3 })}>{t("下一步：画布落点")} →</button>
         </div>
-        <div className="step-question">
-          <b>{t("要备份或交给别人？")}</b>
-          <p className="fault-hint">{t("导出知识库会把故障码、症状、原因、排查要点与演练配置一起存成 .fluidkb.json。")}</p>
-          <div className="fault-actions">
-            <button className="btn ghost" disabled={!profile.diagnostics.length} onClick={() => { downloadText(`${diagram.name}-fault-library.fluidkb.json`, JSON.stringify(profile, null, 2), "application/json"); toast(t("已导出知识库：可发给同事导入")); }}>{t("导出知识库")}</button>
-          </div>
-        </div>
-        {importPreview}
-        <div className="fault-actions"><button className="btn" onClick={() => setUI({ faultStep: 3 })}>{t("下一步：画布落点")} →</button></div>
       </section>}
 
       {step === 3 && <section className="fault-card" data-testid="fault-step-binding">
         <div className="fault-section-title"><strong>{t("③ 画布落点")}</strong><span className="fault-badge">{t("已绑定")} {status.boundGroupCount}/{status.groupCount}</span></div>
+        <div className="bind-sticky">
+        <ol className="bind-guide" data-testid="bind-guide">
+          <li className={!selectedGroup ? "current" : "done"}><i>1</i>{t("选一个部件组")}</li>
+          <li className={selectedGroupUnbound ? (ui.selection.nodes.length + ui.selection.pipes.length > 0 ? "done" : "current") : selectedGroup ? "done" : ""}><i>2</i>{t("在画布确认落点")}</li>
+          <li className={selectedGroup && !selectedGroupUnbound ? "current" : ""}><i>3</i>{t("点「绑定」写入")}</li>
+        </ol>
+        <p className="bind-legend"><span className="dot amber" />{t("琥珀虚线 = 名称建议")}<span className="dot blue" />{t("蓝色 = 当前组")}<span className="dot green" />✓ {t("已绑定")}<span className="bind-legend-icons">◌ {t("有建议")} · ○ {t("需手动")}</span></p>
+        {selectedGroup && <div className="bind-selection-bar" data-testid="bind-selection-bar">
+          <span className="bind-selection-group"><b>{t("当前组")}</b> {labelOfGroup(selectedGroup)}</span>
+          <span className="bind-selection-count">{t("画布已选")} <b>{ui.selection.nodes.length + ui.selection.pipes.length}</b> {t("个对象")}{ui.selection.nodes.length + ui.selection.pipes.length > 0 ? `：${[...ui.selection.nodes, ...ui.selection.pipes].slice(0, 2).map(id => diagram.nodes.find(node => node.id === id)?.label ?? diagram.pipes.find(pipe => pipe.id === id)?.label ?? id).join("、")}` : ""}</span>
+          {selectedGroupUnbound
+            ? (ui.selection.nodes.length + ui.selection.pipes.length > 0
+              ? <button className="btn mini" disabled={!canEdit} onClick={bindCurrentSelection}>{t("绑定当前选择")}</button>
+              : <span className="bind-wait">{t("在画布点选对象后启用")}</span>)
+            : <button className="btn ghost mini" onClick={() => focusObjects(selectedGroup.nodeIds, selectedGroup.pipeIds)}>{t("定位已绑定对象")}</button>}
+        </div>}
+        </div>
         {importSummary && <div className="fault-outcome" role="status" data-testid="import-outcome">
           <b>✅ {t("导入完成")}：{importSummary.codes} {t("故障码")} · {importSummary.symptoms} {t("症状")} · {importSummary.causes} {t("原因")} · {importSummary.groups} {t("部件组")}{importSummary.newGroups ? `（${t("新")} ${importSummary.newGroups}）` : ""}</b>
           <p>{importSummary.unbound > 0
@@ -526,20 +593,21 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
           <div className="fault-section-title"><strong>{labelOfGroup(selectedGroup)}</strong><span className="fault-badge">{selectedGroupUnbound ? t("未绑定") : `${t("已绑定")} ${selectedGroup.nodeIds.length}+${selectedGroup.pipeIds.length}`}</span></div>
           {selectedGroupUnbound
             ? <p className="fault-hint">{suggestionCount
-              ? `${t("名称建议")}${lang === "zh" ? "（" : " ("}${suggestionCount}${lang === "zh" ? "）：" : "): "}${suggestedNames.slice(0, 6).join(lang === "zh" ? "、" : ", ")}${suggestedNames.length > 6 ? "…" : ""}`
+              ? `${t("匹配到")} ${suggestionCount} ${t("个对象")}：${suggestionText}${suggestedNames.length > 6 ? "…" : ""} · ${t("画布琥珀虚线会闪动，可一键全绑或手动点选。")}`
               : t("没有名称建议：请在画布点选对象后手动绑定。")}</p>
             : <p className="fault-hint">{t("该组已绑定；可定位查看，或解绑后重新绑定。")}</p>}
           <div className="fault-actions">
             {selectedGroupUnbound
               ? <>
-                <button className="btn" disabled={!canEdit || suggestionCount === 0} onClick={() => applySuggestionToGroup(selectedGroup.id)}>{t("采用名称建议")} ({suggestionCount})</button>
-                <button className="btn ghost" disabled={suggestionCount === 0} onClick={() => { const suggestions = selectedGroupSuggestions; if (suggestions) { setSelection({ nodes: suggestions.nodes, pipes: suggestions.pipes }); focusObjects(suggestions.nodes, suggestions.pipes); } }}>{t("选中建议对象")}</button>
+                {suggestionCount > 0 && <button className="btn" disabled={!canEdit} onClick={() => applySuggestionToGroup(selectedGroup.id)}>{t("采用建议并绑定")} ({suggestionCount})</button>}
+                {suggestionCount > 0 && <button className="btn ghost" onClick={() => { const suggestions = selectedGroupSuggestions; if (suggestions) { focusObjects(suggestions.nodes, suggestions.pipes); blinkElements([...suggestions.nodes, ...suggestions.pipes]); } }}>{t("在画布看建议")}</button>}
+                <button className="btn ghost" disabled={!canEdit || ui.selection.nodes.length + ui.selection.pipes.length === 0} onClick={bindCurrentSelection}>{t("绑定当前选择")}</button>
               </>
               : <>
                 <button className="btn ghost" onClick={() => focusObjects(selectedGroup.nodeIds, selectedGroup.pipeIds)}>{t("定位已绑定对象")}</button>
                 <button className="btn ghost" disabled={!canEdit} onClick={() => run(() => { unbindGroup(selectedGroup.id); toast(`${t("已解绑")}：${labelOfGroup(selectedGroup)}`); })}>{t("解绑此组")}</button>
               </>}
-            <button className="btn ghost" onClick={() => { selectKbPart(null); setBindPreviewGroupId(null); }}>{t("取消选中")}</button>
+            <button className="btn ghost" onClick={() => { selectKbPart(null); setBindPreviewGroupId(null); }}>{t("关闭此组")}</button>
           </div>
         </div>}
         <div className="bind-group-list">
@@ -548,7 +616,7 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
             const count = suggestions.nodes.length + suggestions.pipes.length;
             const bound = group.nodeIds.length + group.pipeIds.length > 0;
             return <div className={`bind-group-row${session.kbPartGroupId === group.id ? " on" : ""}${bound ? " bound" : ""}`} key={group.id}>
-              <button className="bind-group-name" onClick={() => { selectKbPart(group.id); setBindPreviewGroupId(group.id); }} title={labelOfGroup(group)}>
+              <button className="bind-group-name" aria-pressed={session.kbPartGroupId === group.id} onClick={() => selectGroup(group.id)} title={labelOfGroup(group)}>
                 <i>{bound ? "✓" : count ? "◌" : "○"}</i>{labelOfGroup(group)}
                 <em>{bound ? `${group.nodeIds.length + group.pipeIds.length}` : count ? `${t("建议")} ${count}` : t("手动")}</em>
               </button>
@@ -561,8 +629,8 @@ export function FaultCodePanel({ onClose, onOpenJson, onOpenSmart, onLoadDemo }:
                   : <>
                     {count > 0
                       ? <button className="btn ghost mini" disabled={!canEdit} onClick={() => applySuggestionToGroup(group.id)}>{t("采用建议")} ({count})</button>
-                      : <span className="bind-manual">{t("请在画布手动点选")}</span>}
-                    <button className="btn ghost mini" onClick={() => { selectKbPart(group.id); setBindPreviewGroupId(group.id); }}>{t("选中")}</button>
+                      : <span className="bind-manual">{t("需手动点选")}</span>}
+                    <button className="btn ghost mini" onClick={() => selectGroup(group.id)}>{count > 0 ? t("看建议") : t("去画布选")}</button>
                   </>}
               </div>
             </div>;

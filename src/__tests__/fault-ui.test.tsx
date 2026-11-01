@@ -178,13 +178,15 @@ describe("画布 overlay：绑定预览与演练差异", () => {
 });
 
 describe("FaultCodePanel 步骤内容", () => {
-  it("按步骤渲染不同内容，默认落在图纸步骤", async () => {
-    loadDiagram(createEmptyDiagram());
+  it("按步骤渲染不同内容（有图纸无库默认落在故障库）", async () => {
+    const diagram = createMinimalBrewDiagram();
+    diagram.settings.diagnosticProfile = structuredClone(EMPTY_PROFILE);
+    loadDiagram(diagram);
     setUI({ faultStep: undefined });
     const view = render(createElement(LangProvider, null, createElement(FaultCodePanel, { onClose: noop, onOpenJson: noop, onOpenSmart: noop, onLoadDemo: noop })));
-    expect(view.getByTestId("fault-step-diagram")).toBeTruthy();
-    act(() => { fireEvent.click(view.getAllByRole("tab")[1]); });
     expect(view.getByTestId("fault-step-library")).toBeTruthy();
+    act(() => { fireEvent.click(view.getAllByRole("tab")[0]); });
+    expect(view.getByTestId("fault-step-diagram")).toBeTruthy();
     cleanup();
     setUI({ faultStep: undefined });
   });
@@ -204,6 +206,36 @@ describe("FaultCodePanel 步骤内容", () => {
     expect(diagnosticSession.get().selectedIds).toContain("f1");
     cleanup();
     setUI({ faultStep: undefined });
+  });
+
+  it("无图纸/无库时不允许停在③落点（过期 faultStep 被拉回）", async () => {
+    loadDiagram(createEmptyDiagram());
+    setUI({ faultStep: 3 });
+    const view = render(createElement(LangProvider, null, createElement(FaultCodePanel, { onClose: noop, onOpenJson: noop, onOpenSmart: noop, onLoadDemo: noop })));
+    expect(view.getByTestId("fault-step-diagram")).toBeTruthy();
+    await act(async () => { await Promise.resolve(); });
+    expect(store.get().ui.faultStep).toBe(1);
+    cleanup();
+    setUI({ faultStep: undefined });
+  });
+
+  it("新建故障码：创建后不跳步，去画布绑定才切到③并挂上绑定向导", async () => {
+    const diagram = createMinimalBrewDiagram();
+    diagram.settings.diagnosticProfile = structuredClone(EMPTY_PROFILE);
+    loadDiagram(diagram);
+    setUI({ faultStep: 2 });
+    const view = render(createElement(LangProvider, null, createElement(FaultCodePanel, { onClose: noop, onOpenJson: noop, onOpenSmart: noop, onLoadDemo: noop })));
+    act(() => { fireEvent.click(view.getByRole("button", { name: /New fault code/ })); });
+    act(() => { fireEvent.change(view.getByPlaceholderText("E01"), { target: { value: "E999" } }); });
+    act(() => { fireEvent.click(view.getByRole("button", { name: /Create fault code/ })); });
+    expect(store.get().ui.faultStep).toBe(2);
+    expect(view.getByTestId("new-code-wizard").textContent).toContain("2 / 3");
+    await act(async () => { fireEvent.click(view.getByRole("button", { name: /Go bind/ })); });
+    expect(store.get().ui.faultStep).toBe(3);
+    expect(store.get().ui.kbBinding).toBeTruthy();
+    expect(view.getByTestId("created-outcome")).toBeTruthy();
+    cleanup();
+    setUI({ faultStep: undefined, kbBinding: null });
   });
 
   it("故障备注层只在允许时渲染", () => {

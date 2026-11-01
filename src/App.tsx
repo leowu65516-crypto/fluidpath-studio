@@ -25,6 +25,7 @@ import { SaveNudge, type SaveNudgeKind } from "./components/SaveNudge";
 import { selectFaultCodes, setSimulationRunning, useDiagnosticSession } from "./fault-codes/session";
 import { restoreFaultDrill } from "./fault-codes/drill";
 import { faultWorkbenchStatus } from "./fault-codes/workbench";
+import { suggestGroupTargets } from "./fault-codes/binding";
 import { EMPTY_PROFILE } from "./fault-codes/profile";
 import { bindKbGroupTargets, importFaultCatalog, sampleKnowledgeBase } from "./fault-codes/actions";
 import BCMTS_SAMPLE from "../BCMTS.json";
@@ -614,8 +615,20 @@ export default function App() {
     const binding = appState.ui.kbBinding!;
     const queue = binding.queue.filter(id => profile.highlightGroups.some(group => group.id === id));
     const group = profile.highlightGroups.find(item => item.id === queue[Math.min(binding.index, queue.length - 1)]);
-    return `${t("绑定向导")}：${group ? (lang === "en" ? group.label.en || group.label.zh : group.label.zh || group.label.en) : t("未命名部件组")} · ${t("在画布点选元件/管路，再点右侧「确认绑定」；Esc 退出")}`;
-  })() : appState.ui.faultStep === 3 ? t("把部件组落到画布：右侧点「开始绑定」，在画布点选元件/管路，再点「确认绑定」。") : null;
+    const selected = appState.ui.selection.nodes.length + appState.ui.selection.pipes.length;
+    return `${t("第2步")} · ${t("绑定组")}：${group ? (lang === "en" ? group.label.en || group.label.zh : group.label.zh || group.label.en) : t("未命名部件组")} · ${selected ? `${t("已选")} ${selected} ${t("个对象")}` : t("在画布点选元件/管路")} → ${t("右侧点「确认绑定」；Esc 退出")}`;
+  })() : appState.ui.faultStep === 3 ? (() => {
+    const profile = appState.diagram.settings.diagnosticProfile ?? EMPTY_PROFILE;
+    const group = profile.highlightGroups.find(item => item.id === diagnosticState.kbPartGroupId);
+    const selectionCount = appState.ui.selection.nodes.length + appState.ui.selection.pipes.length;
+    if (!group) return `${t("第1步")} · ${t("从右侧列表选一个部件组；有琥珀建议的可直接「采用建议并绑定」")}`;
+    const label = lang === "en" ? group.label.en || group.label.zh : group.label.zh || group.label.en;
+    if (group.nodeIds.length + group.pipeIds.length > 0) return `✓ ${label} ${t("已绑定")} → ${t("去第④步演练，或继续选下一个组")}`;
+    if (selectionCount > 0) return `${t("第2步")} · ${label}：${t("已选")} ${selectionCount} ${t("个对象")} → ${t("右侧点「绑定当前选择」")}`;
+    const suggestions = suggestGroupTargets(appState.diagram, group);
+    const suggested = suggestions.nodes.length + suggestions.pipes.length;
+    return `${t("第2步")} · ${label}：${suggested ? t("画布琥珀虚线是名称建议 → 可直接「采用建议并绑定」，或手动点选") : t("请在画布点选属于它的元件/管路，再点「绑定当前选择」")}`;
+  })() : null;
 
   if (!gateOk) {
     return <PasswordGate onPass={() => { setGateAuthed(); setGateOk(true); }} />;
@@ -719,8 +732,8 @@ export default function App() {
               </div>
             </div>
           )}
+          {faultCanvasHint && <div className="fault-canvas-hint" data-ui="1" role="status" data-testid="fault-canvas-hint">{faultCanvasHint}</div>}
           </div>
-          {faultCanvasHint && <div className="fault-canvas-hint" data-ui="1" role="status">{faultCanvasHint}</div>}
           {rightPanel}
         </div>
         <StatusBar />

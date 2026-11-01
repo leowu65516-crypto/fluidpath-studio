@@ -8,13 +8,14 @@ import { store } from "../store";
  * 新建故障码三步向导（1.48.0）：编码名称 → 绑定排查范围 → 保存/导出。
  * 让"自己配一个故障"也有明确的用户旅程，而不是一个裸表单。
  */
-export function NewCodeWizard({ canEdit, onStartBinding, onSave, onExport, onError, onDone }: {
+export function NewCodeWizard({ canEdit, onStartBinding, onSave, onExport, onError, onDone, onCreated }: {
   canEdit: boolean;
   onStartBinding: (groupId: string) => void;
   onSave: () => void;
   onExport: () => void;
   onError: (message: string) => void;
   onDone?: (code?: string) => void;
+  onCreated?: (created: { code: string; faultId: string; groupId: string }) => void;
 }) {
   const { t, lang } = useT();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -29,10 +30,12 @@ export function NewCodeWizard({ canEdit, onStartBinding, onSave, onExport, onErr
       const profile = store.get().diagram.settings.diagnosticProfile;
       const fault = profile?.diagnostics.find(item => item.id === faultId);
       const groupId = fault?.highlightBindings[0]?.groupId ?? "";
-      setCreated({ faultId, groupId, code: code.trim() });
+      const info = { faultId, groupId, code: code.trim() };
+      setCreated(info);
       selectFaultCodes([faultId]);
+      onCreated?.(info);
+      // 不再自动跳主步骤/自动开绑定向导：先让用户在这里明确选"去画布绑定"还是"稍后绑定"。
       setStep(2);
-      if (groupId) onStartBinding(groupId);
     } catch (error) {
       onError((error as Error).message);
     }
@@ -54,14 +57,19 @@ export function NewCodeWizard({ canEdit, onStartBinding, onSave, onExport, onErr
       <label>{t("故障码")}<input value={code} required maxLength={120} disabled={!canEdit} onChange={event => setCode(event.target.value)} placeholder="E01" /></label>
       <label>{t("故障名称")}<input value={title} maxLength={200} disabled={!canEdit} onChange={event => setTitle(event.target.value)} /></label>
       <div className="fault-actions">
-        <button className="btn" disabled={!canEdit || !code.trim()} onClick={create}>{t("创建并进入绑定")} →</button>
+        <button className="btn" disabled={!canEdit || !code.trim()} onClick={create}>{t("创建故障码")} →</button>
         <button className="btn ghost" onClick={reset}>{t("取消")}</button>
       </div>
     </div>}
     {step === 2 && created && <div className="fault-form">
-      <p className="fault-hint">{t("绑定向导已开始在右侧顶部：在画布点选元件/管路 → 点「确认绑定」。找不到就跳过，稍后可回来继续。")}</p>
+      <p className="fault-hint"><b>{created.code}</b> {t("已创建，但排查范围还没绑定。绑定后它才能在画布高亮和演练。")}</p>
+      <ol className="ncw-next">
+        <li><i>1</i><span>{t("去画布绑定（推荐）：打开绑定向导，把它的部件组指到本图元件/管路。")}</span></li>
+        <li><i>2</i><span>{t("稍后绑定：先保存/导出，之后随时回第③步补绑。")}</span></li>
+      </ol>
       <div className="fault-actions">
-        <button className="btn" onClick={() => setStep(3)}>{t("下一步：保存")} →</button>
+        <button className="btn" disabled={!canEdit || !created.groupId} onClick={() => onStartBinding(created.groupId)}>{t("去画布绑定（推荐）")} →</button>
+        <button className="btn ghost" onClick={() => setStep(3)}>{t("稍后绑定，先保存")} →</button>
       </div>
     </div>}
     {step === 3 && created && <div className="fault-form">

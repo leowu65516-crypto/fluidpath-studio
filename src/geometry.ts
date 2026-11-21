@@ -509,7 +509,7 @@ const BRANCH_JUNCTION_TYPES = new Set(["tee", "teeY", "teeF", "cross"]);
 const PASS_THROUGH_TYPES = new Set([
   "shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "cross", "elbow",
   "valve", "ballValve", "checkValve", "filter", "metalFilter", "heatExchanger", "thermoblock", "pump", "milkPump", "airPump",
-  "solenoid2", "solenoid3", "diaphragmValve2", "diaphragmValve3", "pulseAirValve", "pressureRegulator", "flowMeter",
+  "solenoid2", "solenoid3", "diaphragmValve2", "diaphragmValve3", "pulseAirValve", "pressureRegulator", "flowControl3", "flowMeter",
   "tank", "boiler", "hotWaterBoiler", "steamBoiler", "brewChamber",
 ]);
 
@@ -538,7 +538,7 @@ function isTwoWayFlowValve(n: DiagramNode): boolean {
 export function valve3EffectivePath(n: DiagramNode): "A" | "B" | "off" {
   if (n.fault === "valveStuckOpen") return "A";
   if (n.fault === "valveStuckClosed") return "off";
-  return n.valvePath ?? "A";
+  return n.valvePath === "B" ? "B" : "A";
 }
 
 function isThreeWayFlowValve(n: DiagramNode): boolean {
@@ -785,6 +785,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       const portDirs = node.ports.map((p) => p.direction);
       const directed = portDirs.includes("in") && portDirs.includes("out");
       if (directed && phase === "push" && arr.port.direction !== "in") continue;
+      if (phase === "push" && node.type === "flowControl3" && hasAlternateInflow(node, pid)) continue;
       if (phase === "push" && !directed && hasAlternateInflow(node, pid)) continue;
       if (node.type === "solenoid3") {
         // 到达非激活出侧 → 不穿越
@@ -1113,13 +1114,14 @@ function pipeEffectiveDisabledRecursive(
       const pairedPort = ref.port.id === route.commonPort?.id ? route.activeBranch : route.commonPort;
       if (pairedPort && hasDisabledUpstream(pairedPort.id)) return true;
     }
+    if (n.type === "flowControl3" && ref.port.direction === "out" && upstreamPortsState(n.ports.filter((p) => p.direction === "in").map((p) => p.id)) === "stopped") return true;
 
     // 经过中间节点传播（直通类元件：阀门、接头、容器、换热器、过滤器、泵、单向阀等）
     // 注意：可切换阀（两通电磁阀、球阀、三通阀）需要专门的上游依赖逻辑；
     // 它们自身的停流通过上方专门分支 + 泵/阀的「上游依赖」逻辑处理。
     const passThrough = new Set(["shape", "connector", "coupling", "metalCoupling", "tee", "teeY", "teeF", "elbow",
       "valve", "checkValve", "filter", "metalFilter", "heatExchanger", "thermoblock", "pump", "milkPump", "airPump",
-      "solenoid2", "ballValve", "solenoid3", "diaphragmValve2", "diaphragmValve3", "pulseAirValve", "pressureRegulator", "flowMeter",
+      "solenoid2", "ballValve", "solenoid3", "diaphragmValve2", "diaphragmValve3", "pulseAirValve", "pressureRegulator", "flowControl3", "flowMeter",
       "tank", "boiler", "hotWaterBoiler", "steamBoiler", "brewChamber"]);
     if (!passThrough.has(n.type)) return false;
 

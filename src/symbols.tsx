@@ -27,7 +27,7 @@ const NODE_LABEL_EN: Partial<Record<NodeType, string>> = {
   tank: "Tank", pressureTank: "Pressure tank", syrupBottle: "Syrup bottle", boiler: "Boiler (legacy)",
   hotWaterBoiler: "Hot-water boiler", steamBoiler: "Steam boiler", pump: "Water pump", milkPump: "Milk pump",
   valve: "Shut-off valve", checkValve: "Check valve", solenoid2: "2-way solenoid", solenoid3: "3-way solenoid", diaphragmValve2: "2-way diaphragm valve", diaphragmValve3: "3-way diaphragm selector", airPump: "Air pump",
-  pulseAirValve: "Pulse air valve", safetyValve: "Safety valve", opv: "OPV relief valve", pressureRegulator: "Pressure-reducing valve", ballValve: "Ball valve",
+  pulseAirValve: "Pulse air valve", safetyValve: "Safety valve", opv: "OPV relief valve", flowControl3: "3-port flow control valve", pressureRegulator: "Pressure-reducing valve", ballValve: "Ball valve",
   tee: "Tee fitting", teeY: "Y tee", teeF: "F tee", cross: "Cross fitting", elbow: "Elbow", coupling: "Coupling", metalCoupling: "Metal coupling",
   heatExchanger: "Heat exchanger", thermoblock: "Thermoblock", filter: "Filter", metalFilter: "Metal mesh filter", brewChamber: "Brew chamber", powderMixer: "Powder mixer",
   inlet: "Inlet", outlet: "Outlet", connector: "Connector", hotWaterWand: "Hot-water wand", steamWand: "Steam wand", groupHead: "Group head",
@@ -83,7 +83,8 @@ export const NODE_DEFS: NodeDef[] = [
   { type: "diaphragmValve3", label: "三通隔膜切换阀", group: "控制", width: 92, height: 80, fill: "#f7fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.62, direction: "bidirectional" }, { position: "bottom", offset: 0.5, direction: "bidirectional" }, { position: "right", offset: 0.62, direction: "bidirectional" }] },
   { type: "pulseAirValve", label: "脉冲空气电磁阀", group: "控制", width: 74, height: 66, fill: "#f6fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.76, direction: "in" }, { position: "right", offset: 0.76, direction: "out" }] },
   { type: "safetyValve", label: "安全阀", group: "控制", width: 64, height: 84, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "right", offset: 0.4, direction: "out" }] },
-  { type: "opv", label: "OPV 泄压阀", group: "控制", width: 64, height: 84, fill: "#fff4ec", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "right", offset: 0.35, direction: "out" }] },
+  { type: "opv", label: "OPV 泄压阀", group: "", width: 64, height: 84, fill: "#fff4ec", stroke: "#3d4c5e", ports: [{ position: "bottom", direction: "in" }, { position: "right", offset: 0.35, direction: "out" }] },
+  { type: "flowControl3", label: "三口流量调节阀", group: "控制", width: 84, height: 84, fill: "#f6fbff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.65, direction: "in" }, { position: "bottom", offset: 0.5, direction: "in" }, { position: "right", offset: 0.65, direction: "out" }] },
   { type: "pressureRegulator", label: "减压阀", group: "控制", width: 74, height: 54, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.72, direction: "in" }, { position: "right", offset: 0.72, direction: "out" }] },
   { type: "ballValve", label: "球阀", group: "控制", width: 78, height: 58, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", offset: 0.68, direction: "in" }, { position: "right", offset: 0.68, direction: "out" }] },
   { type: "tee", label: "三通接头", group: "控制", width: 64, height: 64, fill: "#ffffff", stroke: "#3d4c5e", ports: [{ position: "left", direction: "bidirectional" }, { position: "right", direction: "bidirectional" }, { position: "bottom", direction: "bidirectional" }] },
@@ -579,6 +580,15 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
           <line x1={cx - 10} y1={6} x2={cx + 10} y2={6} stroke={stroke} strokeWidth={sw + 0.5} strokeLinecap="round" />
         </g>
       );
+    }
+    case "flowControl3": {
+      const cy = h * 0.65;
+      return <g data-symbol-feature="three-port-flow-control">
+        <path d={`M 2 ${cy - 14} L ${w / 2} ${cy} L 2 ${cy + 14} Z M ${w - 2} ${cy - 14} L ${w / 2} ${cy} L ${w - 2} ${cy + 14} Z`} {...common} />
+        <line x1={w / 2} y1={h - 2} x2={w / 2} y2={cy} stroke={stroke} strokeWidth={sw} />
+        <line x1={w / 2} y1={cy - 5} x2={w / 2} y2={14} stroke={stroke} strokeWidth={sw} />
+        <path d={`M ${w / 2 - 11} 12 H ${w / 2 + 11} M ${w / 2 - 9} ${cy - 5} L ${w / 2 + 6} ${cy - 19} M ${w / 2 + 6} ${cy - 19} l -6 1 m 6 -1 l -1 6`} fill="none" stroke={stroke} strokeWidth={sw} />
+      </g>;
     }
     case "opv": {
       const cx = w / 2;

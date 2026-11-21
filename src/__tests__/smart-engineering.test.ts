@@ -18,7 +18,7 @@ describe("智能绘图工程检查", () => {
       const pumps = result.nodes.filter((n) => n.type === "pump" || n.type === "milkPump" || n.type === "airPump");
       expect(pumps.every((p) => p.pumpOn === false)).toBe(true);
       const valves = result.nodes.filter((n) => n.type === "solenoid2" || n.type === "solenoid3");
-      expect(valves.every((v) => v.type === "solenoid3" ? v.valvePath === "off" : v.valveState === "closed")).toBe(true);
+      expect(valves.every((v) => v.type === "solenoid3" ? v.valvePath === "A" : v.valveState === "closed")).toBe(true);
       expect(result.conditions?.some((c) => /待机|idle/i.test(c.name))).toBe(true);
       expect(engineeringIssues(asDiagram(result))).toEqual([]);
     }

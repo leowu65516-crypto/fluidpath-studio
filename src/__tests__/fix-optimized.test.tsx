@@ -62,7 +62,7 @@ describe("优化版逻辑修复验证", () => {
     expect(d.nodes.find((n) => n.label === "牛奶排废三通电磁阀")?.valvePath).toBe("A");
     expect(d.nodes.find((n) => n.label === "蒸汽三通电磁阀")?.valvePath).toBe("A");
     expect(d.nodes.find((n) => n.label === "牛奶加热三通电磁阀")?.valvePath).toBe("A");
-    expect(d.nodes.find((n) => n.label === "牛奶清洗三通电磁阀")?.valvePath).toBe("off");
+    expect(d.nodes.find((n) => n.label === "牛奶清洗三通电磁阀")?.valvePath).toBe("A");
   });
 
   it("React 渲染不抛错", () => {

@@ -127,9 +127,9 @@ export const SCENARIOS: Scenario[] = [
       },
       {
         title: "奶泵与蒸汽加热",
-        desc: "奶泵启动，鲜牛奶从储液罐抽出送往牛奶出口；同时牛奶加热三通阀导通 A 路，蒸汽锅炉的高温蒸汽经加热单向阀注入奶路充分混合加热，输出热牛奶。清洗三通阀保持关闭。",
+        desc: "奶泵启动，鲜牛奶从储液罐抽出送往牛奶出口；同时牛奶加热三通阀导通 A 路，蒸汽锅炉的高温蒸汽经加热单向阀注入奶路充分混合加热，输出热牛奶。清洗三通阀切换至 B 路。",
         addNodes: ["milkTank", "milkInValve", "milkPump", "milkDrainV3", "milkOut", "heatV3"],
-        valves: { milkPump: "pump-run", milkInValve: "open", milkDrainV3: "A", heatV3: "A", cleanV3: "off" },
+        valves: { milkPump: "pump-run", milkInValve: "open", milkDrainV3: "A", heatV3: "A", cleanV3: "B" },
       },
     ],
   },
@@ -445,7 +445,7 @@ export function valveActionToPreset(action: ValveAction): PresetState {
     case "closed": return { valveState: "closed" };
     case "A": return { valvePath: "A" };
     case "B": return { valvePath: "B" };
-    case "off": return { valvePath: "off" };
+    case "off": return { valvePath: "A" };
   }
 }
 

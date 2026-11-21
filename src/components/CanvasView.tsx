@@ -853,14 +853,14 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
   }
 
   // ===== 可切换阀/泵的画布控制 =====
-  function onValveToggle(nodeId: string, path?: "A" | "B" | "off") {
+  function onValveToggle(nodeId: string, path?: "A" | "B") {
     const node = store.get().diagram.nodes.find((n) => n.id === nodeId);
     if (!node) return;
     // 演示中：手动微调写入叠加层（跨步骤保留，不进撤销历史；退出演示还原快照）
     if (store.get().ui.scenario) {
       let patch: { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" } | null = null;
       if (node.type === "solenoid2" || node.type === "ballValve" || node.type === "diaphragmValve2" || node.type === "pulseAirValve") patch = { valveState: node.valveState === "closed" ? "open" : "closed" };
-      else if ((node.type === "solenoid3" || node.type === "diaphragmValve3") && path && (node.type !== "diaphragmValve3" || path !== "off")) patch = { valvePath: path };
+      else if ((node.type === "solenoid3" || node.type === "diaphragmValve3") && path) patch = { valvePath: path };
       else if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") patch = { pumpOn: node.pumpOn === false };
       if (patch && overrideScenarioNode(nodeId, patch)) {
         return;
@@ -869,7 +869,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
     pushHistory();
     if (node.type === "solenoid2" || node.type === "ballValve" || node.type === "diaphragmValve2" || node.type === "pulseAirValve") {
       patchNode(nodeId, { valveState: node.valveState === "closed" ? "open" : "closed" });
-    } else if ((node.type === "solenoid3" || node.type === "diaphragmValve3") && path && (node.type !== "diaphragmValve3" || path !== "off")) {
+    } else if ((node.type === "solenoid3" || node.type === "diaphragmValve3") && path) {
       patchNode(nodeId, { valvePath: path });
     } else if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") {
       patchNode(nodeId, { pumpOn: node.pumpOn === false ? true : false });
@@ -1252,15 +1252,15 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
               </g>
             ) : (
               <g className="fp-state-badge">
-                {((node.type === "diaphragmValve3" ? ["A", "B"] : ["A", "off", "B"]) as Array<"A" | "B" | "off">).map((val, i, values) => {
+                {(["A", "B"] as const).map((val, i, values) => {
                   const bx = 10 + (node.width - 20) * (values.length === 1 ? 0 : i / (values.length - 1));
                   const active = (node.valvePath ?? "A") === val;
                   const colors: Record<string, string> = { A: "#3fae6a", B: "#2f7fd6", off: "#d9534f" };
                   return (
                     <g key={val} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id, val); }}>
                       <rect x={bx - 8} y={node.height + 24} width={16} height={16} rx={3} fill={active ? colors[val] : "#eef2f7"} stroke={active ? colors[val] : "#b9c6d4"} strokeWidth={1.2} />
-                      <title>{node.type === "diaphragmValve3" ? diaphragmRouteLabel(node, val) : val === "off" ? t("关") : val}</title>
-                      <text x={bx} y={node.height + 36} textAnchor="middle" fontSize={10} fill={active ? "#fff" : "#6b7787"} fontFamily="system-ui, sans-serif" fontWeight={600} pointerEvents="none">{val === "off" ? t("关") : node.type === "diaphragmValve3" ? (val === "A" ? "I" : "II") : val}</text>
+                      <title>{node.type === "diaphragmValve3" ? diaphragmRouteLabel(node, val) : val}</title>
+                      <text x={bx} y={node.height + 36} textAnchor="middle" fontSize={10} fill={active ? "#fff" : "#6b7787"} fontFamily="system-ui, sans-serif" fontWeight={600} pointerEvents="none">{node.type === "diaphragmValve3" ? (val === "A" ? "I" : "II") : val}</text>
                     </g>
                   );
                 })}

@@ -81,9 +81,9 @@ const ZH: Record<string, DeviceKnowledge> = {
     common: "常用于冲泡/排废切换、蒸汽分配；选型需确认常开还是常闭。",
   },
   pulseAirValve: {
-    role: "脉冲空气电磁阀：短促喷气，用于清洁/吹扫",
-    principle: "线圈瞬间通断产生脉冲气流，吹除残留液滴或粉料。",
-    common: "全自动机常用来喷气清洁冲泡器或粉料通道。",
+    role: "脉冲空气电磁阀：通过脉冲开关控制空气进入量",
+    principle: "线圈周期性通断，通过调整开启时间占周期的比例（占空比）调节平均进气量。",
+    common: "实际进气量还取决于气源压力、阀门及管路；当前平台只表示开关通断，不计算占空比或流量。",
   },
   safetyValve: {
     role: "安全阀 / OPV 泄压阀：超压时自动泄放，保护锅炉与管路",
@@ -94,6 +94,11 @@ const ZH: Record<string, DeviceKnowledge> = {
     role: "OPV 过压保护阀（Over Pressure Valve）：限制冲泡压力",
     principle: "泵输出压力超过设定值（通常 9bar）时旁通泄流，把冲煮头压力稳定在目标值。",
     common: "教学要点：OPV 是半自动机稳定萃取压力的关键，常见 9bar / 11bar。",
+  },
+  flowControl3: {
+    role: "三口流量调节阀：汇合进水与润湿支路并调节液体流量",
+    principle: "内部针形机构改变流通截面积，从而调节通过阀门的流量。",
+    common: "实际流量受压差、阀位及介质影响；当前仅显示定性通断，不计算流速或混合比例。",
   },
   pressureRegulator: {
     role: "减压阀（pressure-reducing valve）：稳定并降低下游压力",
@@ -318,9 +323,9 @@ const EN: Record<string, DeviceKnowledge> = {
     common: "Used for brew/drain switching and steam distribution; confirm NO/NC type when selecting.",
   },
   pulseAirValve: {
-    role: "Pulse air valve: short air bursts for cleaning / purging",
-    principle: "Rapid coil switching generates pulsed air to blow away residual drops or powder.",
-    common: "Full-auto machines use it to purge the brew unit or powder channel.",
+    role: "Pulse air valve: controls admitted air using pulsed switching",
+    principle: "The coil cycles on and off; its duty cycle adjusts the average air admitted.",
+    common: "Actual air delivery also depends on supply pressure, valve and piping. The studio models open/closed state only, not duty cycle or flow rate.",
   },
   safetyValve: {
     role: "Safety valve / OPV relief: vents automatically on over-pressure to protect boiler and lines",
@@ -331,6 +336,11 @@ const EN: Record<string, DeviceKnowledge> = {
     role: "OPV (over-pressure valve): limits brew pressure",
     principle: "When pump pressure exceeds the setpoint (usually 9 bar) it bypasses flow, stabilizing group-head pressure.",
     common: "Teaching note: the OPV is key to stable extraction pressure; 9 bar / 11 bar are typical.",
+  },
+  flowControl3: {
+    role: "3-port flow control valve: joins the water and wetting inlets and regulates flow",
+    principle: "An internal needle changes the flow passage area to regulate liquid flow.",
+    common: "Flow depends on pressure difference, setting and medium; the studio shows qualitative flow only and does not calculate flow rate or mixing ratios.",
   },
   pressureRegulator: {
     role: "Pressure-reducing valve: stabilizes and lowers downstream pressure",

@@ -95,7 +95,7 @@ describe("演示/讲述模式（角色自适应）", () => {
     expect(d.nodes.find((n) => n.id === ID.inletValve)?.valveState).toBe("open");
     // 基线复位：奶泵停、清洗三通 off（不再受存档阀位干扰）
     expect(d.nodes.find((n) => n.id === ID.milkPump)?.pumpOn).toBe(false);
-    expect(d.nodes.find((n) => n.id === ID.cleanV3)?.valvePath).toBe("off");
+    expect(d.nodes.find((n) => n.id === ID.cleanV3)?.valvePath).toBe("A");
     const sc = store.get().ui.scenario!;
     expect(sc.activeNodes).toContain(ID.pump);
     expect(sc.activePipes.length).toBeGreaterThan(0);
@@ -144,7 +144,7 @@ describe("演示/讲述模式（角色自适应）", () => {
     // 蒸汽加热三通同步导通
     expect(d.nodes.find((n) => n.id === ID.heatV3)?.valvePath).toBe("A");
     // 清洗三通必须关闭（用户核心诉求）
-    expect(d.nodes.find((n) => n.id === ID.cleanV3)?.valvePath).toBe("off");
+    expect(d.nodes.find((n) => n.id === ID.cleanV3)?.valvePath).toBe("B");
     const sc = store.get().ui.scenario!;
     const labels = new Set(
       sc.activePipes.map((pid) => d.pipes.find((p) => p.id === pid)?.label)

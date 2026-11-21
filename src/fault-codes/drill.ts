@@ -47,7 +47,7 @@ function nodePatchFor(type: DiagramNode["type"], behavior: DrillBehavior): NodeP
     return { fault: null };
   }
   if (THREE_STATE_VALVES.has(type)) {
-    if (behavior === "stopped") return { valvePath: "off", fault: null };
+    if (behavior === "stopped") return { fault: "valveStuckClosed" };
     if (behavior === "running") return { valvePath: "A", fault: null };
     if (behavior === "stuckClosed") return { fault: "valveStuckClosed" };
     return { fault: "valveStuckOpen" };

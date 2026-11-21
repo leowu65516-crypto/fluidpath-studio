@@ -296,7 +296,7 @@ export function engineeringIssues(diagram: Diagram): EngineeringIssue[] {
     }
   }
 
-  // 默认状态：生成图应是待机态（泵停、两通阀关、三通阀 off）
+  // 待机检查泵和两通阀；三通 A/B 均为有效路径。
   const runningPump = pumps.find((p) => p.pumpOn !== false);
   if (runningPump) {
     out.push(issue(
@@ -309,16 +309,14 @@ export function engineeringIssues(diagram: Diagram): EngineeringIssue[] {
     ));
   }
   const openValve = nodes.find((n) =>
-    (n.type === "solenoid2" || n.type === "ballValve" || n.type === "pulseAirValve") ? n.valveState === "open"
-      : n.type === "solenoid3" ? n.valvePath === "A" || n.valvePath === "B"
-        : false);
+    (n.type === "solenoid2" || n.type === "ballValve" || n.type === "pulseAirValve") && n.valveState === "open");
   if (openValve) {
     out.push(issue(
       `idle-valve-${openValve.id}`, "warning",
       "生成图有阀门处于打开位",
       "Generated draft has an open valve",
-      "待机模板应默认阀门关闭/三通 off；需要动作时由工况切换。",
-      "Idle templates should default to closed valves/off three-way paths.",
+      "待机模板应默认关闭两通阀；三通阀的常态应按设备确认。",
+      "Idle templates should close two-way valves; confirm the three-way rest position against the equipment.",
       [openValve],
     ));
   }

@@ -28,7 +28,7 @@ export function snapshotStates(diagram: Diagram): PresetStateMap {
   for (const n of diagram.nodes) {
     if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") st[n.id] = { pumpOn: n.pumpOn !== false };
     else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") st[n.id] = { valveState: n.valveState !== "closed" ? "open" : "closed" };
-    else if (n.type === "solenoid3" || n.type === "diaphragmValve3") st[n.id] = { valvePath: n.valvePath ?? "A" };
+    else if (n.type === "solenoid3" || n.type === "diaphragmValve3") st[n.id] = { valvePath: n.valvePath === "B" ? "B" : "A" };
   }
   return st;
 }
@@ -40,7 +40,7 @@ export function applyStates(diagram: Diagram, state: PresetStateMap): void {
     if (!s) continue;
     if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = s.pumpOn !== false;
     else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") n.valveState = s.valveState === "open" ? "open" : "closed";
-    else if (n.type === "solenoid3") n.valvePath = s.valvePath ?? "A";
+    else if (n.type === "solenoid3") n.valvePath = s.valvePath === "B" ? "B" : "A";
     else if (n.type === "diaphragmValve3") n.valvePath = s.valvePath === "B" ? "B" : "A";
   }
 }
@@ -207,7 +207,10 @@ export function applyWorkConditionSnapshot(diagram: Diagram, condition: WorkCond
     const nodes = new Map(diagram.nodes.map((node) => [node.id, node]));
     for (const [id, source] of Object.entries(condition.componentProperties)) {
       const node = nodes.get(id);
-      if (node) restoreProperties(node as unknown as MutableRecord, source as unknown as MutableRecord, NODE_PROPERTY_KEYS);
+      if (node) {
+        restoreProperties(node as unknown as MutableRecord, source as unknown as MutableRecord, NODE_PROPERTY_KEYS);
+        if (node.type === "solenoid3" && node.valvePath !== "B") node.valvePath = "A";
+      }
     }
   }
   if (condition.pipeProperties) {

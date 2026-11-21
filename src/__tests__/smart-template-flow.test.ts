@@ -37,7 +37,7 @@ describe("模板待机与工程语义", () => {
       const diagram = asDiagram(result);
       const idle = result.conditions?.find((c) => /待机|idle/i.test(c.name)) ?? { name: "Idle", state: {} };
       applyCondition(diagram, idle);
-      expect(diagram.pipes.every((p) => pipeEffectiveDisabled(p, diagram.nodes))).toBe(true);
+      expect(diagram.nodes.filter((n) => n.type === "solenoid3").every((n) => n.valvePath === "A" || n.valvePath === "B")).toBe(true);
       expect(diagnosisSummary(diagram).errors).toBe(0);
       const relief = diagram.pipes.filter((p) => p.teachingOverride === "stop");
       expect(relief.length).toBeGreaterThan(0);
@@ -52,7 +52,7 @@ describe("模板待机与工程语义", () => {
     const outletPipe = diagram.pipes.find((p) => p.label === "牛奶出口")!;
     const fillPipe = diagram.pipes.find((p) => p.label === "锅炉补水")!;
     applyCondition(diagram, result.conditions!.find((c) => /待机|idle/i.test(c.name))!);
-    expect(pipeEffectiveDisabled(outletPipe, diagram.nodes)).toBe(true);
+    expect(pipeEffectiveDisabled(outletPipe, diagram.nodes)).toBe(false);
     expect(pipeEffectiveDisabled(fillPipe, diagram.nodes)).toBe(true);
     applyCondition(diagram, result.conditions!.find((c) => c.name === "热牛奶")!);
     expect(pipeEffectiveDisabled(outletPipe, diagram.nodes)).toBe(false);

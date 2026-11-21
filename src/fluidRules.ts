@@ -68,6 +68,7 @@ const RULES: DeviceFluidRule[] = [
   { type: "airPump", in: ["air"], inPreferred: "air", out: ["air"], outPreferred: "air" },
   // OPV 泄压阀：旁通泵出的水（未加热）
   { type: "opv", in: WATER, inPreferred: "coldWater", out: WATER, outPreferred: "coldWater" },
+  { type: "flowControl3", in: WATER, inPreferred: "coldWater", out: WATER, outPreferred: "coldWater" },
 ];
 
 function ruleFor(type: string): DeviceFluidRule | undefined {

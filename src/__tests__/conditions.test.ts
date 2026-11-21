@@ -15,7 +15,7 @@ describe("工况快照", () => {
     let d = store_diagram();
     d.nodes.find((n) => n.id === "n_msvz8pbq71ca")!.pumpOn = true;
     d.nodes.find((n) => n.id === "n_ms92b8rm798rfd")!.valveState = "open";
-    d.nodes.find((n) => n.id === "n_ms91xxps4wsawx")!.valvePath = "off";
+    d.nodes.find((n) => n.id === "n_ms91xxps4wsawx")!.valvePath = "B";
     saveWorkCondition("做咖啡测试");
 
     // 改成另一组
@@ -27,7 +27,7 @@ describe("工况快照", () => {
     const after = store_diagram();
     expect(after.nodes.find((n) => n.id === "n_msvz8pbq71ca")?.pumpOn).toBe(true);
     expect(after.nodes.find((n) => n.id === "n_ms92b8rm798rfd")?.valveState).toBe("open");
-    expect(after.nodes.find((n) => n.id === "n_ms91xxps4wsawx")?.valvePath).toBe("off");
+    expect(after.nodes.find((n) => n.id === "n_ms91xxps4wsawx")?.valvePath).toBe("B");
 
     deleteWorkCondition("做咖啡测试");
     expect(listWorkConditions().some((c) => c.name === "做咖啡测试")).toBe(false);

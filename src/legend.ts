@@ -80,7 +80,6 @@ export function buildLegendNodes(diagram: Diagram, x: number, y: number, opts: L
     if (hasType("solenoid3")) {
       rows.push({ text: L("三通阀：A 路导通", "3-way valve: path A"), color: "#3fae6a" });
       rows.push({ text: L("三通阀：B 路导通", "3-way valve: path B"), color: "#2f7fd6" });
-      rows.push({ text: L("三通阀：关闭", "3-way valve: off"), color: "#d9534f" });
     }
     if (hasPump) {
       rows.push({ text: L("泵：运行", "Pump: running"), color: "#3fae6a" });

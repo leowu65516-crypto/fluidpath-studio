@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.52.0";
+export const APP_VERSION = "1.53.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.53.0",
+    date: "2026-11-21",
+    highlights: [
+      "普通三通电磁阀改为 A/B 两位；历史 off 阀位及其工况、验收、演示引用导入时转换为 A，相关流动结果可能改变",
+      "新增两进一出三口流量调节阀，支持双入口定性汇流；历史 OPV 泄压元件保持原有安全语义",
+      "脉冲空气阀知识说明改为占空比控制进气，画布仍展示通断；演示步骤提供更新原工况或另存并重绑当前步骤",
+    ],
+  },
   {
     version: "1.52.0",
     date: "2026-11-01",

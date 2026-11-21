@@ -277,6 +277,7 @@ export function loadDiagram(diagram: Diagram) {
   scenarioSnapshot = null;
   // 克隆入参，避免直接改动调用方持有的对象
   const d = structuredClone(diagram);
+  for (const node of d.nodes) if (node.type === "solenoid3" && node.valvePath !== "B") node.valvePath = "A";
   // 旧图纸没有 routeMode：按「有折点即手工」回填，否则智能整理会误清历史手工布线。
   for (const p of d.pipes) if (!p.routeMode) p.routeMode = p.points?.length ? "manual" : "auto";
   // 三份样例共用 diagram_optimized：若该 id 已被别的图纸占用（autosave 槽位存在但不是"上次编辑的图"），
@@ -381,7 +382,7 @@ function expandScenarioNodes(diagram: Diagram, seeds: Set<string>): Set<string> 
 
 /**
  * 进入演示模式并跳到指定步骤：
- * 1. 首次进入：快照当前图纸，并把所有泵/阀复位到中性基线（泵停、两通/球阀关、三通 off），
+ * 1. 首次进入：快照当前图纸，泵停、两通阀关、普通三通阀置于 A 位。
  *    保证演示不被图纸存档阀位干扰；
  * 2. 按元件角色在当前图纸解析节点，累积应用场景步骤的泵/阀状态；
  * 3. 计算高亮节点（种子 + 中间接头自动补齐）与高亮管路（两端都在激活集内）。
@@ -407,7 +408,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
   const rebuild = opts?.rebuild === true;
   // 微调叠加层：同场景跨步骤保留；切场景/首次进入清空
   const sameScenario = !!prev && prev.scenarioId === scenarioId;
-  const overrides = sameScenario ? { ...(prev.overrides ?? {}) } : {};
+  const overrides = sameScenario && !condition ? { ...(prev.overrides ?? {}) } : {};
   const highlightMode = prev?.highlightMode ?? "step";
   if (isNewEntry) {
     scenarioSnapshot = structuredClone(state.diagram);
@@ -415,12 +416,11 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
   }
   updateDiagram((d) => {
     if (isNewEntry || rebuild) {
-      // 基线复位：所有泵停、两通阀/球阀关、常规三通阀 off。
-      // 三通隔膜切换阀没有 off 档，保留其两条共享公共端口的合法切换状态。
+      // 两位三通阀的基线为 A，具体设备的断电位置需由图纸配置。
       for (const n of d.nodes) {
         if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = false;
         else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") n.valveState = "closed";
-        else if (n.type === "solenoid3") n.valvePath = "off";
+        else if (n.type === "solenoid3") n.valvePath = "A";
       }
     }
     // 自定义演示步骤优先应用所引用的完整工况：介质、教学显示覆盖、画布显示
@@ -429,7 +429,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
     else applyStates(d, valveActionsToPreset(valves));
     // 已保存的微调（settings.scenarioOverrides）：「从此步生效」——应用 step <= 当前的全部覆盖，按步升序
     const savedAll = d.settings.scenarioOverrides?.[scenarioId] ?? {};
-    const savedSteps = Object.keys(savedAll).map(Number).filter((n) => Number.isFinite(n) && n <= stepIndex).sort((a, b) => a - b);
+    const savedSteps = Object.keys(savedAll).map(Number).filter((n) => Number.isFinite(n) && (condition ? n === stepIndex : n <= stepIndex)).sort((a, b) => a - b);
     for (const sv of savedSteps) {
       applyStates(d, savedAll[sv]);
     }
@@ -443,7 +443,7 @@ export function enterScenario(scenarioId: string, stepIndex = 0, opts?: { rebuil
       if (!n) return undefined;
       if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") return "pump-stop";
       if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") return "closed";
-      if (n.type === "solenoid3") return "off";
+      if (n.type === "solenoid3") return "A";
       if (n.type === "diaphragmValve3") return "A";
       return undefined;
     };
@@ -535,6 +535,7 @@ export function saveWorkCondition(name: string) {
     draft.settings.workConditions = list;
     syncCustomScenarioCondition(draft, name);
   });
+  if (state.ui.scenario) scenarioSnapshotDirty = true;
 }
 
 /**
@@ -555,7 +556,43 @@ export function updateWorkCondition(name: string): boolean {
     syncCustomScenarioCondition(draft, normalized);
     updated = true;
   });
+  if (updated && state.ui.scenario) scenarioSnapshotDirty = true;
   return updated;
+}
+
+export function updateScenarioCondition(name: string): boolean {
+  const sc = state.ui.scenario;
+  if (!sc || !updateWorkCondition(name)) return false;
+  updateDiagram((draft) => {
+    const steps = draft.settings.scenarioOverrides?.[sc.scenarioId];
+    if (steps) delete steps[sc.stepIndex];
+  });
+  setUI({ scenario: { ...sc, overrides: {} } });
+  scenarioSnapshotDirty = true;
+  return true;
+}
+
+/** Save the current live state and bind only the active custom demo step to it. */
+export function saveScenarioConditionAs(name: string, lang: "zh" | "en"): boolean {
+  const sc = state.ui.scenario;
+  const clean = name.trim();
+  if (!sc || !clean || state.diagram.settings.workConditions?.some((item) => item.name === clean)) return false;
+  const snapshot = snapshotWorkCondition(state.diagram);
+  updateDiagram((draft) => {
+    const condition = { name: clean, ...snapshot };
+    draft.settings.workConditions = [...(draft.settings.workConditions ?? []), condition];
+    const scene = draft.settings.customScenarios?.find((item) => item.id === sc.scenarioId);
+    const step = scene?.steps[sc.stepIndex];
+    if (scene && step) {
+      scene.steps[sc.stepIndex] = { ...step, ...customStepFromCondition(condition, lang, step.title), conditionName: clean };
+      scene.allNodes = customScenarioNodeIds(scene.steps);
+      const steps = draft.settings.scenarioOverrides?.[sc.scenarioId];
+      if (steps) delete steps[sc.stepIndex];
+    }
+  });
+  setUI({ scenario: { ...sc, overrides: {} } });
+  scenarioSnapshotDirty = true;
+  return true;
 }
 
 /** 应用工况：恢复完整非拓扑状态（进入撤销历史，可 Ctrl+Z）。 */
@@ -648,14 +685,14 @@ export function activateScenarioStepForExport(scenarioId: string, stepIndex: num
     for (const node of preview.nodes) {
       if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") node.pumpOn = false;
       else if (node.type === "solenoid2" || node.type === "ballValve" || node.type === "diaphragmValve2" || node.type === "pulseAirValve") node.valveState = "closed";
-      else if (node.type === "solenoid3") node.valvePath = "off";
+      else if (node.type === "solenoid3") node.valvePath = "A";
     }
     applyStates(preview, valveActionsToPreset(valves));
   }
 
   // 已保存的步骤微调属于演示数据，导出应与实际播放一致。
   const savedAll = preview.settings.scenarioOverrides?.[scenarioId] ?? {};
-  for (const index of Object.keys(savedAll).map(Number).filter(Number.isFinite).filter((index) => index <= stepIndex).sort((a, b) => a - b)) {
+  for (const index of Object.keys(savedAll).map(Number).filter(Number.isFinite).filter((index) => condition ? index === stepIndex : index <= stepIndex).sort((a, b) => a - b)) {
     applyStates(preview, savedAll[index]);
   }
 

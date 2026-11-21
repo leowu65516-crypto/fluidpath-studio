@@ -28,6 +28,7 @@ export type NodeType =
   | "pulseAirValve" // 脉冲空气电磁阀
   | "safetyValve"
   | "opv" // OPV 过压保护阀（泄压/限压）
+  | "flowControl3" // 两进一出流量调节阀
   | "pressureRegulator" // 减压阀（pressure-reducing valve）
   | "ballValve" // 手动球阀（工程开关阀）
   | "coupling"

@@ -82,12 +82,12 @@ export interface StateValue {
   valvePath?: "A" | "B" | "off";
 }
 
-/** 生成图的默认安全状态：泵停、两通阀关、三通阀 off；隔膜阀没有 off，保留 A。 */
+/** 待机默认泵停、两通阀关、三通阀 A；设备常态以实物资料为准。 */
 export function applyIdleStates(nodes: DiagramNode[]): void {
   for (const n of nodes) {
     if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") n.pumpOn = false;
     else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") n.valveState = "closed";
-    else if (n.type === "solenoid3") n.valvePath = "off";
+    else if (n.type === "solenoid3") n.valvePath = "A";
     else if (n.type === "diaphragmValve3") n.valvePath = "A";
   }
 }
@@ -101,7 +101,7 @@ export function makeCondition(
   for (const n of nodes) {
     if (n.type === "pump" || n.type === "milkPump" || n.type === "airPump") state[n.id] = { pumpOn: false };
     else if (n.type === "solenoid2" || n.type === "ballValve" || n.type === "diaphragmValve2" || n.type === "pulseAirValve") state[n.id] = { valveState: "closed" };
-    else if (n.type === "solenoid3") state[n.id] = { valvePath: "off" };
+    else if (n.type === "solenoid3") state[n.id] = { valvePath: "A" };
     else if (n.type === "diaphragmValve3") state[n.id] = { valvePath: "A" };
   }
   for (const [id, value] of Object.entries(overrides)) state[id] = { ...state[id], ...value };

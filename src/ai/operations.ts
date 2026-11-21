@@ -108,7 +108,7 @@ export async function compileAiOperations(json: string, current: Diagram): Promi
         if (!Object.keys(state).length) throw new Error("Empty operating state");
         if (state.pumpOn !== undefined && (typeof state.pumpOn !== "boolean" || !["pump", "milkPump", "airPump"].includes(node.type))) throw new Error("Invalid pump state");
         if (state.valveState !== undefined && (!["open", "closed"].includes(String(state.valveState)) || !["solenoid2", "pulseAirValve"].includes(node.type))) throw new Error("Invalid two-port valve state");
-        if (state.valvePath !== undefined && (!["A", "B", "off"].includes(String(state.valvePath)) || node.type !== "solenoid3")) throw new Error("Invalid three-port valve state");
+        if (state.valvePath !== undefined && (!["A", "B"].includes(String(state.valvePath)) || node.type !== "solenoid3")) throw new Error("Invalid three-port valve state: choose A or B");
         Object.assign(node, state); changes.push(`state: ${node.label} ${JSON.stringify(state)}`);
       } else if (op.op === "removeComponent") {
         keys(op, ["op", "component"]);

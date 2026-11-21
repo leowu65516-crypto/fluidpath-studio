@@ -1065,6 +1065,7 @@ function migrateNode(n: any): void {
     if (!ports.some((port) => port.id === n.valveCommonPortId)) n.valveCommonPortId = fallback?.id;
     if (n.valvePath !== "A" && n.valvePath !== "B") n.valvePath = "A";
   }
+  if (n.type === "solenoid3" && n.valvePath !== "B") n.valvePath = "A";
 }
 
 /** 迁移旧版管路：{ connection:{from,to}, style:{...}, flow:{...} } → 扁平字段 */
@@ -1133,6 +1134,22 @@ export function parseDiagramJSON(text: string): Diagram {
     crossoverHops: true,
     ...(data.settings ?? {})
   };
+  const threeWayIds = new Set<string>(data.nodes.filter((node: any) => node.type === "solenoid3").map((node: any) => node.id));
+  const normalizeStates = (states: any) => {
+    if (!states || typeof states !== "object") return;
+    for (const [id, value] of Object.entries(states)) {
+      if (threeWayIds.has(id) && value && typeof value === "object" && (value as any).valvePath === "off") (value as any).valvePath = "A";
+    }
+  };
+  for (const condition of data.settings.workConditions ?? []) {
+    normalizeStates(condition.state);
+    normalizeStates(condition.componentProperties);
+  }
+  for (const item of data.settings.validationCases ?? []) normalizeStates(item.state);
+  for (const steps of Object.values(data.settings.scenarioOverrides ?? {}) as any[]) for (const states of Object.values(steps)) normalizeStates(states);
+  for (const scene of data.settings.customScenarios ?? []) for (const step of scene.steps ?? []) {
+    for (const [id, action] of Object.entries(step.valves ?? {})) if (threeWayIds.has(id) && action === "off") step.valves[id] = "A";
+  }
   // 确保图层信息兼容旧文件
   if (!data.settings.layers || !data.settings.layers.length) {
     data.settings.layers = [{ id: "layer_default", name: "默认层", visible: true }];

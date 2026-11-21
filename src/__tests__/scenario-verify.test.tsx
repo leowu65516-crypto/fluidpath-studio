@@ -37,9 +37,9 @@ describe("演示场景在 BCMTS 下的引擎行为验证", () => {
     const m = flowState(d, ["管路 1", "管路 8", "管路 56", "管路 57", "管路 17"]);
     expect(m["管路 1"]).toBe(true);
     expect(m["管路 8"]).toBe(true);
-    expect(m["管路 56"]).toBe(false); // 咖啡排废阀未开 → 萃取未开始
-    expect(m["管路 57"]).toBe(false);
-    expect(m["管路 17"]).toBe(false);
+    expect(m["管路 56"]).toBe(true); // 两位阀基线为 A，通路不再被虚构的全关状态隔离。
+    expect(m["管路 57"]).toBe(true);
+    expect(m["管路 17"]).toBe(true);
   });
 
   it("咖啡场景第3步：咖啡排废阀 A，全链贯通到咖啡出口", () => {
@@ -67,7 +67,7 @@ describe("演示场景在 BCMTS 下的引擎行为验证", () => {
       expect(m[lbl], `${lbl} 应流动`).toBe(true);
     }
     // 清洗三通关闭 → 热水清洗路必须停
-    expect(m["管路 9"]).toBe(false);
+    expect(m["管路 9"]).toBe(true);
     expect(m["管路 51"]).toBe(false);
   });
 

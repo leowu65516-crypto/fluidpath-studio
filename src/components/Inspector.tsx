@@ -544,6 +544,9 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               )}
             </Section>
             {node.type !== "label" && node.type !== "arrow" && <PortEditor node={node} />}
+            {node.type === "flowControl3" && <Section title={t("三口流量调节阀")}>
+              <div className="insp-tip">{t("两个入口分别连接进水与润湿支路，出口连接下游。内部针形机构调节通流面积；当前仅作定性通路展示，不计算实际流量或混合比例。")}</div>
+            </Section>}
             {(node.type === "solenoid2" || node.type === "ballValve" || node.type === "diaphragmValve2" || node.type === "pulseAirValve") && (
               <Section title={node.type === "ballValve" ? t("球阀") : node.type === "diaphragmValve2" ? t("两通隔膜阀") : node.type === "pulseAirValve" ? t("脉冲空气阀") : t("两通电磁阀")}>
                 <Row label={t("阀状态")}>
@@ -577,14 +580,13 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   <div className="seg">
                     <button className={(node.valvePath ?? "A") === "A" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "A" })}>{t("右侧 (A)")}</button>
                     <button className={node.valvePath === "B" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "B" })}>{t("下方 (B)")}</button>
-                    <button className={node.valvePath === "off" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "off" })}>{t("关闭")}</button>
                   </div>
                 </Row>}
                 <Row label={t("画布显示")}>
                   <input type="checkbox" checked={!!node.showStateOnDiagram} onChange={(e) => patchNode(node.id, { showStateOnDiagram: e.target.checked })} />
                   <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("在画布上直接切换")}</span>
                 </Row>
-                <div className="insp-tip">{node.type === "diaphragmValve3" ? t("三口两位隔膜阀有且仅有两条双向通路；两条通路都经过所选公共端口。切换路径不会定义固定入口或出口，未选通的第三端对应管路按工程状态停止流动。") : t("仅导通所选路径：右侧(A) / 下方(B)；未选中的出口所连管路自动置灰、停止流动。勾选「画布显示」后，电磁阀下方出现可点击三档选择。")}</div>
+                <div className="insp-tip">{node.type === "diaphragmValve3" ? t("三口两位隔膜阀有且仅有两条双向通路；两条通路都经过所选公共端口。切换路径不会定义固定入口或出口，未选通的第三端对应管路按工程状态停止流动。") : t("选择 A 或 B 切换导通路径，未选中的支路停止流动；具体常态位置应根据实物确认。")}</div>
               </Section>
             )}
             {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PromptDialog } from "./PromptDialog";
-import { useAppState, saveWorkCondition, applyWorkCondition, updateWorkCondition, renameWorkCondition, deleteWorkCondition, listWorkConditions } from "../store";
+import { useAppState, saveWorkCondition, applyWorkCondition, updateWorkCondition, updateScenarioCondition, renameWorkCondition, deleteWorkCondition, listWorkConditions } from "../store";
 import { getScenario } from "../scenarios";
 import { useT } from "../i18n";
 import { toast } from "../toast";
@@ -28,6 +28,7 @@ export function ConditionPanel({ onClose, embedded = false }: { onClose: () => v
 
   function save() {
     if (!name.trim()) return;
+    if (list.some((condition) => condition.name === name.trim())) { toast(t("名称已存在，请使用其他名称。"), "error"); return; }
     saveWorkCondition(name.trim());
     setName("");
     toast(t("已保存「{name}」完整工况 —— 点方案旁的“恢复”即可变回").replace("{name}", name.trim()));
@@ -41,7 +42,7 @@ export function ConditionPanel({ onClose, embedded = false }: { onClose: () => v
   }
 
   function updateActiveCondition() {
-    if (!activeCondition || !updateWorkCondition(activeCondition)) return;
+    if (!activeCondition || !(scenarioCondition ? updateScenarioCondition(activeCondition) : updateWorkCondition(activeCondition))) return;
     toast(t("已更新「{name}」完整工况；演示中引用此工况的步骤下次进入将使用最新状态").replace("{name}", activeCondition));
   }
 

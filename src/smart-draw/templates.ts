@@ -159,7 +159,7 @@ function buildCoffee(options: Record<string, SmartOptionValue> = {}): SmartBuild
       makeCondition(L("待机", "Idle"), nodes),
       makeCondition(L("萃取", "Brew"), nodes, { [pump.id]: { pumpOn: true }, [brewValve.id]: { valvePath: "A" } }),
       makeCondition(L("排废", "Drain"), nodes, { [pump.id]: { pumpOn: true }, [brewValve.id]: { valvePath: "B" } }),
-      ...(steamValve ? [makeCondition(L("蒸汽", "Steam"), nodes, { [pump.id]: { pumpOn: true }, [steamValve.id]: { valveState: "open" }, [brewValve.id]: { valvePath: "off" } })] : []),
+      ...(steamValve ? [makeCondition(L("蒸汽", "Steam"), nodes, { [pump.id]: { pumpOn: true }, [steamValve.id]: { valveState: "open" }, [brewValve.id]: { valvePath: "B" } })] : []),
     ],
   };
 }
@@ -251,7 +251,7 @@ function buildMilk(options: Record<string, SmartOptionValue>): SmartBuildResult 
     pipes.push(connect(tankA, "top", pump, "left", "coldMilk", L("奶罐出液", "Tank out")));
   }
 
-  // 真机牛奶出口前有一个奶排废三通：A 出奶，B 排废/清洗，off 待机隔离。
+  // 牛奶出口三通：A 出奶，B 排废/清洗；不存在全关位置。
   const outletValve = makeNode("solenoid3", 680, 110, L("牛奶出口三通阀", "Milk outlet 3-way valve"));
   const outlet = makeNode("milkOutlet", 840, 110, L("牛奶出口", "Milk outlet"));
   const milkDrain = makeNode("outlet", 680, 300, L("牛奶排废", "Milk drain"));

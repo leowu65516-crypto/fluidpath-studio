@@ -6,7 +6,8 @@ import {
   setScenarioStep,
   exitScenario,
   useAppState,
-  saveWorkCondition,
+  updateScenarioCondition,
+  saveScenarioConditionAs,
   resetScenarioOverrides,
   saveScenarioOverridesToStep,
   clearSavedScenarioStep,
@@ -23,7 +24,8 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   const { ui, diagram } = useAppState();
   const { t, lang } = useT();
   const [picking, setPicking] = useState(!ui.scenario);
-  const [condDialog, setCondDialog] = useState(false);
+  const [saveChoice, setSaveChoice] = useState(false);
+  const [conditionName, setConditionName] = useState("");
   const [quizPick, setQuizPick] = useState<number | null>(null);
   const [showConditionPicker, setShowConditionPicker] = useState(false);
   const [pickedConditions, setPickedConditions] = useState<string[]>([]);
@@ -37,6 +39,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   const scenario = ui.scenario ? getScenario(ui.scenario.scenarioId, diagram) : undefined;
   const stepIndex = ui.scenario?.stepIndex ?? 0;
   const step = scenario?.steps[stepIndex];
+  const referencedCondition = step?.conditionName ?? (scenario?.custom && step && condNames.includes(step.title) ? step.title : undefined);
   const isLast = scenario ? stepIndex >= scenario.steps.length - 1 : false;
 
   // 按场景关键角色过滤，避免只有通用储罐/阀门时误显示热牛奶。
@@ -317,12 +320,17 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
           <span style={{ display: "flex", gap: 6 }}>
             <button
               onClick={() => {
+                if (referencedCondition) {
+                  setConditionName(`${referencedCondition} - ${t("副本")}`);
+                  setSaveChoice(true);
+                  return;
+                }
                 const n = saveScenarioOverridesToStep(ui.scenario!.stepIndex);
                 if (n > 0) toast(t("已保存到第 {n} 步，随图纸保存，下次演示自动生效").replace("{n}", String(ui.scenario!.stepIndex + 1)));
               }}
               style={{ border: "1px solid var(--accent)", background: "var(--accent)", color: "#fff", fontSize: 11.5, padding: "3px 8px", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}
               title={t("把当前微调固化到此步：随图纸保存，下次演示/打开自动生效（从此步开始）")}
-            >💾 {t("保存到本步")}</button>
+            >💾 {referencedCondition ? t("保存当前步骤状态") : t("保存到本步")}</button>
             <button
               onClick={() => resetScenarioOverrides()}
               style={{ border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: 11.5, padding: "3px 8px", borderRadius: 6, cursor: "pointer" }}
@@ -362,24 +370,32 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
 
       <div style={{ padding: "0 16px" }}>
         <button
-          onClick={() => setCondDialog(true)}
+          onClick={() => { setConditionName(`${referencedCondition ?? scenario.title} - ${t("副本")}`); setSaveChoice(true); }}
           style={{
             width: "100%", padding: "7px 0", borderRadius: 6, border: "1px dashed var(--accent)",
             background: "var(--accent-soft)", color: "var(--accent)", cursor: "pointer", fontSize: 12.5,
           }}
           title={t("把当前步骤的阀位/泵态保存为工况，可在工具栏「工况」里随时一键切换")}
-        >💾 {t("把本步存为工况")}</button>
+        >💾 {t("保存当前步骤状态")}</button>
       </div>
-      {condDialog && (
-        <PromptDialog
-          title={t("保存为工况")}
-          label={t("给这套阀位起个名")}
-          defaultValue={`${scenario.title}·第${stepIndex + 1}步`}
-          submitLabel={t("保存")}
-          onSubmit={(name) => saveWorkCondition(name)}
-          onClose={() => setCondDialog(false)}
-        />
-      )}
+      {saveChoice && <div className="prompt-overlay" data-ui="1" onMouseDown={(event) => { if (event.target === event.currentTarget) setSaveChoice(false); }}>
+        <div className="prompt-dialog" role="dialog" aria-modal="true" aria-label={t("保存当前步骤状态")}>
+          <div className="prompt-title">{t("保存当前步骤状态")}</div>
+          <div className="prompt-label">{referencedCondition ? t("更新原工况会影响所有引用它的演示步骤；另存将保留原工况，并仅更改当前步骤的引用。") : t("当前步骤没有引用工况，可将当前状态另存为新工况。")}</div>
+          {referencedCondition && <button className="btn wide" onClick={() => {
+            if (updateScenarioCondition(referencedCondition)) { toast(t("已更新工况：{name}").replace("{name}", referencedCondition)); setSaveChoice(false); }
+          }}>{t("更新原工况：{name}").replace("{name}", referencedCondition)}</button>}
+          <label className="prompt-label" htmlFor="scenario-new-condition">{t("新工况名称")}</label>
+          <input id="scenario-new-condition" value={conditionName} onChange={(event) => setConditionName(event.target.value)} />
+          <div className="prompt-actions">
+            <button className="btn" disabled={!conditionName.trim() || condNames.includes(conditionName.trim())} onClick={() => {
+              if (saveScenarioConditionAs(conditionName, lang)) { toast(t("已另存工况：{name}").replace("{name}", conditionName.trim())); setSaveChoice(false); }
+            }}>{t("另存新工况")}</button>
+            <button className="btn ghost" onClick={() => setSaveChoice(false)}>{t("取消")}</button>
+          </div>
+          {condNames.includes(conditionName.trim()) && <div className="prompt-label">{t("名称已存在，请使用其他名称。")}</div>}
+        </div>
+      </div>}
       <div style={{ display: "flex", gap: 8, padding: "14px 16px", borderTop: "1px solid var(--border)", marginTop: 12 }}>
         <button
           onClick={() => { setQuizPick(null); if (stepIndex > 0) setScenarioStep(stepIndex - 1); }}

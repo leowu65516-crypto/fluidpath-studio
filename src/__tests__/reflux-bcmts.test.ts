@@ -95,7 +95,7 @@ describe("BCMTS 回流场景：润湿/快冲支路与清洗回流", () => {
     expect(m.P_REF_WET).toBe(true); // 润湿水回流进罐
     expect(m.P_68).toBe(false); // 出奶管不流动
     expect(m.P_41).toBe(false); // 进奶阀关
-    expect(m.P_REF_CLEAN).toBe(false); // 清洗回流不误动
+    expect(m.P_REF_CLEAN).toBe(true); // 旧 off 按 A 位处理，清洗回流随之导通。
   });
 
   it("清洗溶药丸（清洗三通 A+奶泵关）：热水经回流管入罐", () => {
@@ -139,6 +139,6 @@ describe("BCMTS 回流场景：润湿/快冲支路与清洗回流", () => {
     expect(m.P_63).toBe(true);
     expect(m.P_40).toBe(false);
     expect(m.P_42).toBe(false);
-    expect(m.P_51).toBe(false);
+    expect(m.P_51).toBe(true); // 旧 off 现在对应 A 位。
   });
 });

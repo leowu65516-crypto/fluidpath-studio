@@ -83,6 +83,8 @@ export interface DiagramNode {
   height: number;
   rotation: number; // degrees
   fill: string;
+  /** Shape fill only; 0 is transparent, 1 is opaque. */
+  fillOpacity?: number;
   stroke: string;
   ports: Port[];
   /** 自定义图形的形状（type === "shape" 时有效） */
@@ -289,7 +291,7 @@ export interface DiagramSettings {
   /** 全局元器件名称字号（单个元件未设置专属字号时使用）。 */
   nodeLabelFontSize?: number;
   /** 背景样式：点阵/方格/纯色 */
-  backgroundType?: "dot" | "grid" | "solid";
+  backgroundType?: "dot" | "grid" | "solid" | "large-grid" | "cross";
   /** 记录保存时的应用版本（预留：版本历史/兼容迁移用） */
   appVersion?: string;
   /** 图纸级符号表达。缺失时按 teaching 处理，确保历史 JSON 的原样显示。 */

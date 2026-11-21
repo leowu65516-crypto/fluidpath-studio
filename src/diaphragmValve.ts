@@ -2,6 +2,11 @@ import type { DiagramNode, Port } from "./types";
 
 export type DiaphragmValveRoutePath = "A" | "B" | "off";
 
+/** Existing solenoids keep their legacy semantics until a shared port is configured. */
+export function isSharedPortSelector(node: DiagramNode): boolean {
+  return node.type === "diaphragmValve3" || (node.type === "solenoid3" && !!node.valveCommonPortId);
+}
+
 /**
  * Resolve the two legal paths of a three-port diaphragm selector.
  *

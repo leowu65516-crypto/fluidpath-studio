@@ -70,9 +70,9 @@ export function runValidationCase(diagram: Diagram, validationCase: ValidationCa
   if (flow.some(id => stop.includes(id))) issues.push("CONFLICTING_ASSERTIONS");
   if (new Set([...flow, ...stop]).size !== flow.length + stop.length) issues.push("DUPLICATE_ASSERTIONS");
   for (const node of draft.nodes) {
-    if (node.type !== "diaphragmValve3") continue;
+    if (node.type !== "diaphragmValve3" && !(node.type === "solenoid3" && node.valveCommonPortId)) continue;
     if (node.ports.length !== 3) issues.push(`INVALID_SELECTOR_PORT_COUNT: ${node.id}`);
-    if (node.ports.some((port) => port.direction !== "bidirectional")) issues.push(`INVALID_SELECTOR_PORT_DIRECTION: ${node.id}`);
+    if (node.type === "diaphragmValve3" && node.ports.some((port) => port.direction !== "bidirectional")) issues.push(`INVALID_SELECTOR_PORT_DIRECTION: ${node.id}`);
     if (!node.ports.some((port) => port.id === node.valveCommonPortId)) issues.push(`INVALID_SELECTOR_COMMON_PORT: ${node.id}`);
   }
   for (const [id, state] of Object.entries(validationCase.state)) {

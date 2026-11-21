@@ -1,6 +1,7 @@
 import type { DiagramNode, PortPosition } from "../types";
 import { addPort, patchPort, removePort, MAX_PORTS_PER_NODE } from "../store";
 import { useT } from "../i18n";
+import { isSharedPortSelector } from "../diaphragmValve";
 
 const BOILER_TYPES = new Set(["boiler", "hotWaterBoiler", "steamBoiler"]);
 
@@ -16,7 +17,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function PortEditor({ node }: { node: DiagramNode }) {
   const { t } = useT();
   const isBoiler = BOILER_TYPES.has(node.type);
-  const isThreeWaySelector = node.type === "diaphragmValve3";
+  const isThreeWaySelector = isSharedPortSelector(node);
   const SIDE_LABEL: Record<PortPosition, string> = { top: t("上"), right: t("右"), bottom: t("下"), left: t("左") };
   return (
     <Section title={`${t("端口")}（${node.ports.length}）`}>

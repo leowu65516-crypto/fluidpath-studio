@@ -110,7 +110,7 @@ export function diffPipeStateIds(prev: PresetPipeMap, next: PresetPipeMap): stri
 // 工况恢复独立讲解对象和非拓扑属性，不回滚工程元件或管路的增删及端口绑定。
 
 const NODE_PROPERTY_KEYS = [
-  "label", "x", "y", "width", "height", "rotation", "fill", "stroke", "variant", "fontSize",
+  "label", "x", "y", "width", "height", "rotation", "fill", "fillOpacity", "stroke", "variant", "fontSize",
   "labelOffset", "labelBackground", "labelBackgroundOpacity", "dispensing", "groupId", "exportKind", "disabled", "displayDisabled", "valveState",
   "valvePath", "valveCommonPortId", "showStateOnDiagram", "pumpOn", "fault", "pointerTarget", "imageData", "layerId",
   "annotationLineColor", "annotationLineOpacity", "annotationFillOpacity", "annotationStrokeOpacity", "imageOpacity", "imageFit",

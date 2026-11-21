@@ -8,7 +8,7 @@
 
 import type { Diagram, DiagramNode, Pipe, Port } from "./types";
 import { findPort, pumpEffectiveOn, valveEffectiveOpen, valve3EffectivePath } from "./geometry";
-import { diaphragmValveRoute } from "./diaphragmValve";
+import { diaphragmValveRoute, isSharedPortSelector } from "./diaphragmValve";
 
 /** 真源边界：上游回溯到此停止（泵/锅炉可穿过——它们的进水侧也是整机角色的一部分） */
 const SOURCE_BOUNDARY = new Set([
@@ -102,15 +102,15 @@ export function traceFunctionalChain(diagram: Diagram, seedNodeId?: string, seed
         if (!passesHere) continue;
         // 方向性元件只走对应侧端口；三通阀只走激活支路
         const port = downstream ? u.port : v.port;
-        if (DIRECTIONAL.has(n.type)) {
+        if (DIRECTIONAL.has(n.type) && !isSharedPortSelector(n)) {
           const want = downstream ? "out" : "in";
           if (port.direction !== want && port.direction !== "bidirectional") continue;
         }
-        if (n.type === "solenoid3" && downstream) {
+        if (n.type === "solenoid3" && !isSharedPortSelector(n) && downstream) {
           const active = activeOutPort(n);
           if (port.id !== active) continue; // 非激活支路不穿越
         }
-        if (n.type === "diaphragmValve3") {
+        if (isSharedPortSelector(n)) {
           if (!diaphragmValveRoute(n, valve3EffectivePath(n)).activePortIds.has(port.id)) continue;
         }
         const nextId = downstream ? v.node.id : u.node.id;

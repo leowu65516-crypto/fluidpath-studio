@@ -491,8 +491,7 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
           <line x1={w / 2} y1={cy} x2={w / 2} y2={h * 0.26} stroke={stroke} strokeWidth={sw} />
           <Coil x={w / 2 - 14} y={2} w={28} h={h * 0.26 - 2} stroke={stroke} />
           {/* 导通路径高亮 + 状态指示 */}
-          {path === "A" && <path d={`M ${w - 2} ${cy - 13} L ${w / 2} ${cy} L ${w - 2} ${cy + 13} Z`} fill="none" stroke={color} strokeWidth={3} opacity={0.5} strokeLinejoin="round" />}
-          {path === "B" && <path d={`M ${w / 2 - 13} ${h - 2} L ${w / 2} ${cy} L ${w / 2 + 13} ${h - 2} Z`} fill="none" stroke={color} strokeWidth={3} opacity={0.5} strokeLinejoin="round" />}
+          {node.valveCommonPortId ? (() => { const route = diaphragmValveRoute(node, path); if (!route.commonPort || !route.activeBranch) return null; const a = portLocalPos(node, route.commonPort), b = portLocalPos(node, route.activeBranch); return <path d={`M ${a.x} ${a.y} L ${w / 2} ${cy} L ${b.x} ${b.y}`} fill="none" stroke={color} strokeWidth={3} />; })() : <>{path === "A" && <path d={`M ${w - 2} ${cy - 13} L ${w / 2} ${cy} L ${w - 2} ${cy + 13} Z`} fill="none" stroke={color} strokeWidth={3} opacity={0.5} strokeLinejoin="round" />}{path === "B" && <path d={`M ${w / 2 - 13} ${h - 2} L ${w / 2} ${cy} L ${w / 2 + 13} ${h - 2} Z`} fill="none" stroke={color} strokeWidth={3} opacity={0.5} strokeLinejoin="round" />}</>}
           <circle cx={w - 8} cy={7} r={4} fill={color} stroke="#fff" strokeWidth={1.2} />
           <text x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={color} fontFamily="system-ui, sans-serif" fontWeight={600}>{label}</text>
         </g>
@@ -1114,13 +1113,13 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
               <circle cx={b.tipX} cy={b.tipY} r={3.5} fill={b.active ? "#3fae6a" : "#2f7fd6"} stroke="#fff" strokeWidth={1.2} />
             </g>
           ))}
-          {v === "rect" && <rect x={2} y={2} width={w - 4} height={h - 4} rx={10} {...common} />}
-          {v === "ellipse" && <ellipse cx={w / 2} cy={h / 2} rx={w / 2 - 2} ry={h / 2 - 2} {...common} />}
+          {v === "rect" && <rect x={2} y={2} width={w - 4} height={h - 4} rx={10} {...common} fillOpacity={node.fillOpacity ?? 1} />}
+          {v === "ellipse" && <ellipse cx={w / 2} cy={h / 2} rx={w / 2 - 2} ry={h / 2 - 2} {...common} fillOpacity={node.fillOpacity ?? 1} />}
           {v === "diamond" && (
-            <path d={`M ${w / 2} 2 L ${w - 2} ${h / 2} L ${w / 2} ${h - 2} L 2 ${h / 2} Z`} {...common} strokeLinejoin="round" />
+            <path d={`M ${w / 2} 2 L ${w - 2} ${h / 2} L ${w / 2} ${h - 2} L 2 ${h / 2} Z`} {...common} fillOpacity={node.fillOpacity ?? 1} strokeLinejoin="round" />
           )}
           {v === "triangle" && (
-            <path d={`M ${w / 2} 2 L ${w - 2} ${h - 2} L 2 ${h - 2} Z`} {...common} strokeLinejoin="round" />
+            <path d={`M ${w / 2} 2 L ${w - 2} ${h - 2} L 2 ${h - 2} Z`} {...common} fillOpacity={node.fillOpacity ?? 1} strokeLinejoin="round" />
           )}
           <CenterText node={node} w={w} h={h} />
         </g>

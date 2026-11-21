@@ -1188,6 +1188,10 @@ export function validateDiagramShape(raw: unknown): string[] {
         if (ports.some((port) => port.direction !== "bidirectional")) errors.push(`nodes[${i}] 三通隔膜切换阀端口必须为双向`);
         if (ports.length === 3 && !ports.some((port) => port.id === node.valveCommonPortId)) errors.push(`nodes[${i}] 三通隔膜切换阀缺少有效公共端口`);
       }
+      if (node.type === "solenoid3" && node.valveCommonPortId) {
+        const ports = Array.isArray(node.ports) ? node.ports as Array<Record<string, unknown>> : [];
+        if (ports.length !== 3 || !ports.some((port) => port.id === node.valveCommonPortId)) errors.push(`nodes[${i}] 三通电磁阀公共端口配置无效`);
+      }
     });
   }
   if (Array.isArray(d.pipes)) {

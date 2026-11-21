@@ -22,7 +22,7 @@ import {
   pipeTeachingOverride
 } from "../geometry";
 import { NodeSymbol, spoutTips, defOf, nodeCanvasLabel } from "../symbols";
-import { diaphragmRouteLabel } from "../diaphragmValve";
+import { diaphragmRouteLabel, isSharedPortSelector } from "../diaphragmValve";
 import { MiniMap } from "./MiniMap";
 import { PipeView } from "./PipeView";
 import type { FlowRefs } from "./PipeView";
@@ -1080,8 +1080,8 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
     const stateHint = (() => {
       if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") return node.pumpOn !== false ? t("运行") : t("停止");
       if (node.type === "solenoid2" || node.type === "ballValve" || node.type === "diaphragmValve2" || node.type === "pulseAirValve") return node.valveState !== "closed" ? t("开") : t("关");
+      if (isSharedPortSelector(node)) return diaphragmRouteLabel(node, node.valvePath === "B" ? "B" : "A");
       if (node.type === "solenoid3") return node.valvePath === "A" ? t("A 路") : node.valvePath === "B" ? t("B 路") : t("关");
-      if (node.type === "diaphragmValve3") return diaphragmRouteLabel(node, node.valvePath === "B" ? "B" : "A");
       return "";
     })();
     if (!ui.exportFullRender && !rectsIntersect(nodeBBox(node), cullRect)) return null;
@@ -1180,7 +1180,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
               (terminalPreview?.portId === port.id && !!terminalPreview.error) ||
               (connectTarget?.portId === port.id && !!connectTarget.error);
             const isPipeEnd = selectedPipeEnds && (selectedPipeEnds.fromPortId === port.id || selectedPipeEnds.toPortId === port.id);
-            const dir = port.direction ?? "bidirectional";
+            const dir = isSharedPortSelector(node) ? "bidirectional" : port.direction ?? "bidirectional";
             const isIn = dir === "in", isOut = dir === "out";
             const color = isIn ? "#2f7fd6" : isOut ? "#e8890c" : "#8a97a6";
             // 沿边法向（端口在旋转组内，用本地法向即可）
@@ -1266,7 +1266,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
                   return (
                     <g key={val} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id, val); }}>
                       <rect x={bx - 8} y={node.height + 24} width={16} height={16} rx={3} fill={active ? colors[val] : "#eef2f7"} stroke={active ? colors[val] : "#b9c6d4"} strokeWidth={1.2} />
-                      <title>{node.type === "diaphragmValve3" ? diaphragmRouteLabel(node, val) : val}</title>
+                      <title>{isSharedPortSelector(node) ? diaphragmRouteLabel(node, val) : val}</title>
                       <text x={bx} y={node.height + 36} textAnchor="middle" fontSize={10} fill={active ? "#fff" : "#6b7787"} fontFamily="system-ui, sans-serif" fontWeight={600} pointerEvents="none">{node.type === "diaphragmValve3" ? (val === "A" ? "I" : "II") : val}</text>
                     </g>
                   );
@@ -1409,6 +1409,8 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
           <pattern id="linegrid" width={48} height={48} patternUnits="userSpaceOnUse">
             <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#c3cdd9" strokeWidth={1} />
           </pattern>
+          <pattern id="largegrid" width={96} height={96} patternUnits="userSpaceOnUse"><path d="M 96 0 L 0 0 0 96" fill="none" stroke="#aab9ca" strokeWidth={1.3} /></pattern>
+          <pattern id="crossgrid" width={72} height={72} patternUnits="userSpaceOnUse"><path d="M 0 -4 V 4 M -4 0 H 4" fill="none" stroke="#aab9ca" strokeWidth={1.3} /></pattern>
         </defs>
         <g data-world="1" transform={`translate(${ui.panX} ${ui.panY}) scale(${ui.zoom})`}>
           {diagram.settings.showGrid && (() => {
@@ -1417,6 +1419,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
               return <rect data-ui="1" x={viewRect.x} y={viewRect.y} width={viewRect.w} height={viewRect.h} fill="url(#linegrid)" pointerEvents="none" />;
             }
             if (bt === "solid") return null;
+            if (bt === "large-grid" || bt === "cross") return <rect data-ui="1" x={viewRect.x} y={viewRect.y} width={viewRect.w} height={viewRect.h} fill={bt === "cross" ? "url(#crossgrid)" : "url(#largegrid)"} pointerEvents="none" />;
             return <rect data-ui="1" x={viewRect.x} y={viewRect.y} width={viewRect.w} height={viewRect.h} fill="url(#dotgrid)" pointerEvents="none" />;
           })()}
           {/* 智能绘图的系统分区提示：只做背景引导，不参与命中/工程判定 */}

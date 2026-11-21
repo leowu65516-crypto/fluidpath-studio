@@ -1,5 +1,6 @@
 import type { Diagram, DiagramNode } from "./types";
 import { findPort, nearestPort } from "./geometry";
+import { isSharedPortSelector } from "./diaphragmValve";
 
 export type ConnectionError = "missing-port" | "same-port" | "same-node" | "both-in" | "both-out" | "occupied";
 
@@ -16,8 +17,8 @@ export function validatePipeConnection(
   const to = toPortId ? findPort(diagram.nodes, toPortId) : null;
   if ((fromPortId && !from) || (toPortId && !to)) return "missing-port";
   if (from && to && from.node.id === to.node.id) return "same-node";
-  if (from && to && from.port.direction === "in" && to.port.direction === "in") return "both-in";
-  if (from && to && from.port.direction === "out" && to.port.direction === "out") return "both-out";
+  if (from && to && !isSharedPortSelector(from.node) && !isSharedPortSelector(to.node) && from.port.direction === "in" && to.port.direction === "in") return "both-in";
+  if (from && to && !isSharedPortSelector(from.node) && !isSharedPortSelector(to.node) && from.port.direction === "out" && to.port.direction === "out") return "both-out";
   if (diagram.pipes.some((pipe) => pipe.id !== currentPipeId && [fromPortId, toPortId].some((id) => id && (pipe.fromPortId === id || pipe.toPortId === id)))) {
     return "occupied";
   }

@@ -28,7 +28,7 @@ import {
   pipeDemandBlocked,
   pipeInStopCache,
 } from "./geometry";
-import { diaphragmRouteLabel, diaphragmValveRoute } from "./diaphragmValve";
+import { diaphragmRouteLabel, diaphragmValveRoute, isSharedPortSelector } from "./diaphragmValve";
 
 /** 双语取值 */
 const L = (lang: Lang, zh: string, en: string): string => (lang === "zh" ? zh : en);
@@ -246,7 +246,7 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"):
       }
     }
 
-    if (n.type === "solenoid3") {
+    if (n.type === "solenoid3" && !isSharedPortSelector(n)) {
       const path = valve3EffectivePath(n);
       if (path === "off") {
         const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "全关", "fully closed");
@@ -273,7 +273,7 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"):
       }
     }
 
-    if (n.type === "diaphragmValve3") {
+    if (isSharedPortSelector(n)) {
       const path = valve3EffectivePath(n);
       if (path === "off") {
         const why = n.fault === "valveStuckClosed" ? L(lang, "卡关（故障模拟）", "stuck closed (fault simulation)") : L(lang, "关闭", "closed");
@@ -328,7 +328,7 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"):
           kind: "cut",
         };
       }
-      if (vn.type === "solenoid3") {
+      if (vn.type === "solenoid3" && !isSharedPortSelector(vn)) {
         const path = valve3EffectivePath(vn);
         if (path === "off") {
           return {
@@ -349,7 +349,7 @@ export function traceStopCause(pipe: Pipe, diagram: Diagram, lang: Lang = "zh"):
           };
         }
       }
-      if (vn.type === "diaphragmValve3") {
+      if (isSharedPortSelector(vn)) {
         const path = valve3EffectivePath(vn);
         const route = diaphragmValveRoute(vn, path);
         if (path === "off" || !route.activePortIds.has(v.port.id)) {

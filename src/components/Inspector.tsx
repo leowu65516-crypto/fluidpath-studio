@@ -26,8 +26,6 @@ import {
   insertTemplate,
   listSavedTemplates,
   saveCurrentAsTemplate,
-  applyStylePreset,
-  getStylePresets,
   copyPipeStyle,
   pastePipeStyle,
   hasPipeStyle,
@@ -128,7 +126,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
   const node = ui.selection.nodes.length === 1 ? diagram.nodes.find((n) => n.id === ui.selection.nodes[0]) : undefined;
   const pipe = !node && ui.selection.pipes.length === 1 ? diagram.pipes.find((p) => p.id === ui.selection.pipes[0]) : undefined;
   const multi = ui.selection.nodes.length + ui.selection.pipes.length > 1;
-  const diaphragmRoute = node?.type === "diaphragmValve3" ? diaphragmValveRoute(node) : undefined;
+  const diaphragmRoute = node && (node.type === "diaphragmValve3" || (node.type === "solenoid3" && node.valveCommonPortId)) ? diaphragmValveRoute(node) : undefined;
   const pipeIssues = pipe ? checkPipeFluid(pipe, diagram.nodes, lang) : [];
   const pipeStallCause = useMemo(() => {
     if (!pipe || !pipeEngineeringDisabled(pipe, diagram.nodes)) return null;
@@ -484,6 +482,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                       <option value="rect">{t("矩形")}</option>
                       <option value="ellipse">{t("椭圆")}</option>
                       <option value="diamond">{t("菱形")}</option>
+                      <option value="triangle">{t("三角形")}</option>
                     </select>
                   </Row>
                   <Row label={`${t("元器件文字大小")} ${node.fontSize ?? 13}px`}>
@@ -498,6 +497,9 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   </Row>
                 </>
               )}
+              {node.type !== "shape" && node.type !== "label" && node.type !== "annotation" && node.type !== "image" && node.type !== "arrow" && <Row label={t("元器件名称大小")}>
+                <input type="number" min={8} max={96} value={node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13} onChange={(e) => patchNode(node.id, { fontSize: Math.max(8, Math.min(96, Number(e.target.value) || 8)) })} />
+              </Row>}
               {node.type === "image" && (
                 <Row label={t("上传图片")}>
                   <input
@@ -520,6 +522,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <Row label={t("填充色")}>
                 <input type="color" value={node.fill.length === 9 ? node.fill.slice(0, 7) : node.fill} onChange={(e) => patchNode(node.id, { fill: e.target.value })} />
               </Row>
+              {node.type === "shape" && <Row label={`${t("填充不透明度")} ${Math.round((node.fillOpacity ?? 1) * 100)}%`}><input type="range" min={0} max={100} value={Math.round((node.fillOpacity ?? 1) * 100)} onChange={(e) => patchNode(node.id, { fillOpacity: Number(e.target.value) / 100 })} /></Row>}
               <Row label={t("边框色")}>
                 <input type="color" value={node.stroke} onChange={(e) => patchNode(node.id, { stroke: e.target.value })} />
               </Row>
@@ -564,7 +567,8 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             )}
             {(node.type === "solenoid3" || node.type === "diaphragmValve3") && (
               <Section title={node.type === "diaphragmValve3" ? t("三通隔膜切换阀") : t("三通电磁阀")}>
-                {node.type === "diaphragmValve3" ? <>
+                {node.type === "solenoid3" && !node.valveCommonPortId && <div className="insp-tip">{t("旧版固定进出口模式；选择公共端口后按两条双向通路工作，原有连线方向可能需要调整。")}</div>}
+                {(node.type === "diaphragmValve3" || node.valveCommonPortId) ? <>
                   <Row label={t("公共端口")}>
                     <select value={node.valveCommonPortId ?? diaphragmRoute?.commonPort?.id ?? ""} onChange={(e) => patchNode(node.id, { valveCommonPortId: e.target.value })}>
                       {node.ports.slice(0, 3).map((port) => <option key={port.id} value={port.id}>{diaphragmPortLabel(node, port)} · {t(port.position === "left" ? "左" : port.position === "right" ? "右" : port.position === "top" ? "上" : "下")}</option>)}
@@ -576,17 +580,17 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                       <button title={t("路径 II")} className={node.valvePath === "B" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "B" })}>{diaphragmRouteLabel(node, "B")}</button>
                     </div>
                   </Row>
-                </> : <Row label={t("导通路径")}>
+                </> : <><Row label={t("公共端口")}><select value="" onChange={(e) => { if (e.target.value) patchNode(node.id, { valveCommonPortId: e.target.value }); }}><option value="">{t("旧版固定进出口")}</option>{node.ports.slice(0, 3).map((port) => <option key={port.id} value={port.id}>{diaphragmPortLabel(node, port)} · {t(port.position === "left" ? "左" : port.position === "right" ? "右" : port.position === "top" ? "上" : "下")}</option>)}</select></Row><Row label={t("导通路径")}>
                   <div className="seg">
                     <button className={(node.valvePath ?? "A") === "A" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "A" })}>{t("右侧 (A)")}</button>
                     <button className={node.valvePath === "B" ? "on" : ""} onClick={() => patchNode(node.id, { valvePath: "B" })}>{t("下方 (B)")}</button>
                   </div>
-                </Row>}
+                </Row></>}
                 <Row label={t("画布显示")}>
                   <input type="checkbox" checked={!!node.showStateOnDiagram} onChange={(e) => patchNode(node.id, { showStateOnDiagram: e.target.checked })} />
                   <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{t("在画布上直接切换")}</span>
                 </Row>
-                <div className="insp-tip">{node.type === "diaphragmValve3" ? t("三口两位隔膜阀有且仅有两条双向通路；两条通路都经过所选公共端口。切换路径不会定义固定入口或出口，未选通的第三端对应管路按工程状态停止流动。") : t("选择 A 或 B 切换导通路径，未选中的支路停止流动；具体常态位置应根据实物确认。")}</div>
+                <div className="insp-tip">{node.type === "diaphragmValve3" || node.valveCommonPortId ? t("两条通路都经过所选公共端口，未选通的第三端停流。若同一管路在不同状态下流向相反，请在相应工况中保存对应流向；此设置不产生压力或介质。") : t("选择 A 或 B 切换导通路径，未选中的支路停止流动；具体常态位置应根据实物确认。")}</div>
               </Section>
             )}
             {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && (
@@ -967,12 +971,14 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 value={diagram.settings.backgroundType ?? "dot"}
                 onChange={(e) =>
                   updateDiagram((d) => {
-                    d.settings.backgroundType = e.target.value as "dot" | "grid" | "solid";
+                    d.settings.backgroundType = e.target.value as "dot" | "grid" | "solid" | "large-grid" | "cross";
                   }, false)
                 }
               >
                 <option value="dot">{t("点阵")}</option>
                 <option value="grid">{t("方格")}</option>
+                <option value="large-grid">{t("宽间距网格")}</option>
+                <option value="cross">{t("十字定位点")}</option>
                 <option value="solid">{t("纯色")}</option>
               </select>
             </Row>
@@ -1065,19 +1071,6 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             <div className="insp-tip">{t("先选中对象再修改属性；有红色诊断标记时，点击标记即可定位并查看处理方式。")}</div>
           </Section>
           </>
-        )}
-        {node && (
-          <Section title={t("样式预设")}>
-            <Row label={t("快速应用")}>
-              <select
-                value=""
-                onChange={(e) => { if (e.target.value) { applyStylePreset(e.target.value, [node.id]); e.target.value = ""; } }}
-              >
-                <option value="">{t("选择样式…")}</option>
-                {getStylePresets().map((name) => (<option key={name} value={name}>{t(name)}</option>))}
-              </select>
-            </Row>
-          </Section>
         )}
         <Section title={t("图层管理")} defaultOpen={!!node}>
           {(diagram.settings.layers ?? []).map((layer) => (

@@ -1,5 +1,5 @@
 import type { DiagramNode, Pipe, Port, Pt } from "./types";
-import { diaphragmValveRoute } from "./diaphragmValve";
+import { diaphragmValveRoute, isSharedPortSelector } from "./diaphragmValve";
 
 export const PORT_STUB = 24;
 
@@ -621,7 +621,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         }
       }
     }
-    if (n.type === "solenoid3") {
+    if (n.type === "solenoid3" && !isSharedPortSelector(n)) {
       const path = valve3EffectivePath(n);
       const outPorts = n.ports.filter((p) => p.direction === "out");
       const outA = outPorts.find((p) => p.position === "right") ?? outPorts[0];
@@ -650,7 +650,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         }
       }
     }
-    if (n.type === "diaphragmValve3") {
+    if (isSharedPortSelector(n)) {
       const path = valve3EffectivePath(n);
       const route = diaphragmValveRoute(n, path);
       if (path === "off") {
@@ -711,9 +711,9 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       if (isTwoWayFlowValve(node) && !valveEffectiveOpen(node)) continue;
       if (isThreeWayFlowValve(node) && valve3EffectivePath(node) === "off") continue;
       const portDirs = node.ports.map((p) => p.direction);
-      const directed = portDirs.includes("in") && portDirs.includes("out");
+      const directed = !isSharedPortSelector(node) && portDirs.includes("in") && portDirs.includes("out");
       if (directed && e.v.port.direction !== "in") continue;
-      if (node.type === "solenoid3") {
+      if (node.type === "solenoid3" && !isSharedPortSelector(node)) {
         const path = valve3EffectivePath(node);
         const outPorts3 = node.ports.filter((p) => p.direction === "out");
         const outA3 = outPorts3.find((p) => p.position === "right") ?? outPorts3[0];
@@ -721,11 +721,11 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         const activeOutId3 = path === "A" ? outA3?.id : path === "B" ? outB3?.id : undefined;
         if (e.v.port.direction === "out" && e.v.port.id !== activeOutId3) continue;
       }
-      if (node.type === "diaphragmValve3" && !diaphragmValveRoute(node, valve3EffectivePath(node)).activePortIds.has(e.v.port.id)) continue;
+      if (isSharedPortSelector(node) && !diaphragmValveRoute(node, valve3EffectivePath(node)).activePortIds.has(e.v.port.id)) continue;
       for (const op of pipes) {
         if (op.id === pid2) continue;
         const oe = edgeOf(op);
-        const selector = node.type === "diaphragmValve3" ? diaphragmValveRoute(node, valve3EffectivePath(node)) : undefined;
+        const selector = isSharedPortSelector(node) ? diaphragmValveRoute(node, valve3EffectivePath(node)) : undefined;
         const match = hxPartner
           ? !!(oe.u && oe.u.port.id === hxPartner.id)
           : !!(oe.u && oe.u.node.id === node.id && (!selector || selector.activePortIds.has(oe.u.port.id)));
@@ -783,11 +783,11 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       // 单向元件（有 in/out 端口定义）：push 只允许顺向（经 in 口进入）穿越；
       // suck 允许逆行（吸侧失压整链停流）；both 不限
       const portDirs = node.ports.map((p) => p.direction);
-      const directed = portDirs.includes("in") && portDirs.includes("out");
+      const directed = !isSharedPortSelector(node) && portDirs.includes("in") && portDirs.includes("out");
       if (directed && phase === "push" && arr.port.direction !== "in") continue;
       if (phase === "push" && node.type === "flowControl3" && hasAlternateInflow(node, pid)) continue;
       if (phase === "push" && !directed && hasAlternateInflow(node, pid)) continue;
-      if (node.type === "solenoid3") {
+      if (node.type === "solenoid3" && !isSharedPortSelector(node)) {
         // 到达非激活出侧 → 不穿越
         const path = valve3EffectivePath(node);
         const outPorts3 = node.ports.filter((p) => p.direction === "out");
@@ -796,7 +796,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
         const activeOutId3 = path === "A" ? outA3?.id : path === "B" ? outB3?.id : undefined;
         if (arr.port.direction === "out" && arr.port.id !== activeOutId3) continue;
       }
-      if (node.type === "diaphragmValve3" && !diaphragmValveRoute(node, valve3EffectivePath(node)).activePortIds.has(arr.port.id)) continue;
+      if (isSharedPortSelector(node) && !diaphragmValveRoute(node, valve3EffectivePath(node)).activePortIds.has(arr.port.id)) continue;
       // 工程禁用的“both”相止于汇流/分支接头：一条支路失效只断该支路，
       // 三通/四通上另外两条腿仍彼此连通（它们是否停流由各自的阀/泵/需求单独判定）。
       // 否则禁用一个旁支（如脉冲空气阀）会经接头把整片液路一起判停。
@@ -812,7 +812,7 @@ export function computeDisabledPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<s
       for (const op of pipes) {
         if (op.id === pid || isolatedDisabled.has(op.id)) continue;
         const oe = edgeOf(op);
-        const selector = node.type === "diaphragmValve3" ? diaphragmValveRoute(node, valve3EffectivePath(node)) : undefined;
+        const selector = isSharedPortSelector(node) ? diaphragmValveRoute(node, valve3EffectivePath(node)) : undefined;
         if (phase === "push") {
           // 顺流向：op 必须从 node 流出
           const match = hxPartner ? !!(oe.u && oe.u.port.id === hxPartner.id) : !!(oe.u && oe.u.node.id === node.id && (!selector || selector.activePortIds.has(oe.u.port.id)));
@@ -881,7 +881,7 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
     if (isReliefValve(u)) return false;
     if (u.type === "pump" || u.type === "milkPump") return pumpEffectiveOn(u);
     if (isTwoWayFlowValve(u)) return valveEffectiveOpen(u);
-    if (u.type === "solenoid3") {
+    if (u.type === "solenoid3" && !isSharedPortSelector(u)) {
       const path = valve3EffectivePath(u);
       if (path === "off") return false;
       if (port.direction === "in") return true; // 入侧供液管：有任一激活支路即可
@@ -891,7 +891,7 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
       const activeOutId = path === "A" ? outA?.id : outB?.id;
       return port.id === activeOutId;
     }
-    if (u.type === "diaphragmValve3") {
+    if (isSharedPortSelector(u)) {
       const path = valve3EffectivePath(u);
       return path !== "off" && diaphragmValveRoute(u, path).activePortIds.has(port.id);
     }
@@ -930,7 +930,7 @@ function computeDemandPipes(pipes: Pipe[], nodes: DiagramNode[]): Set<string> {
         if (!e.v || e.v.node.id !== n.id) continue; // 该管流入 n
         if (!e.u) continue;
         if (partnerId && e.v.port.id !== partnerId) continue; // 换热器跨通道隔离
-        if (n.type === "diaphragmValve3" && !diaphragmValveRoute(n, valve3EffectivePath(n)).activePortIds.has(e.v.port.id)) continue;
+        if (isSharedPortSelector(n) && !diaphragmValveRoute(n, valve3EffectivePath(n)).activePortIds.has(e.v.port.id)) continue;
         if (e.u.node.id === root.id && DEMAND_BOUNDARY_TYPES.has(e.u.node.type)) continue; // 根自身出侧回环 → 跳过
         if (!canEmit(e.u.node, e.u.port)) continue; // 上游源不放流 → 无需求
         if (demand.has(pipe.id)) continue;
@@ -1081,7 +1081,7 @@ function pipeEffectiveDisabledRecursive(
       const outPort = n.ports.find((p) => p.direction === "out");
       if (inPort && outPort && ref.port.id === outPort.id && hasDisabledUpstream(inPort.id)) return true;
     }
-    if (n.type === "solenoid3") {
+    if (n.type === "solenoid3" && !isSharedPortSelector(n)) {
       const path = valve3EffectivePath(n);
       if (path === "off") return true;
       // 端口方向：优先用 direction，缺失时按位置推断（left=in, right=A, bottom=B）
@@ -1106,7 +1106,7 @@ function pipeEffectiveDisabledRecursive(
       const isActiveOut = (outA && ref.port.id === outA.id) || (outB && ref.port.id === outB.id);
       if (isActiveOut && upstreamPortsState(inPorts.map((p) => p.id)) === "stopped") return true;
     }
-    if (n.type === "diaphragmValve3") {
+    if (isSharedPortSelector(n)) {
       const path = valve3EffectivePath(n);
       if (path === "off") return true;
       const route = diaphragmValveRoute(n, path);

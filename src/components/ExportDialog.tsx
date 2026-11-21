@@ -403,7 +403,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
           if (!cv) { URL.revokeObjectURL(url); return; }
           const maxW = cv.parentElement?.clientWidth ?? 560;
           const maxH = cv.parentElement?.clientHeight ?? 420;
-          const fit = Math.min(maxW / w, maxH / h, 1);
+          const fit = Math.min(maxW / w, maxH / h);
           const bw = Math.max(1, Math.round(w * fit));
           const bh = Math.max(1, Math.round(h * fit));
           cv.width = bw;

@@ -1161,7 +1161,7 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
         <g>
           {/* 图片区域 */}
           {node.imageData ? (
-            <image href={node.imageData} x={2} y={2} width={w - 4} height={h - 4} preserveAspectRatio="xMidYMid slice" />
+            <image href={node.imageData} x={2} y={2} width={w - 4} height={h - 4} opacity={node.imageOpacity ?? 1} preserveAspectRatio={node.imageFit === "stretch" ? "none" : node.imageFit === "contain" ? "xMidYMid meet" : "xMidYMid slice"} />
           ) : (
             <>
               {/* 无图片占位 */}

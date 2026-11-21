@@ -4,10 +4,34 @@ import { parseDiagramJSON } from "../export";
 import { diffStateIds } from "../presets";
 import bcmtsRaw from "../../BCMTS.json";
 import type { Diagram } from "../types";
+import { createNode } from "../symbols";
+import { applyWorkConditionSnapshot, snapshotWorkCondition } from "../presets";
 
 const toDiagram = (json: any): Diagram => JSON.parse(JSON.stringify(json)) as Diagram;
 
 describe("工况快照", () => {
+  it("按工况恢复文字和图片的内容、样式及对象增删，同时保留液路拓扑", () => {
+    const d = toDiagram(bcmtsRaw);
+    const text = createNode("label", 20, 30, "工况 A");
+    const image = createNode("image", 80, 90, "图片");
+    text.fontSize = 24; text.stroke = "#ff0000";
+    image.imageData = "data:image/png;base64,AAAA"; image.imageOpacity = 0.5;
+    d.nodes.push(text, image);
+    const a = { name: "A", ...snapshotWorkCondition(d) };
+    text.label = "工况 B"; text.fontSize = 40; text.stroke = "#0000ff";
+    d.nodes = d.nodes.filter((node) => node.id !== image.id);
+    d.nodes.push(createNode("label", 100, 100, "B 独有"));
+    const b = { name: "B", ...snapshotWorkCondition(d) };
+    const pipeIds = d.pipes.map((pipe) => pipe.id);
+    applyWorkConditionSnapshot(d, a);
+    expect(d.nodes.find((node) => node.id === text.id)).toMatchObject({ label: "工况 A", fontSize: 24, stroke: "#ff0000" });
+    expect(d.nodes.find((node) => node.id === image.id)).toMatchObject({ imageData: image.imageData, imageOpacity: 0.5 });
+    expect(d.nodes.some((node) => node.label === "B 独有")).toBe(false);
+    applyWorkConditionSnapshot(d, b);
+    expect(d.nodes.find((node) => node.id === text.id)?.label).toBe("工况 B");
+    expect(d.nodes.some((node) => node.id === image.id)).toBe(false);
+    expect(d.pipes.map((pipe) => pipe.id)).toEqual(pipeIds);
+  });
   it("保存 → 修改阀位 → 应用工况还原阀位", () => {
     loadDiagram(toDiagram(bcmtsRaw));
     // 摆一个明确的阀位组合：奶泵开、进奶阀开、清洗三通 off

@@ -35,6 +35,7 @@ import { smartViewProjection } from "../smart-draw/view";
 import { resolveCanvasBackground } from "../canvasTheme";
 import { emitPopupClose } from "../popupBus";
 import { ContextMenu } from "./ContextMenu";
+import { PresentationObjectEditor } from "./PresentationObjectEditor";
 import { RoutePreviewOverlay } from "./RoutePreviewOverlay";
 import { ActionBar } from "./ActionBar";
 import { focusElement, blinkElements, showChainPath, overrideScenarioNode, invalidateAutoRoutes, smartTidyPipes, applyReroutePreview, previewRerouteAll, setRoutePreview, toastWithFocus } from "../store";
@@ -196,6 +197,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
   const [, forceRender] = useState(0);
   // 右键菜单
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: Array<{ label: string; onClick?: () => void; danger?: boolean; disabled?: boolean; divider?: boolean }> } | null>(null);
+  const [presentationEditorId, setPresentationEditorId] = useState<string | null>(null);
   const [stopCause, setStopCause] = useState<{ x: number; y: number; pipeId: string; reason: string; ids: string[] } | null>(null);
   // 标签就地编辑：{ kind: "pipe"|"node"; id: string; x; y }
   const [editingLabel, setEditingLabel] = useState<{ kind: "pipe" | "node"; id: string; x: number; y: number; width: number; value: string } | null>(null);
@@ -940,6 +942,11 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
 
     if (kind === "node" && id) {
       if (!sel.nodes.includes(id)) selectNode(id);
+      const target = store.get().diagram.nodes.find((node) => node.id === id);
+      if (target && ["label", "annotation", "image"].includes(target.type)) {
+        items.push({ label: `✎ ${t(target.type === "image" ? "编辑图片" : "编辑文字标签")}`, onClick: () => setPresentationEditorId(id) });
+        items.push({ label: "---", divider: true });
+      }
       items.push({ label: `📋 ${t("复制节点 (Ctrl+D)")}`, onClick: () => duplicateSelection() });
       items.push({ label: `🎨 ${t("复制节点样式")}`, onClick: () => copyNodeStyle(id) });
       items.push({ label: `📌 ${t("粘贴节点样式")}`, onClick: () => pasteNodeStyle(id), disabled: !hasNodeStyle() });
@@ -1671,6 +1678,10 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
       {ctxMenu && (
         <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={() => setCtxMenu(null)} />
       )}
+      {presentationEditorId && (() => {
+        const target = diagram.nodes.find((node) => node.id === presentationEditorId);
+        return target ? <PresentationObjectEditor key={target.id} node={target} onClose={() => setPresentationEditorId(null)} /> : null;
+      })()}
       {/* 停流因果卡（右键「为什么停流」） */}
       {stopCause && (
         <>

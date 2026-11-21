@@ -107,14 +107,13 @@ export function diffPipeStateIds(prev: PresetPipeMap, next: PresetPipeMap): stri
 }
 
 // ===== v1.31：完整工况快照 =====
-// 工况是“运行/讲解画面”的版本，不是历史版本管理：它故意不恢复对象增删或端口绑定。
-// 这样保存工况以后仍能继续改图，而不会因切换工况回滚新画出来的结构。
+// 工况恢复独立讲解对象和非拓扑属性，不回滚工程元件或管路的增删及端口绑定。
 
 const NODE_PROPERTY_KEYS = [
   "label", "x", "y", "width", "height", "rotation", "fill", "stroke", "variant", "fontSize",
   "labelOffset", "labelBackground", "labelBackgroundOpacity", "dispensing", "groupId", "exportKind", "disabled", "displayDisabled", "valveState",
   "valvePath", "valveCommonPortId", "showStateOnDiagram", "pumpOn", "fault", "pointerTarget", "imageData", "layerId",
-  "annotationLineColor", "annotationLineOpacity", "annotationFillOpacity", "annotationStrokeOpacity",
+  "annotationLineColor", "annotationLineOpacity", "annotationFillOpacity", "annotationStrokeOpacity", "imageOpacity", "imageFit",
 ] as const;
 
 const PIPE_PROPERTY_KEYS = [
@@ -185,11 +184,23 @@ export function snapshotWorkCondition(diagram: Diagram): Omit<WorkCondition, "na
     componentProperties: snapshotNodeProperties(diagram),
     pipeProperties: snapshotPipeProperties(diagram),
     displaySettings: snapshotDisplaySettings(diagram),
+    presentationNodes: clone(diagram.nodes.filter((node) => ["label", "annotation", "image"].includes(node.type) && node.ports.length === 0)),
   };
 }
 
 /** 应用完整工况；无 v1.31 扩展字段的旧工况自动按旧的泵阀/介质语义兼容。 */
 export function applyWorkConditionSnapshot(diagram: Diagram, condition: WorkCondition): void {
+  if (condition.presentationNodes) {
+    const teachingTypes = new Set(["label", "annotation", "image"]);
+    const retained = diagram.nodes.filter((node) => !teachingTypes.has(node.type) || node.ports.length > 0);
+    const retainedIds = new Set(retained.map((node) => node.id));
+    const presentationNodes = condition.presentationNodes.filter((node) => {
+      if (!teachingTypes.has(node.type) || !Array.isArray(node.ports) || node.ports.length !== 0 || retainedIds.has(node.id)) return false;
+      retainedIds.add(node.id);
+      return true;
+    });
+    diagram.nodes = [...retained, ...clone(presentationNodes)];
+  }
   applyStates(diagram, condition.state);
   if (condition.pipes) applyPipeStates(diagram, condition.pipes);
 

@@ -129,6 +129,8 @@ export interface DiagramNode {
   annotationStrokeOpacity?: number;
   /** 图片节点：base64 数据 URL */
   imageData?: string;
+  imageOpacity?: number;
+  imageFit?: "contain" | "cover" | "stretch";
   /** 图层 ID（未分配时为空） */
   layerId?: string;
 }
@@ -357,6 +359,8 @@ export type WorkConditionDisplaySettings = Pick<DiagramSettings,
 
 export interface WorkCondition {
   name: string;
+  /** Snapshot of free-standing teaching objects; absent on older conditions. */
+  presentationNodes?: DiagramNode[];
   /** 兼容旧图纸及验收/高亮逻辑的泵阀状态摘要。 */
   state: Record<string, { pumpOn?: boolean; valveState?: "open" | "closed"; valvePath?: "A" | "B" | "off" }>;
   /** v1.30.7 旧快照兼容字段：仅管路介质。 */

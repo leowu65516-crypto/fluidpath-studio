@@ -236,13 +236,13 @@ describe("ExportDialog 组件", () => {
     act(() => { loadDiagram(d); });
     const svg = makeSvgEl(d);
     const { container } = render(<LangProvider><ExportDialog svgRef={{ current: svg }} initialFormat="gif" onClose={() => undefined} /></LangProvider>);
-    expect(container.textContent).toContain("播放速度");
+    expect(container.textContent).toContain("帧率");
     expect(container.textContent).toContain("逐帧间隔");
     expect(container.textContent).toContain("循环时长");
     expect(container.textContent).toContain("导出工况");
     expect(container.querySelector("select[aria-label='导出工况']")).toBeTruthy();
     expect(container.querySelectorAll(".gif-speed-seg button")).toHaveLength(3);
-    expect(container.textContent).toContain("GIF 来源");
+    expect(container.textContent).toContain("动画来源");
     fireEvent.click(Array.from(container.querySelectorAll(".gif-source-seg button")).find((button) => button.textContent === "演示步骤")!);
     expect(container.textContent).toContain("选择演示");
     expect(container.textContent).toContain("请选择演示案例");

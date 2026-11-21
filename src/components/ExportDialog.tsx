@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { withSymbolProfile } from "../store";
-import { buildExportSVGWithOptions, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, exportGifSequenceWithOptions, prepareExportDiagram, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance, type GifSequenceFrame } from "../export";
+import { buildExportSVGWithOptions, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, exportGifSequenceWithOptions, prepareExportDiagram, animationDimensions, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance, type GifSequenceFrame } from "../export";
 import { activateScenarioStepForExport, activateWorkConditionForExport, setUI, store, updateDiagram, useAppState } from "../store";
 import { availableScenariosForDiagram } from "../scenarios";
 import { useT } from "../i18n";
 import { toast } from "../toast";
 
-type Fmt = "png" | "jpg" | "svg" | "pdf" | "gif";
+type Fmt = "png" | "jpg" | "svg" | "pdf" | "gif" | "mp4";
 
 /**
  * 导出预览对话框（v1.18，对标 Excalidraw ImageExportDialog）：
@@ -18,6 +18,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const { t, lang } = useT();
   const [format, setFormat] = useState<Fmt>(initialFormat);
   const [opts, setOpts] = useState<ExportOptions>({ ...EXPORT_DEFAULTS, format: initialFormat, lang, filename: diagram.name || "fluidpath" });
+  const [previewSize, setPreviewSize] = useState({ w: 0, h: 0 });
   const [progress, setProgress] = useState<number | null>(null);
   const [gifSource, setGifSource] = useState<"condition" | "scenario">("condition");
   const [gifConditionName, setGifConditionName] = useState("");
@@ -409,6 +410,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
           cv.width = bw;
           cv.height = bh;
           previewMetaRef.current = { x, y, w, h, fit, bw, bh };
+          setPreviewSize((current) => current.w === w && current.h === h ? current : { w, h });
           imgRef.current = img;
           catalogRef.current = buildTextCatalog();
           clampView();
@@ -448,7 +450,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     if (!svgRef.current || !fullRenderReady) return;
     const finalOpts: ExportOptions = { ...opts, format, filename: (opts.filename || diagram.name || "fluidpath").trim() };
     try { localStorage.setItem("fluidpath.lastExport", format); } catch { /* ignore */ }
-    if (format === "gif") {
+    if (format === "gif" || format === "mp4") {
       setProgress(0);
       let restorePreview: (() => void) | null = null;
       try {
@@ -467,7 +469,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
           }
           finalOpts.filename = `${finalOpts.filename}-${selectedGifScenario.title}`;
           await exportGifSequenceWithOptions(frames, { ...finalOpts, selectionOnly: false, selection: undefined }, (ratio) => setProgress(ratio));
-          toast(t("GIF 已生成"));
+          toast(`${format.toUpperCase()} ${t("已生成")}`);
         } else {
           let gifDiagram = diagram;
           if (gifConditionName) {
@@ -478,11 +480,17 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
             gifDiagram = store.get().diagram;
             finalOpts.filename = `${finalOpts.filename}-${gifConditionName}`;
           }
-          await exportGifWithOptions(svgRef.current, gifDiagram, { ...finalOpts, selectionOnly: false, selection: undefined }, (r) => setProgress(r), () => restorePreview?.());
-          toast(t("GIF 已生成"));
+          if (format === "mp4") {
+            const frame = { svg: svgRef.current.cloneNode(true) as SVGSVGElement, diagram: structuredClone(gifDiagram), durationMs: 2000 };
+            restorePreview?.(); restorePreview = null;
+            await exportGifSequenceWithOptions([frame], { ...finalOpts, selectionOnly: false, selection: undefined }, (r) => setProgress(r));
+          } else await exportGifWithOptions(svgRef.current, gifDiagram, { ...finalOpts, selectionOnly: false, selection: undefined }, (r) => setProgress(r), () => { restorePreview?.(); restorePreview = null; });
+          toast(`${format.toUpperCase()} ${t("已生成")}`);
         }
       } catch (err) {
-        toast(`${t("GIF 保存失败")}：${(err as Error).message}`, "error");
+        toast(`${format.toUpperCase()} ${t("保存失败")}：${(err as Error).message}`, "error");
+        setProgress(null);
+        return;
       } finally {
         restorePreview?.();
       }
@@ -514,16 +522,19 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const sequenceDuration = selectedGifScenario
     ? selectedGifScenario.steps.reduce((total, _step, index) => total + stepDuration(index), 0) + Math.max(0, selectedGifScenario.steps.length - 1) * opts.gifStepTransitionMs
     : 0;
+  const dimensions = animationDimensions(previewSize.w, previewSize.h, opts.animationMaxSide ?? 1280, format === "mp4");
   const gifControls = (
     <div className="gif-controls">
+      <div className="exp-row"><label>{t("导出预设")}</label><div className="seg"><button className={opts.animationMaxSide === 960 ? "on" : ""} onClick={() => patch({ animationMaxSide: 960, gifFrameDelay: 100 })}>{t("轻量分享")}</button><button className={(opts.animationMaxSide ?? 1280) === 1280 ? "on" : ""} onClick={() => patch({ animationMaxSide: 1280, gifFrameDelay: 66 })}>{t("均衡")}</button><button className={opts.animationMaxSide === 1920 ? "on" : ""} onClick={() => patch({ animationMaxSide: 1920, gifFrameDelay: 40 })}>{t("清晰展示")}</button></div></div>
       <div className="gif-summary" aria-live="polite">
+        <span>{gifSource === "scenario" ? t("当前画面尺寸（步骤可能不同）") : t("输出尺寸")}</span><strong>{previewSize.w ? `${dimensions.width} × ${dimensions.height} px` : "—"}</strong>
         <span>{gifSource === "scenario" ? t("预计总时长") : t("循环时长")}</span>
         <strong>{gifSource === "scenario" ? `${(sequenceDuration / 1000).toFixed(1)} ${t("秒")}` : t("2 秒")}</strong>
         <span>{gifSource === "scenario" ? t("按演示步骤顺序导出") : `${gifFrames} ${t("帧")} · ${gifFps} fps`}</span>
       </div>
       <div className="exp-row gif-source-row">
-        <label>{t("GIF 来源")}</label>
-        <div className="seg gif-source-seg" role="group" aria-label={t("GIF 来源")}>
+        <label>{t("动画来源")}</label>
+        <div className="seg gif-source-seg" role="group" aria-label={t("动画来源")}>
           <button className={gifSource === "condition" ? "on" : ""} onClick={() => setGifSource("condition")}>{t("单一工况")}</button>
           <button className={gifSource === "scenario" ? "on" : ""} onClick={() => setGifSource("scenario")}>{t("演示步骤")}</button>
         </div>
@@ -549,12 +560,12 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
       {gifConditionName && <div className="exp-tip">{t("导出时临时应用该工况；GIF 开始生成后立即恢复当前编辑画面。")}</div>}
       </>}
       <div className="exp-row">
-        <label>{t("播放速度")}</label>
+        <label>{t("帧率")}</label>
         <div className="seg gif-speed-seg">
           {([
-            [100, t("慢")],
-            [66, t("标准")],
-            [40, t("快")],
+            [100, "10 fps"],
+            [66, "15 fps"],
+            [40, "25 fps"],
           ] as Array<[number, string]>).map(([delay, label]) => (
             <button key={delay} className={opts.gifFrameDelay === delay ? "on" : ""} onClick={() => patch({ gifFrameDelay: delay })}>{label}</button>
           ))}
@@ -581,12 +592,12 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
           <span className="exp-val">{opts.gifFrameDelay}ms</span>
         </div>
       </details>
-      <div className="exp-tip">{gifSource === "scenario" ? t("导出微调仅作用于 GIF 副本，不影响主图纸。") : t("GIF 固定为 2 秒无缝循环；速度只改变帧数与导出时间，不修改图纸。")}</div>
+      <div className="exp-tip">{gifSource === "scenario" ? t("导出微调仅作用于动画副本，不影响主图纸。") : t("单工况导出 2 秒循环；帧率影响流畅度与文件大小。")}</div>
     </div>
   );
 
   const fmtBtn = (f: Fmt, label: string) => (
-    <button key={f} className={`exp-fmt${format === f ? " on" : ""}`} onClick={() => setFormat(f)}>{label}</button>
+    <button key={f} className={`exp-fmt${format === f ? " on" : ""}`} onClick={() => { if (f === "mp4" && opts.background === "transparent") patch({ background: "white" }); setFormat(f); }}>{label}</button>
   );
 
   const group = (title: string, children: React.ReactNode, key?: string) => (
@@ -612,7 +623,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
 
   return (
     <div className="export-dialog-overlay" data-ui="1" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`export-dialog${format === "gif" ? " gif-simple" : ""}${gifAdvanced ? " gif-advanced-open" : ""}`}>
+      <div className={`export-dialog${(format === "gif" || format === "mp4") ? " gif-simple" : ""}${gifAdvanced ? " gif-advanced-open" : ""}`}>
         <div className="export-dialog-head">
           <h3>🖼️ {t("导出预览")}</h3>
           <div className="exp-fmt-tabs">
@@ -621,6 +632,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
             {fmtBtn("svg", "SVG")}
             {fmtBtn("pdf", "PDF")}
             {fmtBtn("gif", "GIF")}
+            {fmtBtn("mp4", "MP4")}
           </div>
           <button className="advice-close" onClick={onClose}>✕</button>
         </div>
@@ -678,7 +690,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                 />
               </div>
             )}
-            <div className="exp-preview-meta">{diagram.nodes.length} {t("节点")} · {diagram.pipes.length} {t("管路")}{opts.scale > 1 ? ` · ${opts.scale}x` : ""}</div>
+            <div className="exp-preview-meta">{diagram.nodes.length} {t("节点")} · {diagram.pipes.length} {t("管路")}{format !== "gif" && format !== "mp4" && opts.scale > 1 ? ` · ${opts.scale}x` : ""}</div>
           </div>
           <div className="exp-options">
             {group(t("画布"), (
@@ -688,10 +700,10 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                   <select value={opts.background} onChange={(e) => patch({ background: e.target.value as ExportOptions["background"] })}>
                     <option value="white">{t("纯白")}</option>
                     <option value="canvas">{t("画布背景色")}</option>
-                    <option value="transparent" disabled={format === "jpg"}>{t("透明")}{format === "jpg" ? `（${t("JPG 不支持")}）` : ""}</option>
+                    <option value="transparent" disabled={format === "jpg" || format === "mp4"}>{t("透明")}{(format === "jpg" || format === "mp4") ? `（${t("不支持透明背景")}）` : ""}</option>
                   </select>
                 </div>
-                {format !== "svg" && format !== "pdf" && (
+                {format !== "svg" && format !== "pdf" && format !== "gif" && format !== "mp4" && (
                   <div className="exp-row">
                     <label>{t("缩放倍率")}</label>
                     <div className="seg">
@@ -720,8 +732,8 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                 </div>
               </>
             ), "canvas")}
-            {format === "gif" && <>
-              {group("GIF", gifControls, "gif")}
+            {(format === "gif" || format === "mp4") && <>
+              {group(format.toUpperCase(), gifControls, "gif")}
               <button className="btn ghost gif-advanced-toggle" onClick={() => setGifAdvanced((open) => !open)}>{gifAdvanced ? t("收起高级导出设置") : t("高级外观、文字与输出")}</button>
             </>}
             {group(t("文字与状态"), (
@@ -822,7 +834,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                   <label>{t("文件名")}</label>
                   <input value={opts.filename} onChange={(e) => patch({ filename: e.target.value })} />
                 </div>
-                {format !== "gif" && (
+                {format !== "gif" && format !== "mp4" && (
                   <div className="exp-row">
                     <label>{t("仅导出选中")}</label>
                     <input type="checkbox" checked={opts.selectionOnly && hasSelection} disabled={!hasSelection} onChange={(e) => patch({ selectionOnly: e.target.checked })} />

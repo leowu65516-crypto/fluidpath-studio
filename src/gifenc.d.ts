@@ -8,6 +8,7 @@ declare module "gifenc" {
         palette?: number[][];
         delay?: number;
         transparent?: boolean;
+        transparentIndex?: number;
         dispose?: number;
         repeat?: number;
         first?: boolean;

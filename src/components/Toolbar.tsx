@@ -134,6 +134,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       case "svg": exportSVG(svgRef.current, diagram); break;
       case "pdf": exportPDF(svgRef.current, diagram, undefined); break;
       case "gif": onExportGIF(); break;
+      case "mp4": setExportDialogFmt("mp4"); break;
       case "json": void saveToLocal(); break;
       case "engineering-json": exportEngineeringJSON(diagram); break;
     }
@@ -150,6 +151,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       case "svg":
       case "pdf":
       case "gif":
+      case "mp4":
         // 图像导出进入预览对话框（所见即所得）；Ctrl+E 快速导出走 quickExport
         setExportOpen(false);
         setExportDialogFmt(format);
@@ -530,6 +532,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
             <hr />
             <button className="export-item" onClick={() => doExport("pdf")}><span className="export-badge">📄</span> {t("PDF 文档")}<small>{t("预览 · 可调背景与留白")}</small></button>
             <button className="export-item" onClick={() => doExport("gif")} disabled={gifProgress !== null}><span className="export-badge">🎞️</span> GIF {t("动图")}<small>{gifProgress !== null ? `${t("生成中")} ${Math.round(gifProgress * 100)}%…` : t("预览 · 可调尺寸与速度")}</small></button>
+            <button className="export-item" onClick={() => doExport("mp4")}><span className="export-badge">▶</span> MP4 {t("视频")}<small>{t("适合长演示和分享")}</small></button>
             <button className="export-item" onClick={() => doExport("jpg")}><span className="export-badge">🖼️</span> {t("JPG 图片")}<small>{t("高压缩 · 用于文档")}</small></button>
             <hr />
             <button className="export-item" onClick={() => doExport("png")}><span className="export-badge">🖼️</span> {t("PNG 图片")}<small>{t("预览 · 可调字号与图例")}</small></button>
@@ -547,7 +550,7 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       {exportDialogFmt && (
         <ExportDialog
           svgRef={svgRef}
-          initialFormat={exportDialogFmt as "png" | "jpg" | "svg" | "pdf" | "gif"}
+          initialFormat={exportDialogFmt as "png" | "jpg" | "svg" | "pdf" | "gif" | "mp4"}
           onClose={() => setExportDialogFmt(null)}
         />
       )}

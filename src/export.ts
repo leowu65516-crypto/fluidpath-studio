@@ -1,4 +1,5 @@
 import { GIFEncoder, applyPalette, quantize } from "gifenc";
+import { Output, Mp4OutputFormat, BufferTarget, CanvasSource, canEncodeVideo, Quality } from "mediabunny";
 import type { Diagram, DiagramNode } from "./types";
 import { createNode } from "./symbols";
 import { buildLegendNodes } from "./legend";
@@ -139,7 +140,7 @@ export interface ExportTextEnhance {
 export interface ExportOptions {
   /** Static diagnostic overlays are opt-in and never modify fluid colors. */
   includeDiagnostics?: boolean;
-  format: "png" | "jpg" | "svg" | "pdf" | "gif";
+  format: "png" | "jpg" | "svg" | "pdf" | "gif" | "mp4";
   /** 背景：white=纯白 / canvas=画布背景色 / transparent=透明（jpg 不支持） */
   background: "white" | "canvas" | "transparent";
   /** 像素倍率 1/2/3 */
@@ -179,6 +180,8 @@ export interface ExportOptions {
   gifFrameDelay: number;
   /** GIF 演示步骤间的交叉切换时长 ms；0 表示直接切换。 */
   gifStepTransitionMs: number;
+  /** Longest animation side, independently of still-image scale. */
+  animationMaxSide?: number;
   lang: "zh" | "en";
 }
 
@@ -199,8 +202,23 @@ export const EXPORT_DEFAULTS: Omit<ExportOptions, "format" | "lang"> = {
   symbolProfile: "follow",
   gifFrameDelay: 66,
   gifStepTransitionMs: 320,
+  animationMaxSide: 1280,
   textLayerSizes: {},
 };
+
+/** Bound animation pixels regardless of the size of the source diagram. */
+export function animationDimensions(w: number, h: number, maxSide: number, even = false): { width: number; height: number } {
+  const factor = Math.min(1, maxSide / Math.max(w, h, 1));
+  const round = (n: number) => even ? Math.max(2, Math.round(n / 2) * 2) : Math.max(1, Math.round(n));
+  return { width: round(w * factor), height: round(h * factor) };
+}
+
+/** Transparent pixels on later opaque frames preserve unchanged pixels from the preceding frame. */
+export function gifChangedPixels(current: Uint8Array, previous: Uint8Array, transparentIndex: number): Uint8Array {
+  const diff = current.slice();
+  for (let i = 0; i < diff.length; i++) if (current[i] === previous[i]) diff[i] = transparentIndex;
+  return diff;
+}
 
 /** 导出主题色板（与 styles.css 的 :root / body[data-theme="dark"] 保持一致） */
 const THEME_VARS: Record<"light" | "dark", Record<string, string>> = {
@@ -786,9 +804,7 @@ export async function exportGifWithOptions(
   const pad = Math.max(0, opts.padding || 0);
   const w = Math.round(bbox.w + pad * 2);
   const h = Math.round(bbox.h + pad * 2);
-  const outScale = Math.min(2, Math.max(0.4, opts.scale));
-  const outW = Math.round(w * outScale);
-  const outH = Math.round(h * outScale);
+  const { width: outW, height: outH } = animationDimensions(w, h, opts.animationMaxSide ?? 1280);
   const transparent = opts.background === "transparent";
 
   const { clone } = (() => {
@@ -845,6 +861,7 @@ export async function exportGifWithOptions(
 
   const gif = GIFEncoder();
   let palette: number[][] | null = null;
+  let previousFrame: Uint8Array | undefined;
 
   for (let i = 0; i < FRAMES; i++) {
     const t = i / FRAMES;
@@ -867,9 +884,11 @@ export async function exportGifWithOptions(
     }
     ctx.drawImage(img, 0, 0, outW, outH);
     const { data } = ctx.getImageData(0, 0, outW, outH);
-    if (!palette) palette = quantize(data, 256);
+    if (!palette) { palette = quantize(data, transparent ? 256 : 255); if (!transparent) { while (palette.length < 255) palette.push([0, 0, 0]); palette.push([0, 0, 0]); } }
     const index = applyPalette(data, palette);
-    gif.writeFrame(index, outW, outH, { palette: palette ?? undefined, delay, repeat: 0 });
+    const diff = !transparent && previousFrame ? gifChangedPixels(index, previousFrame, 255) : index;
+    gif.writeFrame(diff, outW, outH, { palette: i === 0 ? palette : undefined, delay, repeat: 0, transparent: !!previousFrame && !transparent, transparentIndex: 255, dispose: 1 });
+    previousFrame = index;
     onProgress?.((i + 1) / FRAMES);
     await new Promise((r) => setTimeout(r, 0));
   }
@@ -906,10 +925,8 @@ export async function exportGifSequenceWithOptions(
   const bottom = Math.max(...sources.map((source) => source.bbox.y + source.bbox.h));
   const pad = Math.max(0, opts.padding || 0);
   const view = { x: left - pad, y: top - pad, w: Math.round(right - left + pad * 2), h: Math.round(bottom - top + pad * 2) };
-  const outScale = Math.min(2, Math.max(0.4, opts.scale));
-  const outW = Math.round(view.w * outScale);
-  const outH = Math.round(view.h * outScale);
-  const transparent = opts.background === "transparent";
+  const { width: outW, height: outH } = animationDimensions(view.w, view.h, opts.animationMaxSide ?? 1280, opts.format === "mp4");
+  const transparent = opts.background === "transparent" && opts.format !== "mp4";
   const delay = Math.max(20, Math.round(opts.gifFrameDelay || 66));
 
   type PreparedScene = {
@@ -974,7 +991,18 @@ export async function exportGifSequenceWithOptions(
   let written = 0;
   const gif = GIFEncoder();
   let palette: number[][] | null = null;
-  const write = (images: Array<{ image: CanvasImageSource; alpha: number }>) => {
+  let previousFrame: Uint8Array | undefined;
+  let video: { add: (timestamp: number, duration: number) => Promise<void>; finish: () => Promise<Blob> } | undefined;
+  if (opts.format === "mp4") {
+    if (!(await canEncodeVideo("avc", { width: outW, height: outH, frameRate: 1000 / delay }))) throw new Error(opts.lang === "en" ? "MP4 (H.264) encoding is not supported on this device. Try another browser or export GIF." : "当前设备不支持 MP4（H.264）编码，请换用其他浏览器或导出 GIF。");
+    const target = new BufferTarget();
+    const output = new Output({ format: new Mp4OutputFormat(), target });
+    const source = new CanvasSource(ctx.canvas, { codec: "avc", bitrate: new Quality("medium") });
+    output.addVideoTrack(source);
+    await output.start();
+    video = { add: (timestamp, duration) => source.add(timestamp, duration), finish: async () => { await output.finalize(); if (!target.buffer) throw new Error("MP4 encoding produced no data"); return new Blob([target.buffer], { type: "video/mp4" }); } };
+  }
+  const write = async (images: Array<{ image: CanvasImageSource; alpha: number }>) => {
     if (transparent) ctx.clearRect(0, 0, outW, outH);
     else {
       ctx.globalAlpha = 1;
@@ -986,9 +1014,15 @@ export async function exportGifSequenceWithOptions(
       ctx.drawImage(image, 0, 0, outW, outH);
     }
     ctx.globalAlpha = 1;
-    const { data } = ctx.getImageData(0, 0, outW, outH);
-    if (!palette) palette = quantize(data, 256);
-    gif.writeFrame(applyPalette(data, palette), outW, outH, { palette: palette ?? undefined, delay, repeat: 0 });
+    if (video) await video.add(written * delay / 1000, delay / 1000);
+    else {
+      const { data } = ctx.getImageData(0, 0, outW, outH);
+      if (!palette) { palette = quantize(data, transparent ? 256 : 255); if (!transparent) { while (palette.length < 255) palette.push([0, 0, 0]); palette.push([0, 0, 0]); } }
+      const index = applyPalette(data, palette);
+      const diff = !transparent && previousFrame ? gifChangedPixels(index, previousFrame, 255) : index;
+      gif.writeFrame(diff, outW, outH, { palette: written === 0 ? palette : undefined, delay, repeat: 0, transparent: !!previousFrame && !transparent, transparentIndex: 255, dispose: 1 });
+      previousFrame = index;
+    }
     written += 1;
     onProgress?.(written / totalFrames);
   };
@@ -996,7 +1030,7 @@ export async function exportGifSequenceWithOptions(
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
     for (let frame = 0; frame < holds[i]; frame++) {
-      write([{ image: await render(scene, frame / holds[i]), alpha: 1 }]);
+      await write([{ image: await render(scene, frame / holds[i]), alpha: 1 }]);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
     if (i < scenes.length - 1 && transitionFrames > 0) {
@@ -1004,11 +1038,12 @@ export async function exportGifSequenceWithOptions(
       const to = await render(scenes[i + 1], 0);
       for (let frame = 1; frame <= transitionFrames; frame++) {
         const mix = frame / (transitionFrames + 1);
-        write([{ image: from, alpha: 1 - mix }, { image: to, alpha: mix }]);
+        await write([{ image: from, alpha: 1 - mix }, { image: to, alpha: mix }]);
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
   }
+  if (video) { download(`${opts.filename || frames[0].diagram.name || "fluidpath"}.mp4`, await video.finish()); return; }
   gif.finish();
   const bytes = gif.bytes();
   download(`${opts.filename || frames[0].diagram.name || "fluidpath"}.gif`, new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/gif" }));

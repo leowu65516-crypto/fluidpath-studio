@@ -237,7 +237,7 @@ function CenterText({ node, w, h }: { node: DiagramNode; w: number; h: number })
 }
 
 /** 各设备的 2D 工业符号（在 0..w × 0..h 局部坐标系内绘制） */
-export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoom = 1 }: { node: DiagramNode; profile?: SymbolProfile; surface?: SymbolSurface; zoom?: number }) {
+export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoom = 1, showState = true }: { node: DiagramNode; profile?: SymbolProfile; surface?: SymbolSurface; zoom?: number; showState?: boolean }) {
   // zoom 只服务工程符号的线宽/字号补偿：小缩放下线条会被缩成灰雾，必须把线宽换算成屏幕像素。
   if (resolveSymbolProfile(profile) === "engineering") return <EngineeringNodeSymbol node={node} surface={surface} zoom={zoom} />;
   const { width: w, height: h, fill, stroke } = node;
@@ -338,7 +338,7 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
             <circle cx={cx} cy={cy} r={r * 0.16} fill={stroke} stroke="none" />
           </g>
           {/* 状态指示：泵体正上方 */}
-          <circle className="fp-state-badge" cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
+          {showState && <circle className="fp-state-badge" cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />}
         </g>
       );
     }
@@ -374,7 +374,7 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
           <circle cx={cx} cy={cy} r={r * 0.2} fill={stroke} stroke="none" />
           <circle cx={cx} cy={cy} r={r * 0.07} fill="#ffffff" stroke="none" />
           {/* 状态指示：泵体正上方 */}
-          <circle className="fp-state-badge" cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
+          {showState && <circle className="fp-state-badge" cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />}
         </g>
       );
     }
@@ -409,7 +409,7 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
             d={`M ${cx} ${(cy - r * 0.16).toFixed(1)} C ${(cx + r * 0.11).toFixed(1)} ${(cy - r * 0.02).toFixed(1)} ${(cx + r * 0.11).toFixed(1)} ${(cy + r * 0.1).toFixed(1)} ${cx} ${(cy + r * 0.1).toFixed(1)} C ${(cx - r * 0.11).toFixed(1)} ${(cy + r * 0.1).toFixed(1)} ${(cx - r * 0.11).toFixed(1)} ${(cy - r * 0.02).toFixed(1)} ${cx} ${(cy - r * 0.16).toFixed(1)} Z`}
             fill="#e8b84b" stroke={stroke} strokeWidth={1}
           />
-          <circle className="fp-state-badge" cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />
+          {showState && <circle className="fp-state-badge" cx={cx} cy={cy - r - 2} r={4.5} fill={running ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.5} />}
         </g>
       );
     }
@@ -458,8 +458,8 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
           <line x1={w / 2} y1={cy} x2={w / 2} y2={h * 0.3} stroke={stroke} strokeWidth={sw} />
           <Coil x={w / 2 - 15} y={2} w={30} h={h * 0.3 - 2} stroke={stroke} />
           {/* 开/关状态指示 */}
-          <circle cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />
-          <text className="fp-state-badge" x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600} style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={2.5}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>
+          {showState && <circle className="fp-state-badge" cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />}
+          {showState && <text className="fp-state-badge" x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600} style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={2.5}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>}
         </g>
       );
     }
@@ -473,8 +473,8 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
           <path d={`M ${w / 2 - 18} ${cy - 5} Q ${w / 2} ${cy - 13} ${w / 2 + 18} ${cy - 5}`} fill="none" stroke={stroke} strokeWidth={2} />
           <path d={`M ${w / 2} ${cy - 4} V ${h * 0.3}`} stroke={stroke} strokeWidth={sw} />
           <rect x={w / 2 - 15} y={2} width={30} height={h * 0.26} rx={5} fill="#eaf1f8" stroke={stroke} strokeWidth={1.5} />
-          <circle cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />
-          <text x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>
+          {showState && <circle className="fp-state-badge" cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />}
+          {showState && <text className="fp-state-badge" x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>}
         </g>
       );
     }
@@ -492,8 +492,8 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
           <Coil x={w / 2 - 14} y={2} w={28} h={h * 0.26 - 2} stroke={stroke} />
           {/* 导通路径高亮 + 状态指示 */}
           {node.valveCommonPortId ? (() => { const route = diaphragmValveRoute(node, path); if (!route.commonPort || !route.activeBranch) return null; const a = portLocalPos(node, route.commonPort), b = portLocalPos(node, route.activeBranch); return <path d={`M ${a.x} ${a.y} L ${w / 2} ${cy} L ${b.x} ${b.y}`} fill="none" stroke={color} strokeWidth={3} />; })() : <>{path === "A" && <path d={`M ${w - 2} ${cy - 13} L ${w / 2} ${cy} L ${w - 2} ${cy + 13} Z`} fill="none" stroke={color} strokeWidth={3} opacity={0.5} strokeLinejoin="round" />}{path === "B" && <path d={`M ${w / 2 - 13} ${h - 2} L ${w / 2} ${cy} L ${w / 2 + 13} ${h - 2} Z`} fill="none" stroke={color} strokeWidth={3} opacity={0.5} strokeLinejoin="round" />}</>}
-          <circle cx={w - 8} cy={7} r={4} fill={color} stroke="#fff" strokeWidth={1.2} />
-          <text x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={color} fontFamily="system-ui, sans-serif" fontWeight={600}>{label}</text>
+          {showState && <circle className="fp-state-badge" cx={w - 8} cy={7} r={4} fill={color} stroke="#fff" strokeWidth={1.2} />}
+          {showState && <text className="fp-state-badge" x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={color} fontFamily="system-ui, sans-serif" fontWeight={600}>{label}</text>}
         </g>
       );
     }
@@ -519,8 +519,8 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
             const dy = point.y < center.y - 4 ? 11 : point.y > center.y + 4 ? -8 : -8;
             return <text key={port.id} x={point.x + dx} y={point.y + dy} textAnchor={dx > 0 ? "start" : dx < 0 ? "end" : "middle"} fontSize={9} fill={route.commonPort?.id === port.id ? color : stroke} fontFamily="system-ui, sans-serif" fontWeight={700}>{diaphragmPortLabel(node, port)}</text>;
           })}
-          <circle cx={w - 8} cy={7} r={4} fill={color} stroke="#fff" strokeWidth={1.2} />
-          <text x={w - 8} y={20} textAnchor="middle" fontSize={8} fill={color} fontFamily="system-ui, sans-serif" fontWeight={700}>{path === "A" ? "I" : "II"}</text>
+          {showState && <circle className="fp-state-badge" cx={w - 8} cy={7} r={4} fill={color} stroke="#fff" strokeWidth={1.2} />}
+          {showState && <text className="fp-state-badge" x={w - 8} y={20} textAnchor="middle" fontSize={8} fill={color} fontFamily="system-ui, sans-serif" fontWeight={700}>{path === "A" ? "I" : "II"}</text>}
           <title>{diaphragmRouteLabel(node, path)}</title>
         </g>
       );
@@ -538,8 +538,8 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
           {/* 脉冲标识：闪电 + 气流点 */}
           <path d={`M ${w / 2 + 3} ${h * 0.14} L ${w / 2 - 5} ${h * 0.2} L ${w / 2 + 0} ${h * 0.2} L ${w / 2 - 6} ${h * 0.28} L ${w / 2 + 6} ${h * 0.28}`} fill="none" stroke="#2f7fd6" strokeWidth={1.5} strokeLinejoin="round" />
           {/* 开/关状态指示 */}
-          <circle cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />
-          <text className="fp-state-badge" x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600} style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={2.5}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>
+          {showState && <circle className="fp-state-badge" cx={w - 8} cy={7} r={4} fill={open ? "#3fae6a" : "#d9534f"} stroke="#fff" strokeWidth={1.2} />}
+          {showState && <text className="fp-state-badge" x={w - 8} y={20} textAnchor="middle" fontSize={9} fill={open ? "#3fae6a" : "#d9534f"} fontFamily="system-ui, sans-serif" fontWeight={600} style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={2.5}>{open ? (symLang() === "en" ? "ON" : "开") : (symLang() === "en" ? "OFF" : "关")}</text>}
         </g>
       );
     }

@@ -1,7 +1,10 @@
 import { GIFEncoder, applyPalette, quantize } from "gifenc";
 import { Output, Mp4OutputFormat, BufferTarget, CanvasSource, canEncodeVideo, Quality } from "mediabunny";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { Diagram, DiagramNode } from "./types";
-import { createNode } from "./symbols";
+import { createNode, NodeSymbol } from "./symbols";
+import { plateRect } from "./labelPlate";
 import { buildLegendNodes } from "./legend";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { toast } from "./toast";
@@ -263,6 +266,18 @@ function preserveExportText(clone: SVGSVGElement) {
     .forEach((el) => el.removeAttribute("data-ui"));
 }
 
+/** Render a selected symbol style in the export clone without changing the working diagram. */
+function applyExportSymbolProfile(clone: SVGSVGElement, diagram: Diagram, opts: ExportOptions) {
+  if (opts.symbolProfile === "follow") return;
+  for (const node of diagram.nodes) {
+    const host = [...clone.querySelectorAll("[data-node-id]")].find((el) => el.getAttribute("data-node-id") === node.id && el.querySelector('[data-node-symbol="1"]'));
+    const symbol = host?.querySelector('[data-node-symbol="1"]');
+    if (!symbol) continue;
+    const showState = node.showStateOnDiagram !== false && ((node.type === "solenoid3" || node.type === "diaphragmValve3") ? diagram.settings.showValvePathBadge !== false : diagram.settings.showSwitchState !== false);
+    symbol.innerHTML = renderToStaticMarkup(createElement(NodeSymbol, { node, profile: opts.symbolProfile, surface: "canvas", zoom: 1, showState }));
+  }
+}
+
 /** 文字/徽标 SVG DOM 后处理（v1.30：分类放大 + 描边/底板 + 拖拽偏移 + 逐条改字） */
 function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
   const text = opts.text ?? { scales: {}, halo: true, plates: false, offsets: {}, overrides: {}, sizes: {} };
@@ -320,30 +335,36 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
         const fs = Number(el.getAttribute("font-size") || 0);
         if (fs > 0) el.setAttribute("font-size", String(round1(fs * scale)));
       }
+      const existingPlate = el.previousElementSibling?.classList.contains("fp-node-label-plate") ? el.previousElementSibling : null;
+      if (existingPlate && !(el.textContent || "").trim()) existingPlate.remove();
+      else if (existingPlate && text.plates) existingPlate.remove();
+      else if (existingPlate) {
+        const box = plateRect(el.textContent || "", Number(el.getAttribute("font-size") || 12), Number(el.getAttribute("x") || 0), Number(el.getAttribute("y") || 0));
+        for (const [name, value] of Object.entries(box)) existingPlate.setAttribute(name, String(value));
+      }
       if (enhanced) {
         if (text.halo) {
           el.setAttribute("stroke", "#ffffff");
           el.setAttribute("stroke-width", "3");
           el.setAttribute("style", "paint-order: stroke");
         }
-        if (text.plates) {
+      }
+      if (text.plates && (el.textContent || "").trim() && !el.closest(".fp-state-badge")) {
           // 文字后插半透明白底（近似包围盒；不依赖 getBBox，jsdom/导出环境安全）
           const x = Number(el.getAttribute("x") || 0);
           const y = Number(el.getAttribute("y") || 0);
           const fs2 = Number(el.getAttribute("font-size") || 12);
-          const len = (el.textContent || "").length;
-          const w = len * fs2 * 0.62 + 10;
-          const h = fs2 * 1.45 + 6;
+          const box = plateRect(el.textContent || "", fs2, x, y);
           const rect = el.ownerDocument.createElementNS(NS, "rect");
-          rect.setAttribute("x", String(Math.round(x - w / 2)));
-          rect.setAttribute("y", String(Math.round(y - fs2 * 0.95 - h / 2 + fs2 / 2)));
-          rect.setAttribute("width", String(Math.round(w)));
-          rect.setAttribute("height", String(Math.round(h)));
+          rect.setAttribute("x", String(box.x));
+          rect.setAttribute("y", String(box.y));
+          rect.setAttribute("width", String(box.width));
+          rect.setAttribute("height", String(box.height));
+          rect.setAttribute("class", "fp-export-text-plate");
           rect.setAttribute("rx", "4");
           rect.setAttribute("fill", "#ffffff");
           rect.setAttribute("fill-opacity", "0.72");
           if (el.parentNode) el.parentNode.insertBefore(rect, el);
-        }
       }
       // 拖拽偏移（徽标分段不单独偏移，由整组 node:xx:badge 处理）
       const isBadgeSeg = el.closest(".fp-state-badge") !== null;
@@ -354,6 +375,8 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
           const baseY = Number(el.getAttribute("y") || 0);
           el.setAttribute("x", String(round1(baseX + off.x)));
           el.setAttribute("y", String(round1(baseY + off.y)));
+          const plate = el.previousElementSibling;
+          if (plate && (plate.classList.contains("fp-export-text-plate") || plate.classList.contains("fp-node-label-plate"))) plate.setAttribute("transform", `translate(${round1(off.x)} ${round1(off.y)})`);
         }
       }
     });
@@ -728,6 +751,7 @@ export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram
   const w = bbox.w + pad * 2;
   const h = bbox.h + pad * 2;
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
+  applyExportSymbolProfile(clone, diagram, opts);
   prepareDiagnosticExport(clone, opts);
   preserveExportText(clone);
   clone.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
@@ -805,6 +829,7 @@ export function prepareAnimationScene(svgEl: SVGSVGElement, diagram: Diagram, op
   const h = Math.round(bbox.h + pad * 2);
   const transparent = opts.background === "transparent";
   const c = svgEl.cloneNode(true) as SVGSVGElement;
+  applyExportSymbolProfile(c, diagram, opts);
   prepareDiagnosticExport(c, opts);
   preserveExportText(c);
   c.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
@@ -996,6 +1021,7 @@ export async function exportGifSequenceWithOptions(
   };
   const scenes: PreparedScene[] = sources.map((source) => {
     const clone = source.svg.cloneNode(true) as SVGSVGElement;
+    applyExportSymbolProfile(clone, source.diagram, opts);
     prepareDiagnosticExport(clone, opts);
     preserveExportText(clone);
     clone.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());

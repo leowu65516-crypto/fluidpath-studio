@@ -1163,7 +1163,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
                 <path d="M -1.2 -1.4 h 3.4 v 4 h -3.4 z M 3.8 0.6 h 3.4 v 4 h -3.4 z" fill="#ffffff" opacity={0.95} />
               </g>
             )}
-            <NodeSymbol node={node} profile={symbolProfileForCanvas} zoom={ui.zoom} />
+            <g data-node-symbol="1"><NodeSymbol node={node} profile={symbolProfileForCanvas} zoom={ui.zoom} showState={node.type === "solenoid3" || node.type === "diaphragmValve3" ? showPathBadge : showSwitchBadge} /></g>
             {(node.type === "coffeeOutlet" || node.type === "milkOutlet" || node.type === "hotWaterOutlet" || node.type === "groupHead") && node.dispensing !== false && diagram.settings.globalAnimationPlaying && (
               <g pointerEvents="none">
                 {spoutTips(node).map((tip, i) => {
@@ -1295,6 +1295,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
           const ly = node.y + node.height + 18 + (node.labelOffset?.y ?? 0);
           const fontSize = node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13;
           const labelText = nodeCanvasLabel(node, lang);
+          if (!labelText.trim()) return null;
           const plate = resolveLabelPlate(node, diagram.settings);
           const plateBox = plate ? plateRect(labelText, fontSize, lx, ly) : null;
           return (

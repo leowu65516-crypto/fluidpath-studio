@@ -47,6 +47,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const viewRef = useRef({ z: 1, panX: 0, panY: 0 });
   const [zoomPct, setZoomPct] = useState(100);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const staticImgRef = useRef<HTMLImageElement | null>(null);
   const catalogRef = useRef<TextItem[]>([]);
   const hoverRef = useRef<TextItem | null>(null);
   const activeRef = useRef<TextItem | null>(null);
@@ -428,7 +429,8 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
           cv.height = bh;
           previewMetaRef.current = { x, y, w, h, fit, bw, bh };
           setPreviewSize((current) => current.w === w && current.h === h ? current : { w, h });
-          imgRef.current = img;
+          staticImgRef.current = img;
+          if (!(format === "gif" || format === "mp4") || !liveAnim || !animRef.current) imgRef.current = img;
           catalogRef.current = buildTextCatalog();
           clampView();
           drawPreview();
@@ -439,7 +441,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
       } catch { /* 预览失败静默（导出时会报错） */ }
     }, immediate ? 16 : 120);
     return () => clearTimeout(timer);
-  }, [opts, diagram, svgRef, fullRenderReady]);
+  }, [opts, diagram, svgRef, fullRenderReady, format, liveAnim]);
 
   // ===== GIF/MP4 实时动画预览：预渲染循环帧（与导出同一套算法），预览中以低帧率循环播放 =====
   const isAnim = format === "gif" || format === "mp4";
@@ -450,7 +452,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     if (cur) for (const url of cur.urls) { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }
   };
   useEffect(() => {
-    if (!fullRenderReady || !isAnim || !liveAnim) { releaseAnim(); return; }
+    if (!fullRenderReady || !isAnim || !liveAnim) { releaseAnim(); if (staticImgRef.current) { imgRef.current = staticImgRef.current; scheduleDraw(); } return; }
     const svgEl = svgRef.current;
     if (!svgEl) return;
     const id = ++animReqRef.current;
@@ -685,6 +687,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
         </div>
       </details>
       <div className="exp-tip">{gifSource === "scenario" ? t("导出微调仅作用于动画副本，不影响主图纸。") : t("单工况导出 2 秒循环；帧率影响流畅度与文件大小。")}</div>
+      {(gifSource === "scenario" || gifConditionName) && <div className="exp-tip">{t("预览显示当前画面；所选工况或演示步骤在生成文件时应用。")}</div>}
     </div>
   );
 

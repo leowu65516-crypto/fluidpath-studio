@@ -1077,11 +1077,8 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   />
                 </Row>
               </>}
-              <Row label={t("开/关状态徽标")}>
-                <input type="checkbox" title={t("阀位开/关与泵运行状态；关闭后画布与导出都不显示")} checked={diagram.settings.showSwitchState !== false} onChange={(e) => updateDiagram((d) => { d.settings.showSwitchState = e.target.checked; }, false)} />
-              </Row>
-              <Row label={t("A/B 通路徽标")}>
-                <input type="checkbox" title={t("三通阀与隔膜切换阀的通路字母；关闭后只隐藏字母标记，不影响阀位")} checked={diagram.settings.showValvePathBadge !== false} onChange={(e) => updateDiagram((d) => { d.settings.showValvePathBadge = e.target.checked; }, false)} />
+              <Row label={t("状态徽标（开关 / A/B）")}>
+                <input type="checkbox" title={t("统一显示或隐藏泵阀状态与三通路径徽标，不改变工程状态")} checked={diagram.settings.showSwitchState !== false && diagram.settings.showValvePathBadge !== false} onChange={(e) => updateDiagram((d) => { d.settings.showSwitchState = e.target.checked; d.settings.showValvePathBadge = e.target.checked; }, false)} />
               </Row>
               {diagram.nodes.some((n) => n.labelOffset) && (
                 <button className="btn ghost wide" onClick={() => updateDiagram((d) => { for (const n of d.nodes) delete n.labelOffset; }, true)}>{t("重置全部文字位置")}</button>

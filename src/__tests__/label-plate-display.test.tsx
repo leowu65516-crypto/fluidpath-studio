@@ -3,7 +3,7 @@ import { cleanup, render } from "@testing-library/react";
 import { LangProvider } from "../i18n";
 import { CanvasView } from "../components/CanvasView";
 import { createNode } from "../symbols";
-import { buildAnimationFrameSVGs, EXPORT_DEFAULTS } from "../export";
+import { buildAnimationFrameSVGs, buildExportSVGWithOptions, EXPORT_DEFAULTS } from "../export";
 import {
   DEFAULT_PLATE_OPACITY,
   estimateTextWidth,
@@ -121,6 +121,28 @@ describe("画布显示开关：开/关徽标 与 A/B 通路徽标", () => {
     const container = renderCanvas();
     expect(container.querySelectorAll(".fp-node-label-plate").length).toBe(1);
     expect(store.get().diagram.nodes.find((n) => n.id === twoWay.id)).toBeTruthy();
+  });
+
+  it("空名称不生成底板，关闭状态时包括符号内部状态", () => {
+    const pulse = createNode("pulseAirValve", 500, 40, " ");
+    const current = store.get().diagram;
+    loadDiagram({ ...current, nodes: [...current.nodes, pulse], settings: { ...current.settings, nodeLabelBackground: "#ffffff", showSwitchState: false, showValvePathBadge: false } });
+    fitToScreen(1200, 800);
+    const container = renderCanvas();
+    expect(container.querySelectorAll(".fp-state-badge")).toHaveLength(0);
+    expect(container.querySelectorAll(".fp-node-label-plate")).toHaveLength(2);
+  });
+
+  it("导出预览在不放大时也添加底板，并即时切换工程符号", () => {
+    const ref = { current: null } as React.MutableRefObject<SVGSVGElement | null>;
+    render(<LangProvider><CanvasView svgRefOut={ref} /></LangProvider>);
+    const opts = { ...EXPORT_DEFAULTS, format: "gif" as const, lang: "zh" as const, symbolProfile: "engineering" as const, text: { scales: {}, halo: true, plates: true, offsets: {}, overrides: {}, sizes: {} } };
+    const staticSvg = buildExportSVGWithOptions(ref.current!, store.get().diagram, opts).svg;
+    const animatedSvg = buildAnimationFrameSVGs(ref.current!, store.get().diagram, opts).svgs[0];
+    for (const svg of [staticSvg, animatedSvg]) {
+      expect(svg).toContain("fp-export-text-plate");
+      expect(svg).toContain('data-symbol-feature="solenoid-coil"');
+    }
   });
 });
 

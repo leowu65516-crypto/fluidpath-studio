@@ -113,7 +113,7 @@ export function plateRect(text: string, fontSize: number, lx: number, ly: number
     x: lx - width / 2,
     y: ly - fontSize * PLATE_TOP_RATIO,
     width,
-    height: fontSize * (PLATE_TOP_RATIO + PLATE_BOTTOM_RATIO),
+    height: fontSize * (PLATE_TOP_RATIO + PLATE_BOTTOM_RATIO + Math.max(0, text.split("\n").length - 1) * 1.25),
   };
 }
 

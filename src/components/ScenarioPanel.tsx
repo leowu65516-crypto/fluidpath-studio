@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PromptDialog } from "./PromptDialog";
 import { availableScenariosForDiagram, getScenario } from "../scenarios";
 import {
@@ -34,6 +34,26 @@ export function ScenarioPanel({ onClose, inspectorVisible = false, onShowInspect
   const [draftTitle, setDraftTitle] = useState("");
   const [draftSteps, setDraftSteps] = useState<CustomScenarioStepInput[]>([]);
   const [collapsed, setCollapsed] = useState(false);
+  const [panelPosition, setPanelPosition] = useState<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const panelStyle = panelPosition ? { left: panelPosition.x, top: panelPosition.y, right: "auto" } : undefined;
+  const dragHeader = {
+    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 || (event.target as HTMLElement).closest("button, input, select")) return;
+      const panel = event.currentTarget.parentElement;
+      if (!panel) return;
+      const bounds = panel.getBoundingClientRect();
+      drag.current = { x: event.clientX, y: event.clientY, left: bounds.left, top: bounds.top };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!drag.current) return;
+      const width = event.currentTarget.parentElement?.getBoundingClientRect().width ?? 320;
+      setPanelPosition({ x: Math.max(48 - width, Math.min(window.innerWidth - 48, drag.current.left + event.clientX - drag.current.x)), y: Math.max(0, Math.min(window.innerHeight - 48, drag.current.top + event.clientY - drag.current.y)) });
+    },
+    onPointerUp: () => { drag.current = null; },
+    onPointerCancel: () => { drag.current = null; },
+  };
   const condNames = useMemo(() => (diagram.settings.workConditions ?? []).map((c) => c.name), [diagram.settings.workConditions]);
 
   const scenario = ui.scenario ? getScenario(ui.scenario.scenarioId, diagram) : undefined;
@@ -80,8 +100,8 @@ export function ScenarioPanel({ onClose, inspectorVisible = false, onShowInspect
   if (editingScenarioId) {
     const canSave = draftTitle.trim().length > 0 && draftSteps.length > 0 && draftSteps.every((step) => step.conditionName);
     return (
-      <div className={`scenario-panel scenario-editor${collapsed ? " is-collapsed" : ""}${inspectorVisible ? " with-inspector" : ""}`} data-ui="1">
-        <div className="scenario-panel-head">
+      <div className={`scenario-panel scenario-editor${collapsed ? " is-collapsed" : ""}${inspectorVisible ? " with-inspector" : ""}`} style={panelStyle} data-ui="1">
+        <div className="scenario-panel-head" {...dragHeader}>
           <div>
             <h3>⭐ {t("编辑自定义演示")}</h3>
             <p>{t("每一步引用一个已保存工况；进入步骤时会恢复该工况的全部教学状态。")}</p>
@@ -142,8 +162,8 @@ export function ScenarioPanel({ onClose, inspectorVisible = false, onShowInspect
 
   if (picking || !scenario) {
     return (
-      <div className={`scenario-panel${collapsed ? " is-collapsed" : ""}${inspectorVisible ? " with-inspector" : ""}`} data-ui="1">
-        <div className="scenario-panel-head">
+      <div className={`scenario-panel${collapsed ? " is-collapsed" : ""}${inspectorVisible ? " with-inspector" : ""}`} style={panelStyle} data-ui="1">
+        <div className="scenario-panel-head" {...dragHeader}>
           <div>
             <h3>🎬 {t("演示/讲述模式")}</h3>
             <p>{t("选择演示，或用已保存的工况编排自己的步骤。")}</p>
@@ -257,8 +277,8 @@ export function ScenarioPanel({ onClose, inspectorVisible = false, onShowInspect
 
   // 讲述界面
   return (
-    <div className={`scenario-panel scenario-player${collapsed ? " is-collapsed" : ""}${inspectorVisible ? " with-inspector" : ""}`} data-ui="1">
-      <div className="scenario-panel-head scenario-player-head">
+    <div className={`scenario-panel scenario-player${collapsed ? " is-collapsed" : ""}${inspectorVisible ? " with-inspector" : ""}`} style={panelStyle} data-ui="1">
+      <div className="scenario-panel-head scenario-player-head" {...dragHeader}>
         <div>
           <h3>
           {scenario.icon} {scenario.title}

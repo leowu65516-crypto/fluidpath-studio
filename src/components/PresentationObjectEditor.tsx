@@ -13,7 +13,7 @@ export function PresentationObjectEditor({ node, onClose }: { node: DiagramNode;
   return <div className="prompt-overlay" data-ui="1" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="prompt-dialog presentation-editor" role="dialog" aria-modal="true" aria-label={t(isImage ? "编辑图片" : "编辑文字标签")}>
       <div className="prompt-title">{t(isImage ? "编辑图片" : "编辑文字标签")}</div>
-      {!isImage && <label>{t("文字内容")}<input value={draft.label} onChange={(event) => set({ label: event.target.value })} /></label>}
+      {!isImage && <label>{t("文字内容")}<textarea rows={3} value={draft.label} onChange={(event) => set({ label: event.target.value })} /></label>}
       {!isImage && <label>{t("文字大小")}<input type="number" min={8} max={160} value={draft.fontSize ?? 16} onChange={(event) => set({ fontSize: Math.max(8, Math.min(160, Number(event.target.value) || 8)) })} /></label>}
       {!isImage && <label>{t("文字颜色")}<input type="color" value={draft.stroke.slice(0, 7)} onChange={(event) => set({ stroke: event.target.value })} /></label>}
       {isImage && <>

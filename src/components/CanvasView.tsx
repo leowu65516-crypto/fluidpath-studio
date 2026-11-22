@@ -1315,7 +1315,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
                 style={{ cursor: "move" }}
                 onMouseDown={(e) => onNodeLabelMouseDown(e, node)}
                 onDoubleClick={(e) => { e.stopPropagation(); beginLabelEdit("node", node.id, lx, ly, node.label); }}
-              >{labelText}</text>
+              >{labelText.split("\n").map((line, index) => <tspan key={index} x={lx} dy={index ? "1.25em" : 0}>{line || "\u00a0"}</tspan>)}</text>
             </g>
           );
         })()}

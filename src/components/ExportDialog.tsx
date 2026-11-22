@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { withSymbolProfile } from "../store";
 import { buildExportSVGWithOptions, buildAnimationFrameSVGs, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, exportGifSequenceWithOptions, prepareExportDiagram, animationDimensions, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance, type GifSequenceFrame } from "../export";
 import { activateScenarioStepForExport, activateWorkConditionForExport, setUI, store, updateDiagram, useAppState } from "../store";
 import { availableScenariosForDiagram } from "../scenarios";
@@ -121,8 +120,16 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
           y: Number(el.getAttribute("y") || 0),
           fs: Number(el.getAttribute("font-size") || 12),
           len: (el.textContent || "").length,
-          text: el.textContent || "",
+          text: el.querySelectorAll("tspan").length ? [...el.querySelectorAll("tspan")].map((span) => span.textContent === "\u00a0" ? "" : span.textContent ?? "").join("\n") : el.textContent || "",
         });
+      });
+      svgEl.querySelectorAll("text[data-object-text]").forEach((el) => {
+        const host = el.closest("[data-node-id]");
+        const node = diagram.nodes.find((n) => n.id === host?.getAttribute("data-node-id"));
+        if (!node) return;
+        const x = Number(el.getAttribute("x") || 0), y = Number(el.getAttribute("y") || 0);
+        const angle = node.rotation * Math.PI / 180, dx = x - node.width / 2, dy = y - node.height / 2;
+        items.push({ key: `object:${node.id}`, cat: "components", x: node.x + node.width / 2 + dx * Math.cos(angle) - dy * Math.sin(angle), y: node.y + node.height / 2 + dx * Math.sin(angle) + dy * Math.cos(angle), fs: Number(el.getAttribute("font-size") || 14), len: node.label.length, text: node.label });
       });
       // 开关徽标分段（锚点由屏幕坐标换算；拖拽整组、双击改单段文字）
       svgEl.querySelectorAll("g.fp-state-badge").forEach((badge) => {
@@ -535,14 +542,21 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
 
   const run = async () => {
     if (!svgRef.current || !fullRenderReady) return;
-    // 符号风格：follow 表示沿用图纸设置；否则在导出期间临时切换，导出完成后静默还原。
-    const profile = opts.symbolProfile === "follow" ? undefined : opts.symbolProfile;
-    await withSymbolProfile(profile, () => runWithProfile());
+    await runWithProfile();
   };
 
   const runWithProfile = async () => {
     if (!svgRef.current || !fullRenderReady) return;
-    const finalOpts: ExportOptions = { ...opts, format, filename: (opts.filename || diagram.name || "fluidpath").trim() };
+    const activeEdit = editingRef.current;
+    let text = opts.text;
+    if (activeEdit) {
+      const overrides = { ...(text?.overrides ?? {}) }, sizes = { ...(text?.sizes ?? {}) };
+      if (activeEdit.value.trim()) overrides[activeEdit.key] = activeEdit.value; else delete overrides[activeEdit.key];
+      const size = Number(activeEdit.size);
+      if (activeEdit.size.trim() && Number.isFinite(size) && size > 0) sizes[activeEdit.key] = Math.round(size * 10) / 10; else delete sizes[activeEdit.key];
+      text = { scales: {}, halo: true, plates: false, offsets: {}, ...text, overrides, sizes };
+    }
+    const finalOpts: ExportOptions = { ...opts, text, format, filename: (opts.filename || diagram.name || "fluidpath").trim() };
     try { localStorage.setItem("fluidpath.lastExport", format); } catch { /* ignore */ }
     if (format === "gif" || format === "mp4") {
       setProgress(0);
@@ -766,7 +780,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                   <span>{t("快速修改")}</span>
                   <button className="exp-quick-close" title={t("关闭")} onClick={() => setSelectedText(null)}>✕</button>
                 </div>
-                <input
+                <textarea rows={2}
                   className="exp-quick-text"
                   aria-label={t("文字内容")}
                   value={opts.text?.overrides?.[selectedText.key] ?? selectedText.text}
@@ -822,14 +836,14 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                   }
                 }}
               >
-                <input
+                <textarea rows={2}
                   className="exp-text-edit-main"
                   autoFocus
                   value={editing.value}
                   placeholder={t("文字内容")}
                   onChange={(e) => setEditing({ ...editing, value: e.target.value })}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") commitEdit();
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) commitEdit();
                     if (e.key === "Escape") { editCancelRef.current = true; setEditing(null); }
                   }}
                 />

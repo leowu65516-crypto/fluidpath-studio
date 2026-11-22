@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Diagram, DiagramNode } from "./types";
 import { createNode, NodeSymbol } from "./symbols";
-import { plateRect } from "./labelPlate";
+import { measureLabelWidth, plateRect } from "./labelPlate";
 import { buildLegendNodes } from "./legend";
 import { nodeBBox, pipePolyline, polylineBBox } from "./geometry";
 import { toast } from "./toast";
@@ -288,6 +288,7 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
 
   const NS = "http://www.w3.org/2000/svg";
   const round1 = (n: number) => Math.round(n * 10) / 10;
+  const contentOf = (el: Element) => el.querySelectorAll("tspan").length ? [...el.querySelectorAll("tspan")].map((span) => span.textContent === "\u00a0" ? "" : span.textContent ?? "").join("\n") : el.textContent ?? "";
   const nodeRotationOf = (el: Element): number => {
     const g = el.closest("[data-node-id]");
     const m = (g?.getAttribute("transform") || "").match(/rotate\(\s*([-\d.eE]+)/);
@@ -312,6 +313,8 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
       const suffix = el.classList.contains("fp-fluid-label") ? "fluid" : el.classList.contains("fp-pipe-annotation") ? "anno" : "label";
       return { cat: "pipes", key: `pipe:${pipeId}:${suffix}` };
     }
+    const objectHost = el.hasAttribute("data-object-text") ? el.closest("[data-node-id]") : null;
+    if (objectHost) return { cat: "components", key: `object:${objectHost.getAttribute("data-node-id")}` };
     const nodeId = el.getAttribute("data-node-id");
     if (nodeId) {
       const kind = el.getAttribute("data-node-kind");
@@ -321,11 +324,15 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
   };
 
   clone
-    .querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label, text[data-pipe-id], text[data-export-kind], .fp-state-badge text")
+    .querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label, text[data-pipe-id], text[data-export-kind], text[data-object-text], .fp-state-badge text")
     .forEach((el) => {
       const { cat, key } = classify(el);
       // 逐条改字（先于缩放/底板，使底板按新文字长度计算）
-      if (key && overrides[key] !== undefined) el.textContent = overrides[key];
+      if (key && overrides[key] !== undefined) {
+        const value = overrides[key];
+        el.textContent = "";
+        value.split("\n").forEach((line, index) => { const span = el.ownerDocument.createElementNS(NS, "tspan"); span.setAttribute("x", el.getAttribute("x") || "0"); span.setAttribute("dy", index ? "1.25em" : "0"); span.textContent = line || "\u00a0"; el.appendChild(span); });
+      }
       const scale = catScale(cat);
       const sizeOv = key ? sizes[key] : undefined;
       const enhanced = scale !== 1 || (typeof sizeOv === "number" && sizeOv > 0);
@@ -336,10 +343,10 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
         if (fs > 0) el.setAttribute("font-size", String(round1(fs * scale)));
       }
       const existingPlate = el.previousElementSibling?.classList.contains("fp-node-label-plate") ? el.previousElementSibling : null;
-      if (existingPlate && !(el.textContent || "").trim()) existingPlate.remove();
+      if (existingPlate && !contentOf(el).trim()) existingPlate.remove();
       else if (existingPlate && text.plates) existingPlate.remove();
       else if (existingPlate) {
-        const box = plateRect(el.textContent || "", Number(el.getAttribute("font-size") || 12), Number(el.getAttribute("x") || 0), Number(el.getAttribute("y") || 0));
+        const box = plateRect(contentOf(el), Number(el.getAttribute("font-size") || 12), Number(el.getAttribute("x") || 0), Number(el.getAttribute("y") || 0));
         for (const [name, value] of Object.entries(box)) existingPlate.setAttribute(name, String(value));
       }
       if (enhanced) {
@@ -349,12 +356,12 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
           el.setAttribute("style", "paint-order: stroke");
         }
       }
-      if (text.plates && (el.textContent || "").trim() && !el.closest(".fp-state-badge")) {
+      if (text.plates && contentOf(el).trim() && !el.closest(".fp-state-badge")) {
           // 文字后插半透明白底（近似包围盒；不依赖 getBBox，jsdom/导出环境安全）
           const x = Number(el.getAttribute("x") || 0);
           const y = Number(el.getAttribute("y") || 0);
           const fs2 = Number(el.getAttribute("font-size") || 12);
-          const box = plateRect(el.textContent || "", fs2, x, y);
+          const box = plateRect(contentOf(el), fs2, x, y);
           const rect = el.ownerDocument.createElementNS(NS, "rect");
           rect.setAttribute("x", String(box.x));
           rect.setAttribute("y", String(box.y));
@@ -371,12 +378,17 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
       if (key && !isBadgeSeg && text.offsets?.[key]) {
         const off = text.offsets[key];
         if (off.x || off.y) {
+          const rotation = key.startsWith("object:") ? nodeRotationOf(el) * Math.PI / 180 : 0;
+          const ox = off.x * Math.cos(rotation) + off.y * Math.sin(rotation);
+          const oy = -off.x * Math.sin(rotation) + off.y * Math.cos(rotation);
           const baseX = Number(el.getAttribute("x") || 0);
           const baseY = Number(el.getAttribute("y") || 0);
-          el.setAttribute("x", String(round1(baseX + off.x)));
-          el.setAttribute("y", String(round1(baseY + off.y)));
+          el.setAttribute("x", String(round1(baseX + ox)));
+          el.setAttribute("y", String(round1(baseY + oy)));
+          el.querySelectorAll("tspan[x]").forEach((span) => span.setAttribute("x", String(round1(Number(span.getAttribute("x")) + ox))));
+          el.querySelectorAll("tspan[y]").forEach((span) => span.setAttribute("y", String(round1(Number(span.getAttribute("y")) + oy))));
           const plate = el.previousElementSibling;
-          if (plate && (plate.classList.contains("fp-export-text-plate") || plate.classList.contains("fp-node-label-plate"))) plate.setAttribute("transform", `translate(${round1(off.x)} ${round1(off.y)})`);
+          if (plate && (plate.classList.contains("fp-export-text-plate") || plate.classList.contains("fp-node-label-plate"))) plate.setAttribute("transform", `translate(${round1(ox)} ${round1(oy)})`);
         }
       }
     });
@@ -414,6 +426,26 @@ function applySvgOverrides(clone: SVGSVGElement, opts: ExportOptions) {
 /** 计算内容包围盒（含附加节点） */
 function bboxWith(nodes: DiagramNode[], diagram: Diagram): { x: number; y: number; w: number; h: number } {
   return contentBBox({ ...diagram, nodes: [...diagram.nodes, ...nodes] } as Diagram);
+}
+
+/** Include the final edited text, including multiline labels outside the diagram geometry. */
+function includeTextBounds(base: { x: number; y: number; w: number; h: number }, clone: SVGSVGElement, diagram: Diagram) {
+  let left = base.x, top = base.y, right = base.x + base.w, bottom = base.y + base.h;
+  const expand = (x: number, y: number, margin: number) => { left = Math.min(left, x - margin); top = Math.min(top, y - margin); right = Math.max(right, x + margin); bottom = Math.max(bottom, y + margin); };
+  clone.querySelectorAll(".fp-node-label, .fp-pipe-annotation, .fp-fluid-label, text[data-pipe-id], text[data-export-kind], text[data-object-text], .fp-state-badge text").forEach((el) => {
+    const label = [...el.querySelectorAll("tspan")].length ? [...el.querySelectorAll("tspan")].map((s) => s.textContent ?? "").join("\n") : el.textContent ?? "";
+    if (!label.trim()) return;
+    const size = Math.max(1, Number(el.getAttribute("font-size")) || 12);
+    let x = Number(el.getAttribute("x")) || 0, y = Number(el.getAttribute("y")) || 0;
+    const host = el.hasAttribute("data-object-text") || el.closest(".fp-state-badge") ? el.closest("[data-node-id]") : null;
+    const node = host && diagram.nodes.find((n) => n.id === host.getAttribute("data-node-id"));
+    if (node) { const angle = node.rotation * Math.PI / 180, cx = node.width / 2, cy = node.height / 2; const dx = x - cx, dy = y - cy; x = node.x + cx + dx * Math.cos(angle) - dy * Math.sin(angle); y = node.y + cy + dx * Math.sin(angle) + dy * Math.cos(angle); }
+    const width = measureLabelWidth(label, size) + 20;
+    const height = size * (1.5 + 1.25 * (label.split("\n").length - 1)) + 12;
+    const margin = node && node.rotation ? Math.hypot(width, height) / 2 : 0;
+    if (margin) expand(x, y, margin); else { left = Math.min(left, x - width / 2); right = Math.max(right, x + width / 2); top = Math.min(top, y - size - 8); bottom = Math.max(bottom, y - size + height); }
+  });
+  return { x: Math.floor(left), y: Math.floor(top), w: Math.ceil(right) - Math.floor(left), h: Math.ceil(bottom) - Math.floor(top) };
 }
 
 /**
@@ -746,10 +778,10 @@ export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram
   const { diagram: exDiagram, extra } = prepareExportDiagram(diagram, opts);
   const bbox = bboxWith(extra, exDiagram);
   const pad = Math.max(0, opts.padding || 0);
-  const x = bbox.x - pad;
-  const y = bbox.y - pad;
-  const w = bbox.w + pad * 2;
-  const h = bbox.h + pad * 2;
+  let x = bbox.x - pad;
+  let y = bbox.y - pad;
+  let w = bbox.w + pad * 2;
+  let h = bbox.h + pad * 2;
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   applyExportSymbolProfile(clone, diagram, opts);
   prepareDiagnosticExport(clone, opts);
@@ -763,6 +795,11 @@ export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram
   clone.removeAttribute("style");
   clone.removeAttribute("class");
   appendExportNodes(clone, extra);
+  applySvgOverrides(clone, opts);
+  const adjusted = includeTextBounds({ x, y, w, h }, clone, exDiagram);
+  ({ x, y, w, h } = adjusted);
+  clone.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
+  clone.setAttribute("width", String(w)); clone.setAttribute("height", String(h));
   if (opts.background !== "transparent") {
     const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     bg.setAttribute("x", String(x));
@@ -772,7 +809,6 @@ export function buildExportSVGWithOptions(svgEl: SVGSVGElement, diagram: Diagram
     bg.setAttribute("fill", backgroundColorOf(diagram, opts));
     clone.insertBefore(bg, clone.firstChild);
   }
-  applySvgOverrides(clone, opts);
   resolveSvgTheme(clone, opts.darkMode ? "dark" : "light");
   const xml = new XMLSerializer().serializeToString(clone);
   return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n` + xml, w: Math.round(w), h: Math.round(h), x: Math.round(x), y: Math.round(y) };
@@ -823,10 +859,10 @@ export function exportPdfWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opt
  */
 export function prepareAnimationScene(svgEl: SVGSVGElement, diagram: Diagram, opts: ExportOptions) {
   const { diagram: exDiagram, extra } = prepareExportDiagram(diagram, opts);
-  const bbox = bboxWith(extra, exDiagram);
+  let bbox = bboxWith(extra, exDiagram);
   const pad = Math.max(0, opts.padding || 0);
-  const w = Math.round(bbox.w + pad * 2);
-  const h = Math.round(bbox.h + pad * 2);
+  let w = Math.round(bbox.w + pad * 2);
+  let h = Math.round(bbox.h + pad * 2);
   const transparent = opts.background === "transparent";
   const c = svgEl.cloneNode(true) as SVGSVGElement;
   applyExportSymbolProfile(c, diagram, opts);
@@ -841,6 +877,12 @@ export function prepareAnimationScene(svgEl: SVGSVGElement, diagram: Diagram, op
   c.removeAttribute("style");
   c.removeAttribute("class");
   appendExportNodes(c, extra);
+  applySvgOverrides(c, opts);
+  const adjusted = includeTextBounds({ x: bbox.x - pad, y: bbox.y - pad, w, h }, c, exDiagram);
+  bbox = { x: adjusted.x + pad, y: adjusted.y + pad, w: adjusted.w - pad * 2, h: adjusted.h - pad * 2 };
+  w = adjusted.w; h = adjusted.h;
+  c.setAttribute("viewBox", `${adjusted.x} ${adjusted.y} ${w} ${h}`);
+  c.setAttribute("width", String(w)); c.setAttribute("height", String(h));
   if (!transparent) {
     const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     bg.setAttribute("x", String(bbox.x - pad));
@@ -850,7 +892,6 @@ export function prepareAnimationScene(svgEl: SVGSVGElement, diagram: Diagram, op
     bg.setAttribute("fill", backgroundColorOf(diagram, opts));
     c.insertBefore(bg, c.firstChild);
   }
-  applySvgOverrides(c, opts);
   resolveSvgTheme(c, opts.darkMode ? "dark" : "light");
   return { clone: c, exDiagram, extra, bbox, w, h, transparent };
 }
@@ -999,7 +1040,8 @@ export async function exportGifSequenceWithOptions(
   // 序列必须使用一个统一视窗，否则各步骤的标签、注释增减会造成画面跳动。
   const sources = frames.map((frame) => {
     const prepared = prepareExportDiagram(frame.diagram, { ...opts, selectionOnly: false, selection: undefined });
-    return { ...frame, ...prepared, bbox: bboxWith(prepared.extra, prepared.diagram) };
+    const bounds = buildExportSVGWithOptions(frame.svg, frame.diagram, { ...opts, selectionOnly: false, selection: undefined, padding: 0 });
+    return { ...frame, ...prepared, bbox: { x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h } };
   });
   const left = Math.min(...sources.map((source) => source.bbox.x));
   const top = Math.min(...sources.map((source) => source.bbox.y));

@@ -2254,6 +2254,8 @@ body[data-theme="dark"] .welcome-overlay {
 @media (max-width: 600px) { .scenario-panel.with-inspector { width: min(300px, calc(100vw - 16px)); } }
 .scenario-panel-actions { flex: 0 0 auto; }
 .scenario-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.scenario-panel-head { cursor: grab; touch-action: none; user-select: none; }
+.scenario-panel-head:active { cursor: grabbing; }
 .scenario-panel-head h3 { margin: 0; color: var(--text); font-size: 15px; font-weight: 700; }
 .scenario-panel-head p { margin: 4px 0 0; color: var(--text-dim); font-size: 11.5px; line-height: 1.45; }
 .scenario-icon-btn { flex: 0 0 28px; width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: var(--text-dim); font-size: 16px; cursor: pointer; }

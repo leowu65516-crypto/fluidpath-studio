@@ -326,7 +326,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
             </div>
             <Section title={t("节点")}>
               <Row label={node.type === "shape" ? t("文字内容") : t("名称")}>
-                {node.type === "shape" ? (
+                {node.type !== "image" && node.type !== "arrow" ? (
                   <textarea
                     rows={3}
                     value={node.label}

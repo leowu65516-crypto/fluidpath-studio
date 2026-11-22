@@ -7,7 +7,8 @@ export type SymbolSurface = "canvas" | "library" | "preview" | "inspector";
 const FONT = "system-ui, sans-serif";
 
 function Mark({ node, text, y, k = 1 }: { node: DiagramNode; text: string; y?: number; k?: number }) {
-  return <text x={node.width / 2} y={y ?? node.height / 2 + 4} textAnchor="middle" fontSize={Math.min(12 * k, 16, Math.max(8 * k, node.width / 7))} fill={node.stroke} fontFamily={FONT} fontWeight={700}>{text}</text>;
+  const custom = node.type === "shape" || node.type === "annotation";
+  return <text data-object-text={custom ? "1" : undefined} x={node.width / 2} y={y ?? node.height / 2 + 4} textAnchor="middle" fontSize={custom ? node.fontSize ?? 15 : Math.min(12 * k, 16, Math.max(8 * k, node.width / 7))} fill={node.stroke} fontFamily={FONT} fontWeight={700}>{text.split("\n").map((line, i) => <tspan key={i} x={node.width / 2} dy={i ? "1.25em" : 0}>{line || "\u00a0"}</tspan>)}</text>;
 }
 
 function TwoPortValve({ node, kind = "manual", k = 1 }: { node: DiagramNode; kind?: "manual" | "solenoid" | "diaphragm" | "check" | "ball" | "regulator"; k?: number }) {
@@ -202,7 +203,7 @@ export function EngineeringNodeSymbol({ node, surface = "canvas", zoom = 1 }: { 
     case "thermoblock": return <g data-symbol-feature="thermoblock"><rect x={3} y={3} width={w - 6} height={h - 6} {...common} /><path d={`M ${w * 0.16} ${h * 0.6} q ${w * 0.08} -${h * 0.25} ${w * 0.16} 0 t ${w * 0.16} 0 t ${w * 0.16} 0 t ${w * 0.16} 0`} fill="none" stroke={stroke} strokeWidth={2 * k} /><Mark node={node} text="TB" y={h * 0.32} /></g>;
     case "filter": case "metalFilter": return <g data-symbol-feature="filter"><rect x={3} y={3} width={w - 6} height={h - 6} {...common} /><path d={`M ${w * 0.2} ${h * 0.22} L ${w * 0.8} ${h * 0.78} M ${w * 0.2} ${h * 0.42} L ${w * 0.62} ${h * 0.8} M ${w * 0.38} ${h * 0.2} L ${w * 0.8} ${h * 0.58}`} stroke={stroke} strokeWidth={1.5 * k} /></g>;
     case "shape": return <g data-symbol-feature="custom-shape" fillOpacity={node.fillOpacity ?? 1}>{node.variant === "ellipse" ? <ellipse cx={w / 2} cy={h / 2} rx={w / 2 - 2} ry={h / 2 - 2} {...common} /> : node.variant === "diamond" ? <path d={`M ${w / 2} 2 L ${w - 2} ${h / 2} L ${w / 2} ${h - 2} L 2 ${h / 2} Z`} {...common} /> : node.variant === "triangle" ? <path d={`M ${w / 2} 2 L ${w - 2} ${h - 2} H 2 Z`} {...common} /> : <rect x={2} y={2} width={w - 4} height={h - 4} rx={4} {...common} />}<g fillOpacity={1}><Mark node={node} text={node.label} /></g></g>;
-    case "label": return <text x={w / 2} y={h / 2 + (node.fontSize ?? 16) * 0.32} textAnchor="middle" fontSize={node.fontSize ?? 16} fill={stroke} fontFamily={FONT}>{node.label}</text>;
+    case "label": return <text data-object-text="1" x={w / 2} y={h / 2 + (node.fontSize ?? 16) * 0.32} textAnchor="middle" fontSize={node.fontSize ?? 16} fill={stroke} fontFamily={FONT}>{node.label.split("\n").map((line, i) => <tspan key={i} x={w / 2} dy={i ? "1.25em" : 0}>{line || "\u00a0"}</tspan>)}</text>;
     case "arrow": return <path d={`M 2 ${h * 0.36} H ${w * 0.62} V ${h * 0.12} L ${w - 2} ${h / 2} L ${w * 0.62} ${h * 0.88} V ${h * 0.64} H 2 Z`} fill={fill} stroke={stroke} strokeWidth={1.5 * k} />;
     case "image": return <g>{node.imageData ? <image href={node.imageData} x={2} y={2} width={w - 4} height={h - 4} preserveAspectRatio="xMidYMid slice" /> : box("IMG")}</g>;
     // 兜底只留给确实没有形状语义的类型；容器/管路件/进出口已经全部线条化。

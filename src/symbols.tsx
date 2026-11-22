@@ -228,7 +228,7 @@ function CenterText({ node, w, h }: { node: DiagramNode; w: number; h: number })
   const lines = (node.label || "").split(/\n/);
   const startY = h / 2 - ((lines.length - 1) * fs * 1.25) / 2;
   return (
-    <text textAnchor="middle" fontSize={fs} fill={node.stroke} fontFamily="system-ui, sans-serif" fontWeight={500} transform={node.rotation ? `rotate(${-node.rotation} ${w / 2} ${h / 2})` : undefined}>
+    <text data-object-text="1" x={w / 2} y={startY + fs * 0.35} textAnchor="middle" fontSize={fs} fill={node.stroke} fontFamily="system-ui, sans-serif" fontWeight={500} transform={node.rotation ? `rotate(${-node.rotation} ${w / 2} ${h / 2})` : undefined}>
       {lines.map((ln, i) => (
         <tspan key={i} x={w / 2} y={startY + i * fs * 1.25 + fs * 0.35}>{ln}</tspan>
       ))}
@@ -1127,8 +1127,8 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
     }
     case "label":
       return (
-        <text x={w / 2} y={h / 2 + (node.fontSize ?? 16) * 0.32} textAnchor="middle" fontSize={node.fontSize ?? 16} fill={node.stroke} fontFamily="system-ui, sans-serif" fontWeight={500}>
-          {node.label}
+        <text data-object-text="1" x={w / 2} y={h / 2 + (node.fontSize ?? 16) * 0.32} textAnchor="middle" fontSize={node.fontSize ?? 16} fill={node.stroke} fontFamily="system-ui, sans-serif" fontWeight={500}>
+          {node.label.split("\n").map((line, i) => <tspan key={i} x={w / 2} dy={i ? "1.25em" : 0}>{line || "\u00a0"}</tspan>)}
         </text>
       );
     case "arrow":
@@ -1150,8 +1150,8 @@ export function NodeSymbol({ node, profile = "teaching", surface = "canvas", zoo
           <rect x={2} y={2} width={w - 4} height={h - 4} rx={8} fill={fill} fillOpacity={node.annotationFillOpacity ?? 1} stroke={stroke} strokeOpacity={node.annotationStrokeOpacity ?? 1} strokeWidth={1.8} />
           {/* 折角标记 */}
           <path d={`M ${w - 18} 2 L ${w - 2} ${18} L ${w - 2} ${h - 4} Q ${w - 2} ${h - 2} ${w - 4} ${h - 2} L ${w - 18} ${h - 2} Z`} stroke="none" fill={stroke} opacity={0.06} />
-          <text x={w / 2} y={h / 2 + (node.fontSize ?? 14) * 0.32} textAnchor="middle" fontSize={node.fontSize ?? 14} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={500} pointerEvents="none">
-            {node.label}
+          <text data-object-text="1" x={w / 2} y={h / 2 + (node.fontSize ?? 14) * 0.32} textAnchor="middle" fontSize={node.fontSize ?? 14} fill={stroke} fontFamily="system-ui, sans-serif" fontWeight={500} pointerEvents="none">
+            {node.label.split("\n").map((line, i) => <tspan key={i} x={w / 2} dy={i ? "1.25em" : 0}>{line || "\u00a0"}</tspan>)}
           </text>
         </g>
       );

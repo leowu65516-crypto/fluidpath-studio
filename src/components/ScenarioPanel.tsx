@@ -20,7 +20,7 @@ import type { SceneScenario } from "../types";
 import { useT } from "../i18n";
 import { toast } from "../toast";
 
-export function ScenarioPanel({ onClose }: { onClose: () => void }) {
+export function ScenarioPanel({ onClose, inspectorVisible = false, onShowInspector }: { onClose: () => void; inspectorVisible?: boolean; onShowInspector?: () => void }) {
   const { ui, diagram } = useAppState();
   const { t, lang } = useT();
   const [picking, setPicking] = useState(!ui.scenario);
@@ -80,7 +80,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
   if (editingScenarioId) {
     const canSave = draftTitle.trim().length > 0 && draftSteps.length > 0 && draftSteps.every((step) => step.conditionName);
     return (
-      <div className={`scenario-panel scenario-editor${collapsed ? " is-collapsed" : ""}`} data-ui="1">
+      <div className={`scenario-panel scenario-editor${collapsed ? " is-collapsed" : ""}${inspectorVisible ? " with-inspector" : ""}`} data-ui="1">
         <div className="scenario-panel-head">
           <div>
             <h3>⭐ {t("编辑自定义演示")}</h3>
@@ -142,7 +142,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
 
   if (picking || !scenario) {
     return (
-      <div className={`scenario-panel${collapsed ? " is-collapsed" : ""}`} data-ui="1">
+      <div className={`scenario-panel${collapsed ? " is-collapsed" : ""}${inspectorVisible ? " with-inspector" : ""}`} data-ui="1">
         <div className="scenario-panel-head">
           <div>
             <h3>🎬 {t("演示/讲述模式")}</h3>
@@ -257,7 +257,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
 
   // 讲述界面
   return (
-    <div className={`scenario-panel scenario-player${collapsed ? " is-collapsed" : ""}`} data-ui="1">
+    <div className={`scenario-panel scenario-player${collapsed ? " is-collapsed" : ""}${inspectorVisible ? " with-inspector" : ""}`} data-ui="1">
       <div className="scenario-panel-head scenario-player-head">
         <div>
           <h3>
@@ -314,6 +314,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
       </div>}
 
       {!collapsed && <>
+      <div className="scenario-quick-edit"><button className="btn" onClick={onShowInspector}>{t("修改当前画面")}</button><span>{t("选中管路或元件，在属性检查器中修改；保存步骤时可更新原工况或另存。")}{t("切换步骤或退出前请先保存，否则未保存的修改会丢失。")}</span></div>
       {Object.keys(ui.scenario?.overrides ?? {}).length > 0 && (
         <div style={{ margin: "0 16px 8px", padding: "7px 10px", borderRadius: 8, background: "var(--accent-soft)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
           <span style={{ color: "var(--accent)", fontWeight: 600 }}>🎛 {t("已手动微调 {n} 处").replace("{n}", String(Object.keys(ui.scenario?.overrides ?? {}).length))}</span>
@@ -381,7 +382,7 @@ export function ScenarioPanel({ onClose }: { onClose: () => void }) {
       {saveChoice && <div className="prompt-overlay" data-ui="1" onMouseDown={(event) => { if (event.target === event.currentTarget) setSaveChoice(false); }}>
         <div className="prompt-dialog" role="dialog" aria-modal="true" aria-label={t("保存当前步骤状态")}>
           <div className="prompt-title">{t("保存当前步骤状态")}</div>
-          <div className="prompt-label">{referencedCondition ? t("更新原工况会影响所有引用它的演示步骤；另存将保留原工况，并仅更改当前步骤的引用。") : t("当前步骤没有引用工况，可将当前状态另存为新工况。")}</div>
+          <div className="prompt-label">{referencedCondition ? t("更新原工况会影响所有引用它的演示步骤；另存将保留原工况，并仅更改当前步骤的引用。") : scenario.custom ? t("另存为新工况后，仅当前自定义演示步骤引用它。") : t("另存为新工况后，可在工况列表使用；内置演示步骤不会自动绑定。")}</div>
           {referencedCondition && <button className="btn wide" onClick={() => {
             if (updateScenarioCondition(referencedCondition)) { toast(t("已更新工况：{name}").replace("{name}", referencedCondition)); setSaveChoice(false); }
           }}>{t("更新原工况：{name}").replace("{name}", referencedCondition)}</button>}

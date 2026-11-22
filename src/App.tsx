@@ -198,7 +198,7 @@ export default function App() {
     }
     modeNoticeTimer.current = window.setTimeout(() => setModeNotice(null), 4200);
     if (m === "present") {
-      setCollapsed((c) => ({ ...c, library: true, inspector: true, toolbar: false }));
+      setCollapsed((c) => ({ ...c, library: true, inspector: false, toolbar: false }));
       setShowAdvice(false);
       setShowScenario(true);
     } else if (m === "verify") {
@@ -645,6 +645,7 @@ export default function App() {
   ) : mode === "verify" ? (
     <ValidationPanel onClose={() => setWorkMode("edit")} />
   ) : showConditions ? (
+    <div className="condition-workspace">
     <ConditionPanel
       onClose={() => {
         setShowConditions(false);
@@ -656,6 +657,8 @@ export default function App() {
       }}
       embedded
     />
+    <Inspector collapsed={false} />
+    </div>
   ) : showSmartPanel ? (
     <SmartDrawingPanel
       onClose={() => setShowSmartPanel(false)}
@@ -759,7 +762,7 @@ export default function App() {
       {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} onOpenSettings={() => { emitPopupClose("shortcutSettings"); setShowShortcutSettings(true); }} />}
       {showSearch && <SearchPanel onClose={() => setShowSearch(false)} />}
       {showShortcutSettings && <ShortcutSettings onClose={() => setShowShortcutSettings(false)} />}
-      {showScenario && <ScenarioPanel onClose={() => setShowScenario(false)} />}
+      {showScenario && <ScenarioPanel onClose={() => setShowScenario(false)} inspectorVisible={!collapsed.inspector} onShowInspector={() => setCollapsed((c) => ({ ...c, inspector: false }))} />}
       {showSmartWizard && <SmartDrawingWizard onClose={() => setShowSmartWizard(false)} onInserted={handleSmartInserted} />}
       {pendingBlock && (
         <SmartBlockDialog

@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.58.0";
+export const APP_VERSION = "1.59.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,7 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: "1.59.0", date: "2026-11-22", highlights: ["工况与属性检查器同时显示，演示中可直接修改介质并更新或另存工况", "工具栏隐藏机型包导入与导出入口"] },
   { version: "1.58.0", date: "2026-11-22", highlights: ["统一泵阀与 A/B 状态徽标开关，空名称不显示底板", "导出预览实时应用名称底板和符号风格，中英文选项布局自适应"] },
   { version: "1.57.0", date: "2026-11-22", highlights: ["新增全局与单元件名称底板设置、状态徽标显示控制", "GIF/MP4 增加动态预览与预览文字快捷编辑"] },
   { version: "1.56.0", date: "2026-11-21", highlights: ["新增 H.264 MP4 单工况和演示步骤导出，编码能力不足时提供提示", "GIF 和 MP4 提供分辨率预设与帧率设置；GIF 重用调色板并压缩未改变像素"] },

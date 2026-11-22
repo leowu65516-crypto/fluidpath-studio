@@ -30,6 +30,7 @@ export function ConditionPanel({ onClose, embedded = false }: { onClose: () => v
     if (!name.trim()) return;
     if (list.some((condition) => condition.name === name.trim())) { toast(t("名称已存在，请使用其他名称。"), "error"); return; }
     saveWorkCondition(name.trim());
+    setOpenedCondition(name.trim());
     setName("");
     toast(t("已保存「{name}」完整工况 —— 点方案旁的“恢复”即可变回").replace("{name}", name.trim()));
   }
@@ -63,7 +64,7 @@ export function ConditionPanel({ onClose, embedded = false }: { onClose: () => v
       </div>
 
       <div className="cond-steps">
-        <b>{t("① 调好当前状态")}</b> → <b>{t("② 起名点“记住”")}</b> → <b>{t("③ 恢复后可更新")}</b>
+        <b>{t("选中管路或元件，在下方属性检查器修改介质和状态；完成后更新或另存工况。")}</b>
       </div>
 
       {activeExists && <div className="cond-active" aria-live="polite">

@@ -20,7 +20,7 @@ import {
   blinkElements
 } from "../store";
 import { exportEngineeringJSON, exportGIF, exportPDF, exportPNG, exportSVG, exportJPG, parseDiagramJSON, buildShareLink, compressDiagram, decompressDiagram, saveJSONFile } from "../export";
-import { exportMachinePack, parseMachinePack } from "../machinePack";
+import { parseMachinePack } from "../machinePack";
 import { ExportDialog } from "./ExportDialog";
 import { PromptDialog } from "./PromptDialog";
 import { ActionBar } from "./ActionBar";
@@ -373,16 +373,6 @@ export function Toolbar({ svgRef, collapsed = false, onToggle, onOpenShortcutSet
       </button>
       <button className="tb-btn" title={t("打开 JSON")} onClick={openJsonFromDesktop}>
         <Icon d="M3 8l3-4h5l2 3h8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />{t("打开 JSON")}
-      </button>
-      <button className="tb-btn" title={t("导入机型包（图纸+场景+说明一次恢复）")} onClick={() => packRef.current?.click()}>
-        <Icon d="M21 8l-9-5-9 5v8l9 5 9-5zM12 3v18M3 8l9 5 9-5" />{t("导入机型包")}
-      </button>
-      <button className="tb-btn" title={t("导出机型包（图纸+场景+说明一次打包）")} onClick={() => {
-        try { if (!localStorage.getItem("fluidpath.packHintShown")) { toast(t("机型包 = 图纸 + 场景 + 元数据一次打包，对方导入即可打开完整工作现场")); localStorage.setItem("fluidpath.packHintShown", "1"); } } catch { /* ignore */ }
-        const fn = exportMachinePack(diagram);
-        toast(t("机型包已导出") + ": " + fn);
-      }}>
-        <Icon d="M12 3v12M7 10l5 5 5-5M5 21h14" />{t("导出机型包")}
       </button>
       <button className="tb-btn sq" title={t("导入分享码")} aria-label={t("导入分享码")} onClick={() => setImportOpen(true)}>
         <Icon d="M9 12h6M9 16h6M7 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" />

@@ -126,6 +126,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
   const node = ui.selection.nodes.length === 1 ? diagram.nodes.find((n) => n.id === ui.selection.nodes[0]) : undefined;
   const pipe = !node && ui.selection.pipes.length === 1 ? diagram.pipes.find((p) => p.id === ui.selection.pipes[0]) : undefined;
   const multi = ui.selection.nodes.length + ui.selection.pipes.length > 1;
+  const topologyEditable = (ui.mode ?? "edit") === "edit";
   const diaphragmRoute = node && (node.type === "diaphragmValve3" || (node.type === "solenoid3" && node.valveCommonPortId)) ? diaphragmValveRoute(node) : undefined;
   const pipeIssues = pipe ? checkPipeFluid(pipe, diagram.nodes, lang) : [];
   const pipeStallCause = useMemo(() => {
@@ -145,9 +146,9 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
   return (
     <div className={`inspector${collapsed ? " collapsed" : ""}`}>
       <div className={`panel-title${collapsed ? " vertical" : ""}`}>
-        <button className="panel-toggle" onClick={onToggle} title={collapsed ? t("展开属性检查器") : t("折叠属性检查器")} aria-label={collapsed ? t("展开属性检查器") : t("折叠属性检查器")}>
+        {onToggle && <button className="panel-toggle" onClick={onToggle} title={collapsed ? t("展开属性检查器") : t("折叠属性检查器")} aria-label={collapsed ? t("展开属性检查器") : t("折叠属性检查器")}>
           {collapsed ? "◀" : "▶"}
-        </button>
+        </button>}
         {!collapsed && <span>{t("属性检查器")}</span>}
         {collapsed && <span className="vertical-text">{t("属性")}</span>}
       </div>
@@ -155,13 +156,13 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
       <div className="insp-scroll">
         {multi && (
           <Section title={`${t("已选中")} ${ui.selection.nodes.length} ${t("个节点")}、${ui.selection.pipes.length} ${t("条管路")}`}>
-            {ui.selection.nodes.length > 1 && (
+            {topologyEditable && ui.selection.nodes.length > 1 && (
               <button className="btn wide" onClick={groupSelection}>{t("成组")}</button>
             )}
-            {ui.selection.nodes.some((id) => diagram.nodes.find((n) => n.id === id)?.groupId) && (
+            {topologyEditable && ui.selection.nodes.some((id) => diagram.nodes.find((n) => n.id === id)?.groupId) && (
               <button className="btn wide" onClick={ungroupSelection}>{t("解散组")}</button>
             )}
-            {ui.selection.nodes.length > 0 && (
+            {topologyEditable && ui.selection.nodes.length > 0 && (
               <button className="btn wide" onClick={duplicateSelection}>{t("复制节点")}</button>
             )}
             <div className="btn-row">
@@ -169,8 +170,8 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <button className="btn wide" title={t("只淡化画布，不改变工程状态")} onClick={() => setSelectionDisabled(false)}>{t("取消置灰")}</button>
             </div>
             <button className="btn wide" onClick={() => window.dispatchEvent(new Event("fluidpath:open-advice"))}>🔍 {t("诊断所选范围")}</button>
-            <button className="btn danger wide" onClick={deleteSelection}>{t("删除所选")}</button>
-            {ui.selection.nodes.length > 1 && (
+            {topologyEditable && <button className="btn danger wide" onClick={deleteSelection}>{t("删除所选")}</button>}
+            {topologyEditable && ui.selection.nodes.length > 1 && (
               <>
                 <Section title={t("对齐")}>
                   <div className="btn-row">
@@ -559,7 +560,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <div className="insp-tip">{t("选中后拖动四角手柄可直接调整大小与比例")}</div>
               )}
             </Section>
-            {node.type !== "label" && node.type !== "arrow" && <PortEditor node={node} />}
+            {topologyEditable && node.type !== "label" && node.type !== "arrow" && <PortEditor node={node} />}
             {node.type === "flowControl3" && <Section title={t("三口流量调节阀")}>
               <div className="insp-tip">{t("两个入口分别连接进水与润湿支路，出口连接下游。内部针形机构调节通流面积；当前仅作定性通路展示，不计算实际流量或混合比例。")}</div>
             </Section>}
@@ -621,13 +622,13 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 <div className="insp-tip">{t("泵停止时，其前后相连的管路自动停止流动（与电磁阀关闭同理）。")}</div>
               </Section>
             )}
-            <Section title={t("操作")}>
+            {topologyEditable && <Section title={t("操作")}>
               <button className="btn wide" onClick={duplicateSelection}>{t("复制节点")}</button>
               {node.groupId && (
                 <button className="btn wide" onClick={ungroupSelection}>{t("解散组")}</button>
               )}
               <button className="btn danger wide" onClick={deleteSelection}>{t("删除节点")}</button>
-            </Section>
+            </Section>}
             {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump" || node.type === "solenoid2" || node.type === "pulseAirValve" || node.type === "ballValve" || node.type === "solenoid3" || node.type === "diaphragmValve2" || node.type === "diaphragmValve3") && (
               <Section title={`🔧 ${t("故障模拟（教学）")}`}>
                 <Row label={t("故障状态")}>
@@ -724,7 +725,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                     {pipe.fromPortId && (() => {
                       const ref = findPort(diagram.nodes, pipe.fromPortId!);
                       const pt = ref ? portWorldPos(ref.node, ref.port) : { x: 0, y: 0 };
-                      return <button className="mini" style={{ marginLeft: 6 }} onClick={() => patchPipe(pipe.id, { fromPortId: undefined, fromPoint: pt })}>{t("断开")}</button>;
+                      return topologyEditable ? <button className="mini" style={{ marginLeft: 6 }} onClick={() => patchPipe(pipe.id, { fromPortId: undefined, fromPoint: pt })}>{t("断开")}</button> : null;
                     })()}
                   </span>
                   <span>
@@ -735,7 +736,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                     {pipe.toPortId && (() => {
                       const ref = findPort(diagram.nodes, pipe.toPortId!);
                       const pt = ref ? portWorldPos(ref.node, ref.port) : { x: 0, y: 0 };
-                      return <button className="mini" style={{ marginLeft: 6 }} onClick={() => patchPipe(pipe.id, { toPortId: undefined, toPoint: pt })}>{t("断开")}</button>;
+                      return topologyEditable ? <button className="mini" style={{ marginLeft: 6 }} onClick={() => patchPipe(pipe.id, { toPortId: undefined, toPoint: pt })}>{t("断开")}</button> : null;
                     })()}
                   </span>
                   <span style={{ color: "#7a8696" }}>{t("提示：起点蓝、终点橙，画布上两端端口已高亮；拖动管路端点的蓝色手柄可重连或拖成游离端点")}</span>
@@ -911,9 +912,9 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 </div>
               </Row>
             </Section>
-            <Section title={t("操作")}>
+            {topologyEditable && <Section title={t("操作")}>
               <button className="btn danger wide" onClick={deleteSelection}>{t("删除管路")}</button>
-            </Section>
+            </Section>}
           </>
         )}
 
@@ -1086,7 +1087,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               <div className="insp-tip">{t("诊断标记只影响画布和状态栏显示；不改变工程状态、诊断结果或验收。")}</div>
               <div className="insp-tip">{t("标签可直接在画布上拖动微调位置；双击标签编辑文字。此处的显示开关同样作用于导出（导出面板另有独立选项）。")}</div>
           </Section>
-          <Section title={t("项目工具")} defaultOpen={false}>
+          {topologyEditable && <Section title={t("项目工具")} defaultOpen={false}>
               <div className="btn-row">
                 <button className="btn wide" onClick={() => generateLegend(100, 100)}>{t("📊 生成图例")}</button>
                 <button className="btn wide" onClick={() => downloadBom(diagram)}>{t("📋 导出 BOM 清单")}</button>
@@ -1105,7 +1106,7 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
               </div>
             </div>
               <button className="btn wide" onClick={() => setTemplateDialogOpen(true)}>＋ {t("保存当前图纸为模板")}</button>
-          </Section>
+          </Section>}
           <Section title={t("撤销历史")} defaultOpen={false}>
               <div className="insp-row">
                 <span style={{ color: "var(--text-dim)", fontSize: 12 }}>{t("可撤销 {a} 步 · 可重做 {b} 步").replace("{a}", String(getUndoCount())).replace("{b}", String(getRedoCount()))}</span>

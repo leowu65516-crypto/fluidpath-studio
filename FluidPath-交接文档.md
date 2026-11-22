@@ -1,7 +1,7 @@
 # FluidPath Studio & CAYE 全自动咖啡机 · 完全参考手册
 
 > 本文档是理解 **FluidPath Studio 应用** 与 **CAYE 咖啡机图纸（`/Users/leo/Desktop/BCMTS.json`）** 的第一参考：应用架构、技术栈、流体仿真引擎原理、咖啡机整机原理（做咖啡 / 热牛奶 / 蒸汽 / 热水 / 清洗 / 排废），以及操作与维护纪律。
-> 最后更新：2026-11-22（v1.58.0）：统一状态徽标显示，修复导出预览底板与符号风格。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
+> 最后更新：2026-11-22（v1.59.0）：工况与演示支持直接编辑当前属性并更新或另存工况。版本、测试、Schema、AI 边界和已知限制以 [`docs/current-state.md`](docs/current-state.md) 为准。
 
 ---
 
@@ -39,7 +39,7 @@
 | `src/components/SmartDrawingWizard.tsx` / `SmartDrawingPanel.tsx` | 三步生成向导（居中 Modal）与生成后的「继续完善」右栏（功能块/接点/关键词/检查/自动布线） |
 | `src/components/SaveStatusPill.tsx` / `SaveNudge.tsx` | 保存状态胶囊（本机草稿 vs 文件保存）与首次修改/插入/导出的保存教练 |
 | `src/components/` | UI：CanvasView（画布）、Inspector（属性）、Toolbar、ScenarioPanel、ConditionPanel（工况）、LayerPanel（图层）、PromptDialog（应用内输入弹窗）、AdvicePanel（诊断）、MiniMap、Library 等 24+ 组件 |
-| `src/__tests__/` | 102 个测试文件 / 672 通过 + 4 跳过（共 676），见 §6 |
+| `src/__tests__/` | 102 个测试文件 / 675 通过 + 4 跳过（共 679），见 §6 |
 | `/Users/leo/Desktop/Fluidpath studio/` | 机型图纸与协议文档目录（含统超定制系列图纸、图纸规范 v0.2 及增补），见 §4.7 |
 | `BCMTS.json`（项目根） | CAYE 咖啡机图纸**当前快照**（63 节点 / 74 管路），供回归测试 import |
 | `/Users/leo/Desktop/BCMTS.json` | 用户实际使用的图纸（与项目根快照保持同步） |

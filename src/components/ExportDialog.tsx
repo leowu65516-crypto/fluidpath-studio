@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { withSymbolProfile } from "../store";
-import { buildExportSVGWithOptions, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, exportGifSequenceWithOptions, prepareExportDiagram, animationDimensions, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance, type GifSequenceFrame } from "../export";
+import { buildExportSVGWithOptions, buildAnimationFrameSVGs, exportImageWithOptions, exportSvgWithOptions, exportPdfWithOptions, exportGifWithOptions, exportGifSequenceWithOptions, prepareExportDiagram, animationDimensions, EXPORT_DEFAULTS, type ExportOptions, type ExportTextCategory, type ExportTextEnhance, type GifSequenceFrame } from "../export";
 import { activateScenarioStepForExport, activateWorkConditionForExport, setUI, store, updateDiagram, useAppState } from "../store";
 import { availableScenariosForDiagram } from "../scenarios";
 import { useT } from "../i18n";
@@ -28,6 +28,15 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const [gifAdvanced, setGifAdvanced] = useState(false);
   const [fullRenderReady, setFullRenderReady] = useState(false);
   const [quizSaved, setQuizSaved] = useState(false);
+  /** GIF/MP4 的实时动画预览：与真实导出同一套虚线位移算法（不影响最终导出质量）。 */
+  const [liveAnim, setLiveAnim] = useState(true);
+  const [animPlaying, setAnimPlaying] = useState(true);
+  /** 单击选中的文字项：用于预览内快速修改（内容/字号/重置位置）。 */
+  const [selectedText, setSelectedText] = useState<{ key: string; groupKey?: string; text: string; fs: number; cat: ExportTextCategory } | null>(null);
+  const animRef = useRef<{ imgs: HTMLImageElement[]; urls: string[] } | null>(null);
+  const animReqRef = useRef(0);
+  const frameIdxRef = useRef(0);
+  const clickStartRef = useRef<{ x: number; y: number } | null>(null);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const reqIdRef = useRef(0);
   /** 可拖拽/可编辑文字目录项（导出坐标系基准锚点；offsets 由命中测试/高亮实时叠加） */
@@ -266,10 +275,12 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     const cv = e.currentTarget;
     const w = canvasToWorld(e.clientX, e.clientY);
     if (!w) return;
+    clickStartRef.current = { x: e.clientX, y: e.clientY };
     const item = e.button === 1 ? null : nearestTextItem(w.x, w.y);
     if (item) {
       dragRef.current = { key: item.groupKey ?? item.key, ax: item.x, ay: item.y, item };
       activeRef.current = item;
+      setSelectedText({ key: item.key, groupKey: item.groupKey, text: item.text, fs: item.fs, cat: item.cat });
       try { cv.setPointerCapture?.(e.pointerId); } catch { /* 合成事件/无活动指针时忽略 */ }
       cv.classList.add("text-dragging");
       scheduleDraw();
@@ -314,6 +325,12 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
   const onPreviewPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const cv = e.currentTarget;
     let changed = false;
+    const start = clickStartRef.current;
+    clickStartRef.current = null;
+    // 单击（几乎未移动）在空白处 → 取消选中；单击文字已在 pointerdown 时选中
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 4 && !dragRef.current && selectedText) {
+      setSelectedText(null);
+    }
     if (panRef.current) { panRef.current = null; changed = true; }
     if (dragRef.current) { dragRef.current = null; activeRef.current = null; changed = true; }
     cv.classList.remove("text-dragging");
@@ -423,6 +440,81 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
     }, immediate ? 16 : 120);
     return () => clearTimeout(timer);
   }, [opts, diagram, svgRef, fullRenderReady]);
+
+  // ===== GIF/MP4 实时动画预览：预渲染循环帧（与导出同一套算法），预览中以低帧率循环播放 =====
+  const isAnim = format === "gif" || format === "mp4";
+  const releaseAnim = () => {
+    const cur = animRef.current;
+    animRef.current = null;
+    frameIdxRef.current = 0;
+    if (cur) for (const url of cur.urls) { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }
+  };
+  useEffect(() => {
+    if (!fullRenderReady || !isAnim || !liveAnim) { releaseAnim(); return; }
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const id = ++animReqRef.current;
+    let aborted = false;
+    let adopted = false;
+    const urls: string[] = [];
+    const timer = setTimeout(() => {
+      if (id !== animReqRef.current) return;
+      let built: ReturnType<typeof buildAnimationFrameSVGs>;
+      try {
+        built = buildAnimationFrameSVGs(svgEl, diagram, { ...opts, selection: ui.selection });
+      } catch { return; }
+      const imgs: HTMLImageElement[] = [];
+      let pending = built.svgs.length;
+      let failed = false;
+      const settle = () => {
+        pending -= 1;
+        if (pending || aborted) return;
+        if (failed || id !== animReqRef.current) { for (const url of urls) URL.revokeObjectURL(url); return; }
+        releaseAnim();
+        adopted = true;
+        animRef.current = { imgs, urls };
+        if (imgs[0]) { imgRef.current = imgs[0]; scheduleDraw(); }
+      };
+      built.svgs.forEach((markup, index) => {
+        const url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
+        urls.push(url);
+        const img = new Image();
+        img.onload = () => {
+          if (aborted) return;
+          imgs[index] = img;
+          settle();
+        };
+        img.onerror = () => { if (!aborted) { failed = true; settle(); } };
+        img.src = url;
+      });
+    }, 260);
+    return () => { aborted = true; clearTimeout(timer); if (!adopted) for (const url of urls) URL.revokeObjectURL(url); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAnim, liveAnim, fullRenderReady, opts, diagram, ui.selection]);
+
+  // 播放循环：只切换已预渲染的帧，不重新栅格化，避免预览卡顿
+  useEffect(() => {
+    if (!isAnim || !liveAnim || !animPlaying) return;
+    let raf = 0;
+    let last = 0;
+    const FPS = 7; // 14 frames over the same two-second loop as the export
+    const tick = (ts: number) => {
+      raf = requestAnimationFrame(tick);
+      const frames = animRef.current?.imgs;
+      if (!frames || frames.length === 0) return;
+      if (ts - last < 1000 / FPS) return;
+      last = ts;
+      frameIdxRef.current = (frameIdxRef.current + 1) % frames.length;
+      const next = frames[frameIdxRef.current];
+      if (next) { imgRef.current = next; scheduleDraw(); }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAnim, liveAnim, animPlaying]);
+
+  // 关窗/切格式/关实时预览时释放帧资源
+  useEffect(() => () => releaseAnim(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 滚轮缩放（原生监听：需要 preventDefault；React 合成 wheel 为 passive）
   useEffect(() => {
@@ -652,7 +744,70 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
               <span className="exp-zoom-val">{zoomPct}%</span>
               <button onClick={() => zoomBy(1.25)} title={t("放大")}>＋</button>
               <button className="exp-zoom-fit" onClick={fitView}>{t("适应")}</button>
+              {isAnim && <>
+                <span className="exp-zoom-sep" aria-hidden="true" />
+                <button
+                  className={animPlaying ? "on" : ""}
+                  title={animPlaying ? t("暂停动画预览") : t("播放动画预览")}
+                  onClick={() => setAnimPlaying((p) => !p)}
+                >{animPlaying ? "⏸" : "▶"}</button>
+                <label className="exp-live-toggle" title={t("实时渲染 GIF 动画；不改变最终导出质量")}>
+                  <input type="checkbox" checked={liveAnim} onChange={(e) => setLiveAnim(e.target.checked)} />
+                  {t("实时动画")}
+                </label>
+              </>}
             </div>
+            {selectedText && (
+              <div className="exp-quick-edit" role="group" aria-label={t("快速修改文字")}>
+                <div className="exp-quick-head">
+                  <span>{t("快速修改")}</span>
+                  <button className="exp-quick-close" title={t("关闭")} onClick={() => setSelectedText(null)}>✕</button>
+                </div>
+                <input
+                  className="exp-quick-text"
+                  aria-label={t("文字内容")}
+                  value={opts.text?.overrides?.[selectedText.key] ?? selectedText.text}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const ov = { ...(opts.text?.overrides ?? {}) };
+                    if (!v.trim()) delete ov[selectedText.key]; else ov[selectedText.key] = v;
+                    patchText({ overrides: ov });
+                    setSelectedText({ ...selectedText, text: v });
+                  }}
+                />
+                <div className="exp-quick-row">
+                  <span className="exp-quick-label">{t("字号")}</span>
+                  <input
+                    type="range"
+                    min={6}
+                    max={64}
+                    step={0.5}
+                    value={opts.text?.sizes?.[selectedText.key] ?? selectedText.fs}
+                    onChange={(e) => patchText({ sizes: { ...(opts.text?.sizes ?? {}), [selectedText.key]: Number(e.target.value) } })}
+                  />
+                  <span className="exp-quick-val">{Math.round(opts.text?.sizes?.[selectedText.key] ?? selectedText.fs)}px</span>
+                </div>
+                <div className="exp-quick-actions">
+                  <button
+                    className="btn ghost"
+                    onClick={() => {
+                      const off = { ...(opts.text?.offsets ?? {}) };
+                      delete off[selectedText.groupKey ?? selectedText.key];
+                      patchText({ offsets: off });
+                    }}
+                  >{t("重置位置")}</button>
+                  <button
+                    className="btn ghost"
+                    onClick={() => {
+                      const ov = { ...(opts.text?.overrides ?? {}) }; delete ov[selectedText.key];
+                      const sz = { ...(opts.text?.sizes ?? {}) }; delete sz[selectedText.key];
+                      patchText({ overrides: ov, sizes: sz });
+                      setSelectedText(null);
+                    }}
+                  >{t("恢复默认")}</button>
+                </div>
+              </div>
+            )}
             {editing && (
               <div
                 className="exp-text-edit"
@@ -690,7 +845,7 @@ export function ExportDialog({ svgRef, initialFormat, onClose }: { svgRef: React
                 />
               </div>
             )}
-            <div className="exp-preview-meta">{diagram.nodes.length} {t("节点")} · {diagram.pipes.length} {t("管路")}{format !== "gif" && format !== "mp4" && opts.scale > 1 ? ` · ${opts.scale}x` : ""}</div>
+            <div className="exp-preview-meta">{diagram.nodes.length} {t("节点")} · {diagram.pipes.length} {t("管路")}{format !== "gif" && format !== "mp4" && opts.scale > 1 ? ` · ${opts.scale}x` : ""}{hoverRef.current ? ` · ${t("拖动移动 · 双击改字")}` : ""}{isAnim && liveAnim ? ` · ${t("循环预览")}` : ""}</div>
           </div>
           <div className="exp-options">
             {group(t("画布"), (

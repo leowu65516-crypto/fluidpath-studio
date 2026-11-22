@@ -792,6 +792,92 @@ export function exportPdfWithOptions(svgEl: SVGSVGElement, diagram: Diagram, opt
 }
 
 /** GIF 选项化导出（逐帧管线 + 附加节点 + DOM 后处理 + 主题色） */
+/**
+ * 动画导出/预览共用的「已准备好的一帧画布」：
+ * 克隆画布 SVG → 附加导出节点 → 主题解析，返回可反复改写 stroke-dashoffset 的副本。
+ * 只读入参，不修改编辑器画布。
+ */
+export function prepareAnimationScene(svgEl: SVGSVGElement, diagram: Diagram, opts: ExportOptions) {
+  const { diagram: exDiagram, extra } = prepareExportDiagram(diagram, opts);
+  const bbox = bboxWith(extra, exDiagram);
+  const pad = Math.max(0, opts.padding || 0);
+  const w = Math.round(bbox.w + pad * 2);
+  const h = Math.round(bbox.h + pad * 2);
+  const transparent = opts.background === "transparent";
+  const c = svgEl.cloneNode(true) as SVGSVGElement;
+  prepareDiagnosticExport(c, opts);
+  preserveExportText(c);
+  c.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
+  const world = c.querySelector("[data-world='1']");
+  if (world) world.removeAttribute("transform");
+  c.setAttribute("viewBox", `${bbox.x - pad} ${bbox.y - pad} ${w} ${h}`);
+  c.setAttribute("width", String(w));
+  c.setAttribute("height", String(h));
+  c.removeAttribute("style");
+  c.removeAttribute("class");
+  appendExportNodes(c, extra);
+  if (!transparent) {
+    const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bg.setAttribute("x", String(bbox.x - pad));
+    bg.setAttribute("y", String(bbox.y - pad));
+    bg.setAttribute("width", String(w));
+    bg.setAttribute("height", String(h));
+    bg.setAttribute("fill", backgroundColorOf(diagram, opts));
+    c.insertBefore(bg, c.firstChild);
+  }
+  applySvgOverrides(c, opts);
+  resolveSvgTheme(c, opts.darkMode ? "dark" : "light");
+  return { clone: c, exDiagram, extra, bbox, w, h, transparent };
+}
+
+/** 动画 GIF 的一个时间点（t ∈ [0,1] 为一个 2 秒循环）。 */
+export interface AnimationFrameSpec {
+  /** 一个循环内的相位 0..1 */
+  t: number;
+  /** 便于测试/预览调整的循环时长（毫秒） */
+  durationMs: number;
+}
+
+/**
+ * 生成动画预览用的帧 SVG 字符串（与真实 GIF 导出同一套虚线位移算法）。
+ * 用于导出对话框的「实时动画预览」：帧率与尺寸可按屏幕缩放降低，不影响最终导出。
+ */
+export function buildAnimationFrameSVGs(
+  svgEl: SVGSVGElement,
+  diagram: Diagram,
+  opts: ExportOptions,
+  frames: AnimationFrameSpec[] = Array.from({ length: 14 }, (_, i) => ({ t: i / 14, durationMs: 2000 })),
+): { svgs: string[]; w: number; h: number; x: number; y: number } {
+  const scene = prepareAnimationScene(svgEl, diagram, opts);
+  const seconds = Math.max(0.2, (frames[0]?.durationMs ?? 2000) / 1000);
+  const flows: Array<{ el: Element; cyclePx: number; dir: number; lag: number }> = [];
+  for (const pipe of scene.exDiagram.pipes) {
+    if (!pipe.animated) continue;
+    for (const el of Array.from(scene.clone.querySelectorAll(`[data-flow="${pipe.id}"]`))) {
+      flows.push(...flowSceneEntries(pipe, el, seconds));
+    }
+  }
+  const drips = Array.from(scene.clone.querySelectorAll('[data-drip="1"]')).map((el) => ({
+    el,
+    phase: Number(el.getAttribute("data-drip-phase") || 0),
+  }));
+  const dripCycles = Math.max(1, Math.round(seconds / 1.05));
+  const svgs: string[] = [];
+  for (const frame of frames) {
+    const t = frame.t;
+    for (const f of flows) f.el.setAttribute("stroke-dashoffset", (f.lag - f.dir * f.cyclePx * t).toFixed(2));
+    for (const dp of drips) {
+      const p = (t * dripCycles + dp.phase) % 1;
+      const op = p < 0.12 ? (p / 0.12) * 0.9 : p > 0.8 ? ((1 - p) / 0.2) * 0.9 : 0.9;
+      dp.el.setAttribute("transform", `translate(0 ${(46 * p).toFixed(1)})`);
+      dp.el.setAttribute("opacity", op.toFixed(2));
+    }
+    svgs.push(`<?xml version="1.0" encoding="UTF-8"?>\n` + new XMLSerializer().serializeToString(scene.clone));
+  }
+  return { svgs, w: scene.w, h: scene.h, x: Math.round(scene.bbox.x - Math.max(0, opts.padding || 0)), y: Math.round(scene.bbox.y - Math.max(0, opts.padding || 0)) };
+}
+
+/** GIF 选项化导出（逐帧管线 + 附加节点 + DOM 后处理 + 主题色） */
 export async function exportGifWithOptions(
   svgEl: SVGSVGElement,
   diagram: Diagram,
@@ -799,40 +885,11 @@ export async function exportGifWithOptions(
   onProgress?: (ratio: number) => void,
   onPrepared?: () => void,
 ): Promise<void> {
-  const { diagram: exDiagram, extra } = prepareExportDiagram(diagram, opts);
-  const bbox = bboxWith(extra, exDiagram);
-  const pad = Math.max(0, opts.padding || 0);
-  const w = Math.round(bbox.w + pad * 2);
-  const h = Math.round(bbox.h + pad * 2);
+  const prepared = prepareAnimationScene(svgEl, diagram, opts);
+  const exDiagram = prepared.exDiagram;
+  const { clone, w, h } = prepared;
   const { width: outW, height: outH } = animationDimensions(w, h, opts.animationMaxSide ?? 1280);
-  const transparent = opts.background === "transparent";
-
-  const { clone } = (() => {
-    const c = svgEl.cloneNode(true) as SVGSVGElement;
-    prepareDiagnosticExport(c, opts);
-    preserveExportText(c);
-    c.querySelectorAll("[data-ui='1']").forEach((el) => el.remove());
-    const world = c.querySelector("[data-world='1']");
-    if (world) world.removeAttribute("transform");
-    c.setAttribute("viewBox", `${bbox.x - pad} ${bbox.y - pad} ${w} ${h}`);
-    c.setAttribute("width", String(w));
-    c.setAttribute("height", String(h));
-    c.removeAttribute("style");
-    c.removeAttribute("class");
-    appendExportNodes(c, extra);
-    if (!transparent) {
-      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      bg.setAttribute("x", String(bbox.x - pad));
-      bg.setAttribute("y", String(bbox.y - pad));
-      bg.setAttribute("width", String(w));
-      bg.setAttribute("height", String(h));
-      bg.setAttribute("fill", backgroundColorOf(diagram, opts));
-      c.insertBefore(bg, c.firstChild);
-    }
-    applySvgOverrides(c, opts);
-    resolveSvgTheme(c, opts.darkMode ? "dark" : "light");
-    return { clone: c };
-  })();
+  const transparent = prepared.transparent;
   // 调用方可在此时恢复临时画布状态；后续 GIF 帧只读取独立的 SVG 副本。
   onPrepared?.();
 

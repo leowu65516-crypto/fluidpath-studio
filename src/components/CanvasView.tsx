@@ -22,6 +22,7 @@ import {
   pipeTeachingOverride
 } from "../geometry";
 import { NodeSymbol, spoutTips, defOf, nodeCanvasLabel } from "../symbols";
+import { plateRect, resolveLabelPlate } from "../labelPlate";
 import { diaphragmRouteLabel, isSharedPortSelector } from "../diaphragmValve";
 import { MiniMap } from "./MiniMap";
 import { PipeView } from "./PipeView";
@@ -1076,6 +1077,11 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
       ? scenario.activeNodes.includes(node.id) || Object.keys(scenario.overrides ?? {}).includes(node.id)
       : true;
     const nodeDim = scenario ? !nodeActive : false;
+    // 显示淡化（置灰/演示非激活）覆盖「图形 + 名称 + 状态徽标」，否则文字仍高对比会破坏淡化意图
+    const nodeOpacity = node.displayDisabled || node.disabled ? 0.4 : nodeDim ? 0.35 : 1;
+    // 状态徽标显示开关：开/关（阀位与泵运行）与 A/B 通路可分别关闭；单个元件的 showStateOnDiagram 仍可关掉自己的徽标
+    const showSwitchBadge = node.showStateOnDiagram !== false && diagram.settings.showSwitchState !== false;
+    const showPathBadge = node.showStateOnDiagram !== false && diagram.settings.showValvePathBadge !== false;
     // 悬停浮动提示：元件名 + 类型 + 当前状态（解决元件多、文字小找不到）
     const stateHint = (() => {
       if (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") return node.pumpOn !== false ? t("运行") : t("停止");
@@ -1249,34 +1255,34 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
           ] as const).map((hd) => (
             <rect key={hd.c} data-ui="1" x={hd.x - 4.5} y={hd.y - 4.5} width={9} height={9} rx={1.5} fill="#ffffff" stroke="#2f7fd6" strokeWidth={1.6} style={{ cursor: hd.cur }} onMouseDown={(e) => onResizeMouseDown(e, node, hd.c)} />
           ))}
-          {/* 开关阀画布控制（默认显示，属性可关） */}
-          {(node.type === "solenoid2" || node.type === "pulseAirValve" || node.type === "ballValve" || node.type === "solenoid3" || node.type === "diaphragmValve2" || node.type === "diaphragmValve3") && node.showStateOnDiagram !== false && (
-            node.type === "solenoid2" || node.type === "pulseAirValve" || node.type === "ballValve" || node.type === "diaphragmValve2" ? (
-              <g className="fp-state-badge">
-                <rect x={8} y={node.height + 24} width={node.width - 16} height={20} rx={10} fill="#f0f4f9" stroke="#b9c6d4" strokeWidth={1} />
-                <rect x={node.valveState === "closed" ? 10 : node.width - 28} y={node.height + 26} width={18} height={16} rx={8} fill={node.valveState === "closed" ? "#d9534f" : "#3fae6a"} stroke="#fff" strokeWidth={1.2} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id); }} />
-                <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={11} fill={node.valveState === "closed" ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none" style={{ paintOrder: "stroke" }} stroke="var(--canvas-label-halo)" strokeWidth={3}>{node.valveState === "closed" ? t("关") : t("开")}</text>
-              </g>
-            ) : (
-              <g className="fp-state-badge">
-                {(["A", "B"] as const).map((val, i, values) => {
-                  const bx = 10 + (node.width - 20) * (values.length === 1 ? 0 : i / (values.length - 1));
-                  const active = (node.valvePath ?? "A") === val;
-                  const colors: Record<string, string> = { A: "#3fae6a", B: "#2f7fd6", off: "#d9534f" };
-                  return (
-                    <g key={val} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id, val); }}>
-                      <rect x={bx - 8} y={node.height + 24} width={16} height={16} rx={3} fill={active ? colors[val] : "#eef2f7"} stroke={active ? colors[val] : "#b9c6d4"} strokeWidth={1.2} />
-                      <title>{isSharedPortSelector(node) ? diaphragmRouteLabel(node, val) : val}</title>
-                      <text x={bx} y={node.height + 36} textAnchor="middle" fontSize={10} fill={active ? "#fff" : "#6b7787"} fontFamily="system-ui, sans-serif" fontWeight={600} pointerEvents="none">{node.type === "diaphragmValve3" ? (val === "A" ? "I" : "II") : val}</text>
-                    </g>
-                  );
-                })}
-              </g>
-            )
+          {/* 开/关状态徽标（阀位、泵运行）：受图纸级「开/关徽标」开关与单件 showStateOnDiagram 控制 */}
+          {showSwitchBadge && (node.type === "solenoid2" || node.type === "pulseAirValve" || node.type === "ballValve" || node.type === "diaphragmValve2") && (
+            <g className="fp-state-badge" opacity={nodeOpacity}>
+              <rect x={8} y={node.height + 24} width={node.width - 16} height={20} rx={10} fill="#f0f4f9" stroke="#b9c6d4" strokeWidth={1} />
+              <rect x={node.valveState === "closed" ? 10 : node.width - 28} y={node.height + 26} width={18} height={16} rx={8} fill={node.valveState === "closed" ? "#d9534f" : "#3fae6a"} stroke="#fff" strokeWidth={1.2} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id); }} />
+              <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={11} fill={node.valveState === "closed" ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none" style={{ paintOrder: "stroke" }} stroke="var(--canvas-label-halo)" strokeWidth={3}>{node.valveState === "closed" ? t("关") : t("开")}</text>
+            </g>
           )}
-          {/* 泵画布开关（开/停，默认显示，属性可关） */}
-          {(node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && node.showStateOnDiagram !== false && (
-            <g className="fp-state-badge">
+          {/* A/B 通路徽标（三通阀、隔膜切换阀）：受图纸级「A/B 通路徽标」开关控制 */}
+          {showPathBadge && (node.type === "solenoid3" || node.type === "diaphragmValve3") && (
+            <g className="fp-state-badge" opacity={nodeOpacity}>
+              {(["A", "B"] as const).map((val, i, values) => {
+                const bx = 10 + (node.width - 20) * (values.length === 1 ? 0 : i / (values.length - 1));
+                const active = (node.valvePath ?? "A") === val;
+                const colors: Record<string, string> = { A: "#3fae6a", B: "#2f7fd6", off: "#d9534f" };
+                return (
+                  <g key={val} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id, val); }}>
+                    <rect x={bx - 8} y={node.height + 24} width={16} height={16} rx={3} fill={active ? colors[val] : "#eef2f7"} stroke={active ? colors[val] : "#b9c6d4"} strokeWidth={1.2} />
+                    <title>{isSharedPortSelector(node) ? diaphragmRouteLabel(node, val) : val}</title>
+                    <text x={bx} y={node.height + 36} textAnchor="middle" fontSize={10} fill={active ? "#fff" : "#6b7787"} fontFamily="system-ui, sans-serif" fontWeight={600} pointerEvents="none">{node.type === "diaphragmValve3" ? (val === "A" ? "I" : "II") : val}</text>
+                  </g>
+                );
+              })}
+            </g>
+          )}
+          {/* 泵画布开关（开/停）：同样受图纸级「开/关徽标」开关控制 */}
+          {showSwitchBadge && (node.type === "pump" || node.type === "milkPump" || node.type === "airPump") && (
+            <g className="fp-state-badge" opacity={nodeOpacity}>
               <rect x={8} y={node.height + 24} width={node.width - 16} height={20} rx={10} fill="#f0f4f9" stroke="#b9c6d4" strokeWidth={1} />
               <rect x={node.pumpOn === false ? 10 : node.width - 28} y={node.height + 26} width={18} height={16} rx={8} fill={node.pumpOn === false ? "#d9534f" : "#3fae6a"} stroke="#fff" strokeWidth={1.2} style={{ cursor: "pointer" }} onMouseDown={(e) => { e.stopPropagation(); onValveToggle(node.id); }} />
               <text x={node.width / 2} y={node.height + 38} textAnchor="middle" fontSize={10} fill={node.pumpOn === false ? "#d9534f" : "#3fae6a"} fontFamily="system-ui, sans-serif" fontWeight={650} pointerEvents="none" style={{ paintOrder: "stroke" }} stroke="var(--canvas-label-halo)" strokeWidth={3}>{node.pumpOn === false ? t("停止") : t("运行")}</text>
@@ -1288,14 +1294,15 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
           const lx = node.x + node.width / 2 + (node.labelOffset?.x ?? 0);
           const ly = node.y + node.height + 18 + (node.labelOffset?.y ?? 0);
           const fontSize = node.fontSize ?? diagram.settings.nodeLabelFontSize ?? 13;
-          const labelWidth = Math.max(34, (nodeCanvasLabel(node, lang).length * fontSize * 0.62) + 14);
-          const labelBackground = node.labelBackground;
+          const labelText = nodeCanvasLabel(node, lang);
+          const plate = resolveLabelPlate(node, diagram.settings);
+          const plateBox = plate ? plateRect(labelText, fontSize, lx, ly) : null;
           return (
-            <g className="fp-node-label-wrap">
-              {labelBackground && <rect
-                x={lx - labelWidth / 2} y={ly - fontSize * 0.95} width={labelWidth} height={fontSize * 1.35}
-                rx={4} fill={labelBackground} fillOpacity={Math.max(0, Math.min(1, node.labelBackgroundOpacity ?? 0.82))}
-                pointerEvents="none" data-ui="1"
+            <g className="fp-node-label-wrap" opacity={nodeOpacity}>
+              {plate && plateBox && <rect
+                x={plateBox.x} y={plateBox.y} width={plateBox.width} height={plateBox.height}
+                rx={4} fill={plate.color} fillOpacity={plate.opacity}
+                pointerEvents="none" data-ui="1" className="fp-node-label-plate"
               />}
               <text
                 x={lx} y={ly}
@@ -1307,7 +1314,7 @@ export function CanvasView({ svgRefOut, smartView = "all", viewFading = false, s
                 style={{ cursor: "move" }}
                 onMouseDown={(e) => onNodeLabelMouseDown(e, node)}
                 onDoubleClick={(e) => { e.stopPropagation(); beginLabelEdit("node", node.id, lx, ly, node.label); }}
-              >{nodeCanvasLabel(node, lang)}</text>
+              >{labelText}</text>
             </g>
           );
         })()}

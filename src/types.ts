@@ -93,9 +93,14 @@ export interface DiagramNode {
   fontSize?: number;
   /** 元器件标签手动偏移（画布上拖动文字微调位置，避免与元件/其它文字重叠） */
   labelOffset?: { x: number; y: number };
-  /** 元器件标签背景；未设置时保持无底板。 */
+  /**
+   * 元器件标签底板颜色。
+   * - 未设置：跟随图纸级 `settings.nodeLabelBackground`；
+   * - `"none"`：显式关闭（图纸级开启时也保持无底板）；
+   * - 颜色值：该元件专属底板色。
+   */
   labelBackground?: string;
-  /** 元器件标签背景透明度（0..1）。 */
+  /** 元器件标签背景透明度（0..1）；未设置时跟随图纸级默认。 */
   labelBackgroundOpacity?: number;
   /** 咖啡出口：是否显示出液（咖啡滴落）动画 */
   dispensing?: boolean;
@@ -290,6 +295,17 @@ export interface DiagramSettings {
   diagnosticMarkerMode?: "all" | "errors" | "hidden";
   /** 全局元器件名称字号（单个元件未设置专属字号时使用）。 */
   nodeLabelFontSize?: number;
+  /**
+   * 图纸级元器件名称底板颜色：让名称与元件/管路在视觉上分开。
+   * 未设置或 "none" 表示默认无底板；单个元件可用 `labelBackground` 覆盖。
+   */
+  nodeLabelBackground?: string;
+  /** 图纸级名称底板透明度（0..1，默认 0.82）。 */
+  nodeLabelBackgroundOpacity?: number;
+  /** 画布是否显示开/关状态徽标（阀位、泵运行状态）；默认显示。 */
+  showSwitchState?: boolean;
+  /** 画布是否显示 A/B 通路徽标（三通阀、隔膜切换阀）；默认显示。 */
+  showValvePathBadge?: boolean;
   /** 背景样式：点阵/方格/纯色 */
   backgroundType?: "dot" | "grid" | "solid" | "large-grid" | "cross";
   /** 记录保存时的应用版本（预留：版本历史/兼容迁移用） */
@@ -356,7 +372,8 @@ export type WorkConditionDisplaySettings = Pick<DiagramSettings,
   "showGrid" | "background" | "globalAnimationPlaying" | "crossoverHops" | "layers" |
   "currentLayerId" | "snapToGrid" | "showAlignmentGuides" | "flowScale" |
   "showFluidLabels" | "showNodeLabels" | "showPipeLabels" | "showPipeDiameters" |
-  "showFluidColors" | "diagnosticMarkerMode" | "nodeLabelFontSize" | "backgroundType"
+  "showFluidColors" | "diagnosticMarkerMode" | "nodeLabelFontSize" | "backgroundType" |
+  "nodeLabelBackground" | "nodeLabelBackgroundOpacity" | "showSwitchState" | "showValvePathBadge"
 >;
 
 export interface WorkCondition {

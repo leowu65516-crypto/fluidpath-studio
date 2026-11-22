@@ -2162,6 +2162,31 @@ body[data-theme="dark"] .welcome-overlay {
 .exp-zoom-bar button:hover { background: var(--accent-soft); }
 .exp-zoom-val { font-size: 11px; color: var(--text-dim); min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; }
 .exp-zoom-fit { width: auto !important; padding: 0 8px !important; font-size: 11px !important; }
+.exp-zoom-bar button.on { background: var(--accent-soft); color: var(--accent); }
+.exp-zoom-sep { width: 1px; height: 16px; background: var(--border); margin: 0 3px; }
+.exp-live-toggle { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-dim); padding: 0 4px 0 2px; cursor: pointer; user-select: none; }
+.exp-live-toggle input { margin: 0; }
+/* 预览内快速修改卡：单击文字后在预览左下出现，避免遮住工具条 */
+.exp-quick-edit {
+  position: absolute; left: 12px; bottom: 32px; z-index: 5; width: 232px;
+  display: grid; gap: 6px; padding: 8px 10px;
+  border: 1px solid var(--accent); border-radius: 10px;
+  background: var(--panel); color: var(--text);
+  box-shadow: 0 6px 18px rgba(31, 44, 61, 0.2);
+}
+.exp-quick-head { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--text-dim); }
+.exp-quick-close { border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 12px; line-height: 1; }
+.exp-quick-close:hover { color: var(--danger); }
+.exp-quick-text {
+  width: 100%; font-size: 12px; padding: 4px 6px; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--input-bg); color: var(--text);
+}
+.exp-quick-row { display: flex; align-items: center; gap: 6px; }
+.exp-quick-label { font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+.exp-quick-row input[type="range"] { flex: 1; min-width: 0; }
+.exp-quick-val { font-size: 11px; color: var(--text-dim); width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+.exp-quick-actions { display: flex; gap: 6px; }
+.exp-quick-actions .btn { flex: 1; font-size: 11px; padding: 3px 6px; }
 .exp-extra-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
 .exp-chip {
   display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px 2px 9px;

@@ -3,7 +3,7 @@
  * 每次发布时：1) 更新 APP_VERSION；2) 在 CHANGELOG 头部追加条目；
  * 3) 同步 package.json 的 version（打包文件名依赖它）。
  */
-export const APP_VERSION = "1.56.0";
+export const APP_VERSION = "1.57.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -13,6 +13,7 @@ export interface ChangelogEntry {
 
 /** 版本历史（最新在前）。预留：后续可在「关于」面板展示。 */
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: "1.57.0", date: "2026-11-22", highlights: ["新增全局与单元件名称底板设置、状态徽标显示控制", "GIF/MP4 增加动态预览与预览文字快捷编辑"] },
   { version: "1.56.0", date: "2026-11-21", highlights: ["新增 H.264 MP4 单工况和演示步骤导出，编码能力不足时提供提示", "GIF 和 MP4 提供分辨率预设与帧率设置；GIF 重用调色板并压缩未改变像素"] },
   { version: "1.55.0", date: "2026-11-21", highlights: [
     "普通三通电磁阀可配置公共端及两条双向通路，未配置的旧图保持原语义",

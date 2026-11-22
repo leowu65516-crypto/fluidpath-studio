@@ -357,16 +357,29 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                   </Row>
                   <Row label={t("标签背景")}>
                     <div className="insp-inline-controls">
-                      <input type="checkbox" checked={!!node.labelBackground} onChange={(e) => patchNode(node.id, { labelBackground: e.target.checked ? "#ffffff" : undefined })} />
-                      <span className="insp-static">{node.labelBackground ? t("已启用") : t("无背景")}</span>
+                      <select
+                        aria-label={t("标签背景")}
+                        value={node.labelBackground === "none" ? "off" : node.labelBackground ? "custom" : "inherit"}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "off") patchNode(node.id, { labelBackground: "none" }, true);
+                          else if (v === "custom") patchNode(node.id, { labelBackground: node.labelBackground && node.labelBackground !== "none" ? node.labelBackground : (diagram.settings.nodeLabelBackground && diagram.settings.nodeLabelBackground !== "none" ? diagram.settings.nodeLabelBackground : "#ffffff") }, true);
+                          else patchNode(node.id, { labelBackground: undefined }, true);
+                        }}
+                      >
+                        <option value="inherit">{t("跟随全局")}</option>
+                        <option value="custom">{t("自定义")}</option>
+                        <option value="off">{t("不显示")}</option>
+                      </select>
+                      <span className="insp-static">{node.labelBackground === "none" ? t("无背景") : node.labelBackground ? t("已启用") : (diagram.settings.nodeLabelBackground && diagram.settings.nodeLabelBackground !== "none" ? t("跟随全局（已启用）") : t("跟随全局（无底板）"))}</span>
                     </div>
                   </Row>
-                  {node.labelBackground && <>
+                  {node.labelBackground && node.labelBackground !== "none" && <>
                     <Row label={t("标签背景色")}>
                       <input type="color" value={node.labelBackground.slice(0, 7)} onChange={(e) => patchNode(node.id, { labelBackground: e.target.value })} />
                     </Row>
-                    <Row label={`${t("背景透明度")} ${Math.round((node.labelBackgroundOpacity ?? 0.82) * 100)}%`}>
-                      <input type="range" min={0} max={100} value={Math.round((node.labelBackgroundOpacity ?? 0.82) * 100)} onChange={(e) => patchNode(node.id, { labelBackgroundOpacity: Number(e.target.value) / 100 }, false)} onMouseUp={() => patchNode(node.id, {}, true)} />
+                    <Row label={`${t("背景透明度")} ${Math.round((node.labelBackgroundOpacity ?? diagram.settings.nodeLabelBackgroundOpacity ?? 0.82) * 100)}%`}>
+                      <input type="range" min={0} max={100} value={Math.round((node.labelBackgroundOpacity ?? diagram.settings.nodeLabelBackgroundOpacity ?? 0.82) * 100)} onChange={(e) => patchNode(node.id, { labelBackgroundOpacity: Number(e.target.value) / 100 }, false)} onMouseUp={() => patchNode(node.id, {}, true)} />
                     </Row>
                   </>}
                 </>
@@ -1028,19 +1041,53 @@ export function Inspector({ collapsed = false, onToggle }: { collapsed?: boolean
                 </select>
               </Row>
               <Row label={`${t("元器件文字大小")} ${diagram.settings.nodeLabelFontSize ?? 13}px`}>
-                <input
-                  type="range"
-                  min={8}
-                  max={32}
-                  value={diagram.settings.nodeLabelFontSize ?? 13}
-                  onChange={(e) => updateDiagram((d) => { d.settings.nodeLabelFontSize = Number(e.target.value); }, false)}
-                />
+                <div className="insp-inline-controls">
+                  <button className="btn ghost" onClick={() => updateDiagram((d) => { d.settings.nodeLabelFontSize = Math.max(8, (d.settings.nodeLabelFontSize ?? 13) - 1); }, false)} title={t("小一号")}>−</button>
+                  <input
+                    type="range"
+                    min={8}
+                    max={32}
+                    value={diagram.settings.nodeLabelFontSize ?? 13}
+                    onChange={(e) => updateDiagram((d) => { d.settings.nodeLabelFontSize = Number(e.target.value); }, false)}
+                  />
+                  <button className="btn ghost" onClick={() => updateDiagram((d) => { d.settings.nodeLabelFontSize = Math.min(32, (d.settings.nodeLabelFontSize ?? 13) + 1); }, false)} title={t("大一号")}>＋</button>
+                </div>
+              </Row>
+              <Row label={t("名称底板")}>
+                <div className="insp-inline-controls">
+                  <input
+                    type="checkbox"
+                    checked={!!diagram.settings.nodeLabelBackground && diagram.settings.nodeLabelBackground !== "none"}
+                    onChange={(e) => updateDiagram((d) => { d.settings.nodeLabelBackground = e.target.checked ? "#ffffff" : undefined; }, false)}
+                  />
+                  <span className="insp-static">{diagram.settings.nodeLabelBackground && diagram.settings.nodeLabelBackground !== "none" ? t("已启用") : t("无背景")}</span>
+                </div>
+              </Row>
+              {diagram.settings.nodeLabelBackground && diagram.settings.nodeLabelBackground !== "none" && <>
+                <Row label={t("名称底板颜色")}>
+                  <input type="color" value={diagram.settings.nodeLabelBackground.slice(0, 7)} onChange={(e) => updateDiagram((d) => { d.settings.nodeLabelBackground = e.target.value; }, false)} />
+                </Row>
+                <Row label={`${t("底板透明度")} ${Math.round((diagram.settings.nodeLabelBackgroundOpacity ?? 0.82) * 100)}%`}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={Math.round((diagram.settings.nodeLabelBackgroundOpacity ?? 0.82) * 100)}
+                    onChange={(e) => updateDiagram((d) => { d.settings.nodeLabelBackgroundOpacity = Number(e.target.value) / 100; }, false)}
+                  />
+                </Row>
+              </>}
+              <Row label={t("开/关状态徽标")}>
+                <input type="checkbox" title={t("阀位开/关与泵运行状态；关闭后画布与导出都不显示")} checked={diagram.settings.showSwitchState !== false} onChange={(e) => updateDiagram((d) => { d.settings.showSwitchState = e.target.checked; }, false)} />
+              </Row>
+              <Row label={t("A/B 通路徽标")}>
+                <input type="checkbox" title={t("三通阀与隔膜切换阀的通路字母；关闭后只隐藏字母标记，不影响阀位")} checked={diagram.settings.showValvePathBadge !== false} onChange={(e) => updateDiagram((d) => { d.settings.showValvePathBadge = e.target.checked; }, false)} />
               </Row>
               {diagram.nodes.some((n) => n.labelOffset) && (
                 <button className="btn ghost wide" onClick={() => updateDiagram((d) => { for (const n of d.nodes) delete n.labelOffset; }, true)}>{t("重置全部文字位置")}</button>
               )}
               <div className="insp-tip">{t("诊断标记只影响画布和状态栏显示；不改变工程状态、诊断结果或验收。")}</div>
-              <div className="insp-tip">{t("标签可直接在画布上拖动微调位置；双击标签编辑文字。此处开关同样作用于导出（导出面板另有独立选项）。")}</div>
+              <div className="insp-tip">{t("标签可直接在画布上拖动微调位置；双击标签编辑文字。此处的显示开关同样作用于导出（导出面板另有独立选项）。")}</div>
           </Section>
           <Section title={t("项目工具")} defaultOpen={false}>
               <div className="btn-row">

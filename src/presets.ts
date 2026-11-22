@@ -127,6 +127,7 @@ const DISPLAY_SETTING_KEYS = [
   "showGrid", "background", "globalAnimationPlaying", "crossoverHops", "layers", "currentLayerId",
   "snapToGrid", "showAlignmentGuides", "flowScale", "showFluidLabels", "showNodeLabels", "showPipeLabels",
   "showPipeDiameters", "showFluidColors", "nodeLabelFontSize", "backgroundType",
+  "nodeLabelBackground", "nodeLabelBackgroundOpacity", "showSwitchState", "showValvePathBadge",
 ] as const;
 
 type MutableRecord = Record<string, unknown>;
